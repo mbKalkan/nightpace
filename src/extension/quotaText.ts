@@ -29,12 +29,10 @@ export function quotaText(
   if (!snapshot.available) return undefined;
   const fiveHour = current(snapshot.fiveHour, now);
   const weekly = current(snapshot.weekly, now);
-  const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' });
-  const day = new Intl.DateTimeFormat(locale, {
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // Always 24-hour: shorter in the status bar, and reset times read the same in every locale.
+  const clock = { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const;
+  const time = new Intl.DateTimeFormat(locale, clock);
+  const day = new Intl.DateTimeFormat(locale, { weekday: 'short', ...clock });
   const percent = (window: QuotaWindow) => `${Math.round(window.percent)}%`;
 
   const parts = [

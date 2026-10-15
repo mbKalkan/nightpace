@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - A **Nightpace: Show Timeline** command opens the Nightpace panel.
-- Your plan's 5-hour and weekly quota in the status bar, with the 5-hour reset time; yellow from
+- Your plan's 5-hour and weekly quota in the status bar, with the 5-hour reset time on a 24-hour clock; yellow from
   80% and red from 95% of any limit. The hover adds per-model weekly limits.
 - Nightpace records the quota in the background: it asks Claude Code every 5 minutes while you
   work and hourly otherwise, without sending a prompt or using quota. The
