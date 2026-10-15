@@ -1,0 +1,51 @@
+import { expect, test, type Page } from '@playwright/test';
+import { openPanel, strings } from './harness';
+import { README_NOW, readmeTimeline } from './readmeSample';
+
+// The README's screenshots, from a made-up week (never anyone's real usage). Skipped in ordinary
+// runs: they are pictures rather than checks. Run them with `npm run screenshots`.
+test.skip(!process.env.README_SCREENSHOTS, 'run with npm run screenshots');
+test.use({ viewport: { width: 1200, height: 760 }, deviceScaleFactor: 1, timezoneId: 'UTC' });
+
+const IMAGES = 'docs/images';
+const HOUR = 3_600_000;
+
+/** Lets transitions settle before the picture. */
+const settle = (page: Page) => page.waitForTimeout(400);
+
+test('a week of quota, sessions and tokens, with the sessions below', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 900 });
+  const panel = await openPanel(page, 'dark');
+  await panel.init(readmeTimeline('7d'));
+  await expect(page.locator('.np-chart svg')).toBeVisible();
+  await settle(page);
+  await page.screenshot({ path: `${IMAGES}/timeline-dark.png` });
+  expect(panel.problems).toEqual([]);
+});
+
+test('one working day zoomed in, with every value at a time', async ({ page }) => {
+  const panel = await openPanel(page, 'dark');
+  await panel.init(readmeTimeline('24h', { from: README_NOW - 11.5 * HOUR, to: README_NOW }));
+  const box = (await page.locator('.np-hit').boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.62, box.y + 60);
+  await expect(page.locator('.np-tooltip')).toBeVisible();
+  await settle(page);
+  await page.screenshot({ path: `${IMAGES}/zoom-dark.png` });
+  expect(panel.problems).toEqual([]);
+});
+
+test('tokens by effort level and the projects that used them, in a light theme', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  const panel = await openPanel(page, 'light');
+  await panel.init(readmeTimeline('7d'));
+  await page
+    .getByRole('group', { name: strings.splitLabel })
+    .getByRole('button', { name: strings.splitByEffort })
+    .click();
+  await page.getByRole('button', { name: strings.byProject }).click();
+  await settle(page);
+  await page.screenshot({ path: `${IMAGES}/effort-light.png` });
+  expect(panel.problems).toEqual([]);
+});
