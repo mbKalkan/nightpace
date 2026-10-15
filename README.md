@@ -2,6 +2,8 @@
 
 # Nightpace
 
+[![Visual Studio Marketplace](https://vsmarketplacebadges.dev/version-short/MBKDevStudio.nightpace.svg?label=Marketplace&color=007ec6)](https://marketplace.visualstudio.com/items?itemName=MBKDevStudio.nightpace)
+[![Open VSX](https://img.shields.io/open-vsx/v/MBKDevStudio/nightpace?label=Open%20VSX)](https://open-vsx.org/extension/MBKDevStudio/nightpace)
 [![CI](https://github.com/mbKalkan/nightpace/actions/workflows/ci.yml/badge.svg)](https://github.com/mbKalkan/nightpace/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -13,8 +15,9 @@ requests would have cost at Anthropic's API prices, by model, effort level or to
 it, see which sessions and projects spent it. The quota is in the status bar too, so you know
 where you stand without opening anything.
 
-> **Preview.** The timeline, the session list and the status bar work today. Forecasts from your
-> own history (_"three xhigh sessions run out on Thursday; two last until Sunday"_) are next.
+> **Preview.** The timeline, the API cost, the session list and the status bar work today.
+> Forecasts from your own history (_"three xhigh sessions run out on Thursday; two last until
+> Sunday"_) are next.
 
 ![A week of Claude Code usage in Nightpace: what it would cost at API prices today, over 7 and 30 days and per active day; the 5-hour and weekly quota lines rise with the cost columns, the sessions lane shows up to four sessions at once, and the table lists the sessions that cost the most](docs/images/timeline-dark.png)
 
@@ -77,7 +80,10 @@ limits. Click to open the timeline.
 
 1. Use [Claude Code](https://claude.com/product/claude-code) in VS Code (the Claude Code extension) or in a
    terminal on the same machine.
-2. Install Nightpace. It starts reading Claude Code's logs and recording the quota right away.
+2. Install Nightpace from the
+   [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=MBKDevStudio.nightpace)
+   or [Open VSX](https://open-vsx.org/extension/MBKDevStudio/nightpace). It starts reading Claude
+   Code's logs and recording the quota right away.
 3. Run **Nightpace: Show Timeline**.
 
 Tokens and sessions show from the logs Claude Code has kept (by default the last 30 days). The

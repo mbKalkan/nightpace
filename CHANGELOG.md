@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-15
+
+First preview release.
+
 ### Added
 
 - **Nightpace: Show Timeline** opens the timeline: the 5-hour and weekly quota as observed, the
@@ -32,4 +36,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
-[Unreleased]: https://github.com/mbKalkan/nightpace/commits/main
+[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/mbKalkan/nightpace/releases/tag/v0.1.0
