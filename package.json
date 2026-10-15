@@ -4,6 +4,7 @@
   "description": "%description%",
   "version": "0.0.0",
   "publisher": "MBKDevStudio",
+  "icon": "assets/icon.png",
   "license": "MIT",
   "private": true,
   "repository": {
@@ -31,7 +32,7 @@
   "preview": true,
   "pricing": "Free",
   "galleryBanner": {
-    "color": "#1e2033",
+    "color": "#132f2c",
     "theme": "dark"
   },
   "main": "./dist/extension.js",
@@ -74,6 +75,7 @@
   },
   "files": [
     "dist/**",
+    "assets/icon.png",
     "l10n/**",
     "package.nls*.json",
     "LICENSE",
@@ -93,6 +95,7 @@
     "test:smoke": "node scripts/build.mjs && node scripts/smoke.mjs",
     "fixtures": "node scripts/gen-fixtures.mjs",
     "screenshots": "node scripts/screenshots.mjs",
+    "icon": "node scripts/render-icon.mjs",
     "package": "vsce package --no-dependencies",
     "vscode:prepublish": "node scripts/build.mjs --production"
   },

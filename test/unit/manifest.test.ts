@@ -1,10 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const readJson = (path: string) =>
   JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
 
 const manifest = readJson('package.json') as {
+  icon: string;
+  files: string[];
   engines: { vscode: string };
   extensionKind: string[];
   contributes: { commands: { command: string }[] };
@@ -14,6 +16,11 @@ const manifest = readJson('package.json') as {
 };
 
 describe('extension manifest', () => {
+  it('ships its icon', () => {
+    expect(manifest.files).toContain(manifest.icon);
+    expect(existsSync(manifest.icon)).toBe(true);
+  });
+
   it('targets the same VS Code API version as @types/vscode', () => {
     const engine = manifest.engines.vscode.replace(/^\^/, '');
     const types = manifest.devDependencies['@types/vscode'].replace(/^[\^~]/, '');
