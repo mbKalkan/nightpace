@@ -28,7 +28,13 @@ describe('UsageLog', () => {
     log.add(request({ final: false, output: 10, time: 1000 }));
     log.add(request({ final: false, output: 10, time: 1001 }));
     log.add(request({ final: true, output: 400, time: 1009 }));
-    expect(only(log)).toMatchObject({ final: true, time: 1000, tokens: { output: 400 } });
+    expect(only(log)).toMatchObject({
+      final: true,
+      time: 1000,
+      end: 1009,
+      tokens: { output: 400 },
+    });
+    expect(only(log)).not.toHaveProperty('kind');
   });
 
   it('keeps the final counts when an unfinished line comes later', () => {

@@ -2,9 +2,9 @@ import { appendFileSync, cpSync, mkdtempSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import type { TranscriptEvent, UsageEvent } from '../../src/extension/transcripts/events';
+import type { TranscriptEvent } from '../../src/extension/transcripts/events';
 import { scanTranscripts } from '../../src/extension/transcripts/scanner';
-import { UsageLog } from '../../src/extension/transcripts/usageLog';
+import { UsageLog, type RequestUsage } from '../../src/extension/transcripts/usageLog';
 
 // Synthetic transcripts from scripts/gen-fixtures.mjs.
 const FIXTURES = 'test/fixtures/claude/projects';
@@ -21,7 +21,7 @@ const copyOfFixtures = () => {
 
 async function scan(roots: string[], offsets = new Map<string, number>(), log = new UsageLog()) {
   const result = await scanTranscripts(roots, offsets, (event) => log.add(event));
-  const requests = new Map<string, UsageEvent>([...log.usage()].map((u) => [u.requestId, u]));
+  const requests = new Map<string, RequestUsage>([...log.usage()].map((u) => [u.requestId, u]));
   return { result, requests, log, offsets };
 }
 
@@ -35,6 +35,7 @@ describe('scanTranscripts', () => {
     expect(requests.get('req_r2')).toMatchObject({
       final: true,
       time: Date.UTC(2026, 9, 12, 9, 1, 0),
+      end: Date.UTC(2026, 9, 12, 9, 1, 9),
       tokens: { output: 400, thinking: 120, cacheWrite1h: 300, cacheRead: 6000 },
     });
     // Copied into a forked session: still the session that made it.
