@@ -36,6 +36,7 @@ package with `npm run package` and install the `.vsix` with **Extensions: Instal
 | `test/visual/`   | Browser tests of the panel UI in four color themes (Playwright)   |
 | `test/smoke/`    | End-to-end tests in a real copy of VS Code                        |
 | `scripts/`       | Build and helper scripts                                          |
+| `docs/images/`   | README screenshots (`npm run screenshots`)                        |
 
 The webview never touches the file system or the network: the extension host reads the data and
 sends it with `postMessage`, and the panel runs under a strict Content Security Policy.
@@ -54,7 +55,8 @@ npm run test:smoke   # end-to-end tests in a downloaded copy of VS Code
 ```
 
 If you change the UI, look at the screenshots the browser tests save in `test-results/screens`,
-in both the dark and the light theme.
+in both the dark and the light theme. `npm run screenshots` regenerates the README images in
+`docs/images` from a made-up week of usage.
 
 Test data is synthetic. Never commit real Claude Code logs or usage numbers, yours or anyone
 else's.
