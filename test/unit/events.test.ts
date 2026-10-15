@@ -55,6 +55,27 @@ describe('parseTranscriptLine', () => {
     expect(JSON.stringify(event)).not.toContain('secret');
   });
 
+  it('reads what changes the price: fast mode, US-only inference and web searches', () => {
+    const event = parseTranscriptLine(
+      assistant(
+        {},
+        {
+          usage: {
+            input_tokens: 1,
+            output_tokens: 3,
+            server_tool_use: { web_search_requests: 2, web_fetch_requests: 1 },
+            speed: 'fast',
+            inference_geo: 'us',
+          },
+        },
+      ),
+    );
+    expect(event).toMatchObject({ fast: true, usOnly: true, tokens: { webSearches: 2 } });
+    const standard = parseTranscriptLine(assistant());
+    expect(standard).not.toHaveProperty('fast');
+    expect(standard).not.toHaveProperty('usOnly');
+  });
+
   it('marks a line written while the response was still streaming', () => {
     expect(parseTranscriptLine(assistant({}, { stop_reason: null }))).toMatchObject({
       final: false,

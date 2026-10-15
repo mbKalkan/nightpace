@@ -6,12 +6,14 @@ import {
   type RangeKey,
   type TimelineData,
   type TimeWindow,
+  type TokenMeasure,
   type TokenSplit,
 } from '../shared/protocol';
 import { clampWindow, coversExtent, MIN_WINDOW_MS, scaleWindow } from '../shared/window';
 import { TimelineChart } from './chart/timelineChart';
 import { Formats } from './format';
 import { Breakdown, type Grouping } from './breakdown';
+import { SpendTiles } from './spend';
 import { timelineTable } from './table';
 import { vscode } from './vscodeApi';
 
@@ -23,6 +25,7 @@ interface ViewState {
   table?: boolean;
   grouping?: Grouping;
   split?: TokenSplit;
+  measure?: TokenMeasure;
 }
 
 class Panel {
@@ -32,6 +35,9 @@ class Panel {
   private readonly rangeButtons = new Map<RangeKey, HTMLButtonElement>();
   private readonly viewButton = document.createElement('button');
   private readonly splitButtons = new Map<TokenSplit, HTMLButtonElement>();
+  private readonly measureButtons = new Map<TokenMeasure, HTMLButtonElement>();
+  private readonly measureNote = document.createElement('p');
+  private readonly spend: SpendTiles;
   private readonly zoomLabel = document.createElement('span');
   private readonly zoomInButton = document.createElement('button');
   private readonly zoomOutButton = document.createElement('button');
@@ -72,9 +78,8 @@ class Panel {
     const hint = document.createElement('p');
     hint.className = 'np-note-text';
     hint.textContent = strings.zoomHint;
-    const note = document.createElement('p');
-    note.className = 'np-note-text';
-    note.textContent = strings.tokensNote;
+    this.measureNote.className = 'np-note-text';
+    this.spend = new SpendTiles(strings, this.formats);
     const privacy = document.createElement('p');
     privacy.className = 'np-privacy';
     privacy.textContent = strings.privacy;
@@ -84,7 +89,15 @@ class Panel {
       this.state.grouping === 'project' ? 'project' : 'session',
       (grouping) => this.remember({ grouping }),
     );
-    main.append(header, this.body, hint, note, this.breakdown.element, privacy);
+    main.append(
+      header,
+      this.spend.element,
+      this.body,
+      hint,
+      this.measureNote,
+      this.breakdown.element,
+      privacy,
+    );
     app.replaceChildren(main);
 
     new ResizeObserver(() => this.draw()).observe(this.body);
@@ -151,6 +164,7 @@ class Panel {
     for (const [value, label] of [
       ['model', this.strings.splitByModel],
       ['effort', this.strings.splitByEffort],
+      ['type', this.strings.splitByType],
     ] as const) {
       const button = document.createElement('button');
       button.type = 'button';
@@ -162,7 +176,24 @@ class Panel {
       this.splitButtons.set(value, button);
       split.append(button);
     }
-    row.append(this.zoomLabel, ranges, zoom, this.resetButton, split, this.viewButton);
+    const measure = document.createElement('div');
+    measure.className = 'np-segmented';
+    measure.setAttribute('role', 'group');
+    measure.setAttribute('aria-label', this.strings.measureLabel);
+    measure.title = this.strings.measureLabel;
+    for (const value of ['cost', 'tokens'] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = this.strings.measures[value];
+      button.addEventListener('click', () => {
+        this.remember({ measure: value });
+        this.draw();
+        if (this.data) this.breakdown.render(this.data, this.measure);
+      });
+      this.measureButtons.set(value, button);
+      measure.append(button);
+    }
+    row.append(this.zoomLabel, ranges, zoom, this.resetButton, measure, split, this.viewButton);
     return row;
   }
 
@@ -196,7 +227,8 @@ class Panel {
       button.setAttribute('aria-pressed', String(range === data.range));
     }
     this.draw();
-    this.breakdown.render(data);
+    this.spend.render(data.spend);
+    this.breakdown.render(data, this.measure);
   }
 
   private get table(): boolean {
@@ -204,7 +236,12 @@ class Panel {
   }
 
   private get split(): TokenSplit {
-    return this.state.split === 'effort' ? 'effort' : 'model';
+    const split = this.state.split;
+    return split === 'effort' || split === 'type' ? split : 'model';
+  }
+
+  private get measure(): TokenMeasure {
+    return this.state.measure === 'tokens' ? 'tokens' : 'cost';
   }
 
   /** Kept by VS Code while the panel lives, hidden or not. */
@@ -219,6 +256,10 @@ class Panel {
     for (const [value, button] of this.splitButtons) {
       button.setAttribute('aria-pressed', String(value === this.split));
     }
+    for (const [value, button] of this.measureButtons) {
+      button.setAttribute('aria-pressed', String(value === this.measure));
+    }
+    this.measureNote.textContent = this.strings.measureNotes[this.measure];
     if (!data) return;
     const view = this.view!;
     const zoomed = !coversExtent(view, data.extent);
@@ -227,12 +268,15 @@ class Panel {
     this.zoomInButton.disabled = view.to - view.from <= MIN_WINDOW_MS;
     this.resetButton.hidden = !zoomed;
     if (this.table) {
-      this.body.replaceChildren(timelineTable(data, this.strings, this.formats, this.split));
+      this.body.replaceChildren(
+        timelineTable(data, this.strings, this.formats, this.split, this.measure),
+      );
       return;
     }
     if (this.chart.element.parentElement !== this.body)
       this.body.replaceChildren(this.chart.element);
     this.chart.split = this.split;
+    this.chart.measure = this.measure;
     this.chart.render(data, this.body.clientWidth, this.pending);
   }
 }

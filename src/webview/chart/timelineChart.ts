@@ -1,5 +1,5 @@
 // The timeline: three lanes on one time axis. Plan quota (5-hour and weekly, as observed), the
-// sessions working at once, and weighted tokens by model. Each lane has its own value axis;
+// sessions working at once, and API cost or tokens by model, effort level or token type. Each lane has its own value axis;
 // no lane ever carries two (no dual axes). Colors come from CSS, so a theme change restyles it.
 // Dragging across it, Ctrl + scroll (or a pinch) and the plus and minus keys ask to zoom; the
 // panel decides what that means for the range.
@@ -8,7 +8,7 @@ import type {
   QuotaPoint,
   TimelineData,
   TimeWindow,
-  TokenBucket,
+  TokenMeasure,
   TokenSplit,
 } from '../../shared/protocol';
 import { coversExtent, scaleWindow, shiftWindow } from '../../shared/window';
@@ -49,6 +49,8 @@ export class TimelineChart {
   private plotRight = 0;
   /** What the token lane's columns are split by; the panel sets it before rendering. */
   split: TokenSplit = 'model';
+  /** What the token lane measures; the panel sets it before rendering. */
+  measure: TokenMeasure = 'cost';
   /** Where a drag to zoom started, as a client x coordinate. */
   private dragFrom: number | undefined;
 
@@ -379,16 +381,22 @@ export class TimelineChart {
     plotRight: number,
   ): void {
     const s = this.strings;
-    const series = tokenSeries(data, this.split, s);
+    const series = tokenSeries(data, this.split, this.measure, s);
+    const totals = data.buckets.map((bucket) => bucket[this.measure].total);
+    const sum = totals.reduce((a, b) => a + b, 0);
     this.laneTitle(
       root,
       lane,
-      this.split === 'effort' ? s.tokensByEffortLane : s.tokensLane,
+      s.tokenLanes[this.measure][this.split],
       series.map(({ className, label }) => ({ className, label, shape: 'rect' as const })),
+      sum > 0 ? s.periodTotal.replace('{0}', this.amount(sum)) : undefined,
     );
-    const totals = data.buckets.map(total);
     const ticks = valueTicks(Math.max(...totals, 0), 2);
-    const y = this.valueAxis(root, lane, ticks, (v) => this.formats.amount(v), plotRight);
+    const label =
+      this.measure === 'cost'
+        ? this.formats.axisMoney(ticks[ticks.length - 1])
+        : (v: number) => this.formats.amount(v);
+    const y = this.valueAxis(root, lane, ticks, label, plotRight);
     if (totals.every((value) => value === 0)) {
       root.append(
         svg(
@@ -582,12 +590,22 @@ export class TimelineChart {
     if (quota?.weekly !== undefined)
       rows.push([this.formats.percent(quota.weekly), s.weekly, 'np-s-week']);
     rows.push([String(bucket.maxSessions), s.sessions, 'np-s-sessions']);
-    for (const { value, label, className } of tokenSeries(data, this.split, s)) {
+    for (const { value, label, className } of tokenSeries(data, this.split, this.measure, s)) {
       const amount = value(bucket);
-      if (amount) rows.push([this.formats.amount(amount), label, className]);
+      if (amount) rows.push([this.amount(amount), label, className]);
+    }
+    // Both totals, whichever the lane shows.
+    if (bucket.requests > 0) {
+      rows.push([this.formats.money(bucket.cost.total), s.cost, '']);
+      rows.push([this.formats.amount(bucket.tokens.total), s.tokens, '']);
     }
     rows.push([String(bucket.requests), s.requests, '']);
     return rows;
+  }
+
+  /** An amount in the lane's measure. */
+  private amount(value: number): string {
+    return this.measure === 'cost' ? this.formats.money(value) : this.formats.amount(value);
   }
 
   private heading(index: number): string {
@@ -634,10 +652,6 @@ export function viewOf(data: TimelineData, window: TimeWindow): TimelineData {
       (bucket) => bucket.start + data.bucketMs > window.from && bucket.start < window.to,
     ),
   };
-}
-
-function total(bucket: TokenBucket): number {
-  return Object.values(bucket.byModel).reduce((sum, value) => sum + (value ?? 0), 0);
 }
 
 /** The last observation at or before `time`. */

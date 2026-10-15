@@ -17,7 +17,7 @@ type StoredRequest = [
   duration: number,
   model: string,
   effort: string | null,
-  /** 1: made by a subagent, 2: final output count. */
+  /** 1: made by a subagent, 2: final output count, 4: fast mode, 8: inference kept in the US. */
   flags: number,
   input: number,
   cacheWrite5m: number,
@@ -26,6 +26,8 @@ type StoredRequest = [
   output: number,
   thinking: number,
   project: string | null,
+  /** Only when there were any, so older records stay as they were. */
+  webSearches?: number,
 ];
 
 interface ScanState {
@@ -43,7 +45,10 @@ export function encodeRequest(request: RequestUsage): string {
     request.end - request.time,
     request.model,
     request.effort ?? null,
-    (request.sidechain ? 1 : 0) | (request.final ? 2 : 0),
+    (request.sidechain ? 1 : 0) |
+      (request.final ? 2 : 0) |
+      (request.fast ? 4 : 0) |
+      (request.usOnly ? 8 : 0),
     tokens.input,
     tokens.cacheWrite5m,
     tokens.cacheWrite1h,
@@ -52,6 +57,7 @@ export function encodeRequest(request: RequestUsage): string {
     tokens.thinking,
     request.project ?? null,
   ];
+  if (tokens.webSearches) record.push(tokens.webSearches);
   return JSON.stringify(record);
 }
 
@@ -62,9 +68,10 @@ export function decodeRequest(line: string): RequestUsage | undefined {
   } catch {
     return undefined; // A line cut short when VS Code closed mid-write.
   }
-  if (!Array.isArray(record) || record.length !== 14) return undefined;
+  if (!Array.isArray(record) || (record.length !== 14 && record.length !== 15)) return undefined;
   const [requestId, sessionId, time, duration, model, effort, flags, ...rest] = record;
-  const [input, cacheWrite5m, cacheWrite1h, cacheRead, output, thinking, project] = rest;
+  const [input, cacheWrite5m, cacheWrite1h, cacheRead, output, thinking, project, webSearches] =
+    rest;
   if (typeof requestId !== 'string' || typeof sessionId !== 'string') return undefined;
   if (typeof time !== 'number' || typeof duration !== 'number') return undefined;
   return {
@@ -76,8 +83,18 @@ export function decodeRequest(line: string): RequestUsage | undefined {
     ...(effort !== null && { effort }),
     sidechain: (flags & 1) !== 0,
     final: (flags & 2) !== 0,
+    ...((flags & 4) !== 0 && { fast: true }),
+    ...((flags & 8) !== 0 && { usOnly: true }),
     ...(project !== null && { project }),
-    tokens: { input, cacheWrite5m, cacheWrite1h, cacheRead, output, thinking },
+    tokens: {
+      input,
+      cacheWrite5m,
+      cacheWrite1h,
+      cacheRead,
+      output,
+      thinking,
+      ...(typeof webSearches === 'number' && webSearches > 0 && { webSearches }),
+    },
   };
 }
 

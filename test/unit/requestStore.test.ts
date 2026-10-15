@@ -54,6 +54,11 @@ describe('request records', () => {
     for (const original of [
       request(),
       request({ effort: undefined, project: undefined, sidechain: true, final: false }),
+      request({
+        fast: true,
+        usOnly: true,
+        tokens: { ...request().tokens, webSearches: 2 },
+      }),
     ]) {
       expect(decodeRequest(encodeRequest(original))).toEqual(original);
     }

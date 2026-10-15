@@ -21,15 +21,39 @@ export function panelStrings(t: Translate): PanelStrings {
     weekly: t('Weekly'),
     sessionsLane: t('Sessions working at once'),
     sessions: t('Sessions'),
-    tokensLane: t('Tokens by model'),
-    tokensByEffortLane: t('Tokens by effort level'),
+    tokenLanes: {
+      cost: {
+        model: t('API cost by model'),
+        effort: t('API cost by effort level'),
+        type: t('API cost by token type'),
+      },
+      tokens: {
+        model: t('Tokens by model'),
+        effort: t('Tokens by effort level'),
+        type: t('Tokens by type'),
+      },
+    },
     noEffort: t('Not recorded'),
-    splitLabel: t('Split tokens by'),
+    splitLabel: t('Split by'),
     splitByModel: t('Model'),
     splitByEffort: t('Effort'),
-    tokensNote: t(
-      'Weighted like API prices: cache reads count a tenth, cache writes 1.25 or 2 times, output 5 times.',
-    ),
+    splitByType: t('Type'),
+    measureLabel: t('Show'),
+    measures: { cost: t('Cost'), tokens: t('Tokens') },
+    measureNotes: {
+      cost: t(
+        "Cost at Anthropic's API list prices for each model, as if the requests had been paid per token instead of through your plan.",
+      ),
+      tokens: t(
+        'Token counts as Claude Code logged them. Most are cache reads, which cost a tenth of input or less.',
+      ),
+    },
+    tokenTypes: {
+      input: t('Input'),
+      cacheWrite: t('Cache writes'),
+      cacheRead: t('Cache reads'),
+      output: t('Output'),
+    },
     models: {
       opus: 'Opus',
       fable: 'Fable',
@@ -37,6 +61,14 @@ export function panelStrings(t: Translate): PanelStrings {
       haiku: 'Haiku',
       other: t('Other models'),
     },
+    spendTitle: t('Cost at API prices'),
+    spendToday: t('Today'),
+    spendLast7Days: t('Last 7 days'),
+    spendLast30Days: t('Last 30 days'),
+    spendPerActiveDay: t('Per active day'),
+    spendUnpriced: t('{0} requests of models without a known price are not counted.', '{0}'),
+    cost: t('API cost'),
+    periodTotal: t('{0} in this period', '{0}'),
     time: t('Time'),
     requests: t('Requests'),
     noQuotaYet: t(
@@ -44,7 +76,7 @@ export function panelStrings(t: Translate): PanelStrings {
     ),
     quotaSince: t('Quota recorded since {0}', '{0}'),
     chartLabel: t(
-      'Timeline of plan quota, sessions working at once and tokens by model. Use the arrow keys to move through time, plus and minus to zoom.',
+      'Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom.',
     ),
     breakdownTitle: t('Where the tokens went'),
     bySession: t('By session'),

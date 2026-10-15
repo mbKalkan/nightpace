@@ -1,11 +1,8 @@
 // A made-up week of Claude Code use for the README's screenshots: busier weekdays, a quiet
 // weekend, one to four sessions at a time, and quota readings that follow the tokens (the 5-hour
 // window opens with the first request after the last one ran out; the weekly limit resets once).
-import {
-  buildTimeline,
-  weightedTokens,
-  type TimelineRequest,
-} from '../../src/extension/model/timeline';
+import { buildTimeline, type TimelineRequest } from '../../src/extension/model/timeline';
+import { requestCost } from '../../src/extension/model/pricing';
 import type { QuotaSnapshot } from '../../src/extension/quota/snapshot';
 import type { RangeKey, TimelineData, TimeWindow } from '../../src/shared/protocol';
 
@@ -116,7 +113,7 @@ export function readmeRequests(): TimelineRequest[] {
  */
 export function readmeSnapshots(requests: TimelineRequest[]): QuotaSnapshot[] {
   const sorted = [...requests].sort((a, b) => a.time - b.time);
-  const weights = sorted.map((request) => weightedTokens(request.tokens));
+  const weights = sorted.map((request) => requestCost(request)?.total ?? 0);
 
   // 5-hour windows: each opens with the first request after the previous one ended.
   const windows: { start: number; total: number }[] = [];

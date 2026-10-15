@@ -34,18 +34,16 @@ test('one working day zoomed in, with every value at a time', async ({ page }) =
   expect(panel.problems).toEqual([]);
 });
 
-test('tokens by effort level and the projects that used them, in a light theme', async ({
-  page,
-}) => {
+test('cost by token type and the projects that spent it, in a light theme', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   const panel = await openPanel(page, 'light');
   await panel.init(readmeTimeline('7d'));
   await page
     .getByRole('group', { name: strings.splitLabel })
-    .getByRole('button', { name: strings.splitByEffort })
+    .getByRole('button', { name: strings.splitByType })
     .click();
   await page.getByRole('button', { name: strings.byProject }).click();
   await settle(page);
-  await page.screenshot({ path: `${IMAGES}/effort-light.png` });
+  await page.screenshot({ path: `${IMAGES}/types-light.png` });
   expect(panel.problems).toEqual([]);
 });

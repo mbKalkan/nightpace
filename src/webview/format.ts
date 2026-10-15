@@ -10,6 +10,9 @@ export class Formats {
   private readonly day: Intl.DateTimeFormat;
   private readonly date: Intl.DateTimeFormat;
   private readonly compact: Intl.NumberFormat;
+  private readonly dollars: Intl.NumberFormat;
+  private readonly cents: Intl.NumberFormat;
+  private readonly compactDollars: Intl.NumberFormat;
   private readonly hours: Intl.NumberFormat;
   private readonly minutes: Intl.NumberFormat;
 
@@ -20,6 +23,14 @@ export class Formats {
     this.day = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' });
     this.date = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
     this.compact = new Intl.NumberFormat(locale, {
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    });
+    const usd = { style: 'currency', currency: 'USD' } as const;
+    this.cents = new Intl.NumberFormat(locale, { ...usd, minimumFractionDigits: 2 });
+    this.dollars = new Intl.NumberFormat(locale, { ...usd, maximumFractionDigits: 0 });
+    this.compactDollars = new Intl.NumberFormat(locale, {
+      ...usd,
       notation: 'compact',
       maximumFractionDigits: 1,
     });
@@ -67,6 +78,18 @@ export class Formats {
   /** `1.2M` */
   amount(value: number): string {
     return this.compact.format(value);
+  }
+
+  /** `$0.42`, `$312.45`, `$1,240`: cents while they matter. */
+  money(value: number): string {
+    return value < 1000 ? this.cents.format(value) : this.dollars.format(value);
+  }
+
+  /** Labels for an axis up to `max`: cents on a small scale, `$1.2K` on a large one. */
+  axisMoney(max: number): (value: number) => string {
+    if (max < 10) return (value) => this.cents.format(value);
+    if (max < 10_000) return (value) => this.dollars.format(value);
+    return (value) => this.compactDollars.format(value);
   }
 
   /** `2h 15m`, to the minute. */

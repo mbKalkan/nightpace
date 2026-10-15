@@ -1,20 +1,24 @@
-// Where the tokens of the window shown went: by session or by project, as a sortable table.
+// Where the cost and tokens of the window shown went: by session or by project, as a sortable
+// table.
 import {
   MODEL_FAMILIES,
+  NO_EFFORT,
+  type Amounts,
   type ModelFamily,
   type PanelStrings,
   type SessionSummary,
   type TimelineData,
+  type TokenMeasure,
 } from '../shared/protocol';
 import { modelClass } from './chart/series';
 import type { Formats } from './format';
 
 /** Rows shown before "Show all". */
 const FIRST_ROWS = 12;
-/** Models and effort levels below this share of a row's tokens are left out of its text. */
+/** Models and effort levels below this share of a row's amount are left out of its text. */
 const MENTION_SHARE = 0.05;
-/** The table starts in token order, most first. */
-const TOKENS_COLUMN = 4;
+/** The columns of the two measures; the table starts sorted by the one shown, most first. */
+const MEASURE_COLUMNS: Record<TokenMeasure, number> = { cost: 4, tokens: 5 };
 
 export type Grouping = 'session' | 'project';
 
@@ -26,9 +30,8 @@ interface Row {
   sessions: number;
   active: number;
   requests: number;
-  tokens: number;
-  byModel: Partial<Record<ModelFamily, number>>;
-  byEffort: Record<string, number>;
+  cost: Amounts;
+  tokens: Amounts;
 }
 
 interface Column {
@@ -41,6 +44,7 @@ interface Column {
 }
 
 interface CellContext {
+  /** Of the measure shown, over every row. */
   total: number;
   max: number;
 }
@@ -50,7 +54,8 @@ export class Breakdown {
   private readonly groupButtons = new Map<Grouping, HTMLButtonElement>();
   private readonly content = document.createElement('div');
   private data: TimelineData | undefined;
-  private sortColumn = TOKENS_COLUMN;
+  private measure: TokenMeasure = 'cost';
+  private sortColumn = MEASURE_COLUMNS.cost;
   private ascending = false;
   private expanded = false;
 
@@ -82,7 +87,7 @@ export class Breakdown {
       button.addEventListener('click', () => {
         if (this.grouping === grouping) return;
         this.grouping = grouping;
-        this.sortColumn = TOKENS_COLUMN;
+        this.sortColumn = MEASURE_COLUMNS[this.measure];
         this.ascending = false;
         this.expanded = false;
         this.onGrouping(grouping);
@@ -95,7 +100,12 @@ export class Breakdown {
     this.element.append(header, this.content);
   }
 
-  render(data: TimelineData): void {
+  render(data: TimelineData, measure: TokenMeasure): void {
+    // Sorted by the measure shown, the order follows the measure.
+    if (measure !== this.measure && this.sortColumn === MEASURE_COLUMNS[this.measure]) {
+      this.sortColumn = MEASURE_COLUMNS[measure];
+    }
+    this.measure = measure;
     this.data = data;
     this.draw();
   }
@@ -121,9 +131,10 @@ export class Breakdown {
       const [x, y] = [sortBy(a), sortBy(b)];
       return (typeof x === 'string' ? x.localeCompare(String(y)) : x - (y as number)) * direction;
     });
+    const measure = this.measure;
     const context: CellContext = {
-      total: rows.reduce((sum, row) => sum + row.tokens, 0),
-      max: Math.max(...rows.map((row) => row.tokens)),
+      total: rows.reduce((sum, row) => sum + row[measure].total, 0),
+      max: Math.max(...rows.map((row) => row[measure].total)),
     };
     const shown = this.expanded ? rows : rows.slice(0, FIRST_ROWS);
 
@@ -196,6 +207,7 @@ export class Breakdown {
   private columns(data: TimelineData): Column[] {
     const s = this.strings;
     const f = this.formats;
+    const measure = this.measure;
     const long = data.to - data.from > 26 * 3_600_000;
     const first: Column =
       this.grouping === 'session'
@@ -220,48 +232,65 @@ export class Breakdown {
       { heading: s.active, value: (row) => row.active, cell: (row) => f.duration(row.active) },
       { heading: s.requests, value: (row) => row.requests, cell: (row) => String(row.requests) },
       {
-        heading: s.tokens,
-        value: (row) => row.tokens,
-        cell: (row, context) => this.tokenCell(row, context),
+        heading: s.cost,
+        value: (row) => row.cost.total,
+        cell: (row, context) => this.amountCell(row, context, 'cost'),
       },
-      { heading: s.share, cell: (row, { total }) => f.share(row.tokens / total) },
+      {
+        heading: s.tokens,
+        value: (row) => row.tokens.total,
+        cell: (row, context) => this.amountCell(row, context, 'tokens'),
+      },
+      {
+        heading: s.share,
+        cell: (row, { total }) => f.share(total > 0 ? row[measure].total / total : 0),
+      },
       {
         heading: s.modelsColumn,
         text: true,
         cell: (row) =>
-          mentioned(row.byModel, row.tokens)
+          mentioned(row[measure].byModel, row[measure].total)
             .map((model) => s.models[model as ModelFamily])
             .join(', '),
       },
       {
         heading: s.effort,
         text: true,
-        cell: (row) => mentioned(row.byEffort, row.tokens).join(', ') || '—',
+        cell: (row) =>
+          mentioned(row[measure].byEffort, row[measure].total)
+            .filter((effort) => effort !== NO_EFFORT)
+            .join(', ') || '—',
       },
     ];
   }
 
-  /** The amount, after a bar as long as the row's share of the largest row, split by model. */
-  private tokenCell(row: Row, { max }: CellContext): Node {
+  /**
+   * An amount; in the measure shown, after a bar as long as the row's share of the largest row,
+   * split by model.
+   */
+  private amountCell(row: Row, { max }: CellContext, measure: TokenMeasure): Node {
+    const value = row[measure].total;
+    const text = measure === 'cost' ? this.formats.money(value) : this.formats.amount(value);
+    if (measure !== this.measure) return document.createTextNode(text);
     const wrapper = document.createElement('span');
     wrapper.className = 'np-token-cell';
     const bar = document.createElement('span');
     bar.className = 'np-mini-bar';
     bar.setAttribute('aria-hidden', 'true');
-    bar.style.width = `${Math.max(2, (row.tokens / max) * 100)}%`;
+    bar.style.width = `${Math.max(2, max > 0 ? (value / max) * 100 : 0)}%`;
     for (const model of MODEL_FAMILIES) {
-      const value = row.byModel[model];
-      if (!value) continue;
-      const part = document.createElement('span');
-      part.className = modelClass(model);
-      part.style.flexGrow = String(value);
-      bar.append(part);
+      const part = row[measure].byModel[model];
+      if (!part) continue;
+      const segment = document.createElement('span');
+      segment.className = modelClass(model);
+      segment.style.flexGrow = String(part);
+      bar.append(segment);
     }
     const track = document.createElement('span');
     track.className = 'np-mini-track';
     track.append(bar);
     const amount = document.createElement('span');
-    amount.textContent = this.formats.amount(row.tokens);
+    amount.textContent = text;
     wrapper.append(track, amount);
     return wrapper;
   }
@@ -270,7 +299,7 @@ export class Breakdown {
 /** The keys holding at least `MENTION_SHARE` of `total`, largest first. */
 function mentioned(values: Record<string, number | undefined>, total: number): string[] {
   return Object.entries(values)
-    .filter(([, value]) => (value ?? 0) >= total * MENTION_SHARE)
+    .filter(([, value]) => (value ?? 0) > 0 && (value ?? 0) >= total * MENTION_SHARE)
     .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
     .map(([key]) => key);
 }
@@ -289,9 +318,8 @@ function sessionRows(sessions: readonly SessionSummary[]): Row[] {
     sessions: 1,
     active: session.active,
     requests: session.requests,
+    cost: session.cost,
     tokens: session.tokens,
-    byModel: session.byModel,
-    byEffort: session.byEffort,
   }));
 }
 
@@ -309,9 +337,8 @@ function projectRows(data: TimelineData): Row[] {
         sessions: 0,
         active: 0,
         requests: 0,
-        tokens: 0,
-        byModel: {},
-        byEffort: {},
+        cost: emptyAmounts(),
+        tokens: emptyAmounts(),
       };
       byFolder.set(key, row);
     }
@@ -319,13 +346,22 @@ function projectRows(data: TimelineData): Row[] {
     row.sessions++;
     row.active += session.active;
     row.requests += session.requests;
-    row.tokens += session.tokens;
-    for (const [model, value] of Object.entries(session.byModel)) {
-      row.byModel[model as ModelFamily] = (row.byModel[model as ModelFamily] ?? 0) + (value ?? 0);
-    }
-    for (const [effort, value] of Object.entries(session.byEffort)) {
-      row.byEffort[effort] = (row.byEffort[effort] ?? 0) + value;
+    addAmounts(row.cost, session.cost);
+    addAmounts(row.tokens, session.tokens);
+  }
+  return [...byFolder.values()];
+}
+
+function emptyAmounts(): Amounts {
+  return { total: 0, byModel: {}, byEffort: {}, byType: {} };
+}
+
+function addAmounts(into: Amounts, from: Amounts): void {
+  into.total += from.total;
+  for (const key of ['byModel', 'byEffort', 'byType'] as const) {
+    const target = into[key] as Record<string, number | undefined>;
+    for (const [name, value] of Object.entries(from[key])) {
+      target[name] = (target[name] ?? 0) + (value ?? 0);
     }
   }
-  return [...byFolder.values()].sort((a, b) => b.tokens - a.tokens);
 }
