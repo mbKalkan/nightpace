@@ -6,6 +6,7 @@ const clock = { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const;
 export class Formats {
   private readonly time: Intl.DateTimeFormat;
   private readonly dayTime: Intl.DateTimeFormat;
+  private readonly dateTime: Intl.DateTimeFormat;
   private readonly day: Intl.DateTimeFormat;
   private readonly date: Intl.DateTimeFormat;
   private readonly compact: Intl.NumberFormat;
@@ -13,6 +14,7 @@ export class Formats {
   constructor(locale: string) {
     this.time = new Intl.DateTimeFormat(locale, clock);
     this.dayTime = new Intl.DateTimeFormat(locale, { weekday: 'short', ...clock });
+    this.dateTime = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', ...clock });
     this.day = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' });
     this.date = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
     this.compact = new Intl.NumberFormat(locale, {
@@ -29,6 +31,17 @@ export class Formats {
   /** `Thu 14:30` */
   dayClock(time: number): string {
     return this.dayTime.format(time);
+  }
+
+  /** `Oct 15, 14:30` */
+  dateClock(time: number): string {
+    return this.dateTime.format(time);
+  }
+
+  /** `Oct 15, 08:30 – 20:40`, with the second date only when it differs. */
+  window(from: number, to: number): string {
+    const sameDay = new Date(from).toDateString() === new Date(to).toDateString();
+    return `${this.dateClock(from)} – ${sameDay ? this.clock(to) : this.dateClock(to)}`;
   }
 
   /** An axis label: the hour within a day, the day within a week, the date within a month. */

@@ -39,7 +39,11 @@ export function panelStrings(t: Translate): PanelStrings {
     ),
     quotaSince: t('Quota recorded since {0}', '{0}'),
     chartLabel: t(
-      'Timeline of plan quota, sessions working at once and tokens by model. Use the arrow keys to move through time.',
+      'Timeline of plan quota, sessions working at once and tokens by model. Use the arrow keys to move through time, plus and minus to zoom.',
     ),
+    zoomIn: t('Zoom in'),
+    zoomOut: t('Zoom out'),
+    resetZoom: t('Whole range'),
+    zoomHint: t('Drag across the chart to zoom in. Ctrl + scroll or pinch zooms in and out.'),
   };
 }

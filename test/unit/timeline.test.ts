@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bucketFor,
   buildTimeline,
   modelFamily,
   RANGE_SPANS,
@@ -66,6 +67,16 @@ describe('modelFamily', () => {
   });
 });
 
+describe('bucketFor', () => {
+  it('keeps every range and zoom within about 60 columns', () => {
+    expect(bucketFor(RANGE_SPANS['24h'])).toBe(30 * MIN);
+    expect(bucketFor(RANGE_SPANS['7d'])).toBe(3 * HOUR);
+    expect(bucketFor(RANGE_SPANS['30d'])).toBe(12 * HOUR);
+    expect(bucketFor(4 * HOUR)).toBe(5 * MIN);
+    expect(bucketFor(30 * MIN)).toBe(MIN);
+  });
+});
+
 describe('buildTimeline', () => {
   it('splits the last 24 hours into half-hour buckets by model', () => {
     const data = buildTimeline({
@@ -82,7 +93,8 @@ describe('buildTimeline', () => {
     });
     expect(data.from).toBe(now - 24 * HOUR);
     expect(data.to).toBe(now);
-    expect(data.bucketMs).toBe(RANGE_SPANS['24h'].bucket);
+    expect(data.bucketMs).toBe(30 * MIN);
+    expect(data.extent).toEqual({ from: data.from, to: now });
     expect(data.buckets).toHaveLength(48);
     expect(data.buckets[47]).toMatchObject({
       byModel: { opus: 100, sonnet: 50 },
@@ -132,5 +144,51 @@ describe('buildTimeline', () => {
     expect(data.quota).toEqual([]);
     expect(data.recordingSince).toBeUndefined();
     expect(data.buckets.every((bucket) => bucket.requests === 0)).toBe(true);
+  });
+
+  it('zooms into a window with finer buckets that line up with the range', () => {
+    const data = buildTimeline({
+      range: '7d',
+      now,
+      zoom: { from: now - 5 * HOUR - 7 * MIN, to: now - HOUR + 3 * MIN },
+      requests: [request('a', 2 * 60), request('a', 2 * 60 - 2), request('b', 10 * 60)],
+      snapshots: [],
+    });
+    expect(data.extent).toEqual({ from: now - 7 * 24 * HOUR, to: now });
+    expect(data.bucketMs).toBe(5 * MIN);
+    expect(data.from).toBe(now - 5 * HOUR - 10 * MIN);
+    expect(data.to).toBe(now - HOUR + 5 * MIN);
+    expect(data.buckets).toHaveLength(51);
+    expect(data.buckets.reduce((sum, bucket) => sum + bucket.requests, 0)).toBe(2);
+    expect(data.sessions[0]).toEqual({ time: data.from, count: 0 });
+  });
+
+  it('keeps a zoom within the range and no shorter than half an hour', () => {
+    const data = buildTimeline({
+      range: '24h',
+      now,
+      zoom: { from: now - MIN, to: now + 2 * MIN },
+      requests: [],
+      snapshots: [],
+    });
+    expect(data.to).toBe(now);
+    expect(data.from).toBe(now - 30 * MIN);
+    expect(data.bucketMs).toBe(MIN);
+  });
+
+  it('keeps the quota reading just after a zoomed window, so the line reaches its edge', () => {
+    const data = buildTimeline({
+      range: '24h',
+      now,
+      zoom: { from: now - 6 * HOUR, to: now - 3 * HOUR },
+      requests: [],
+      snapshots: [
+        snapshot(8 * 60, 1, 1),
+        snapshot(5 * 60, 2, 2),
+        snapshot(2 * 60, 3, 3),
+        snapshot(60, 4, 4),
+      ],
+    });
+    expect(data.quota.map((point) => point.fiveHour)).toEqual([1, 2, 3]);
   });
 });

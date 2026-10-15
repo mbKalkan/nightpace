@@ -72,8 +72,34 @@ body {
 
 .np-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
+}
+
+.np-zoom-label {
+  color: var(--vscode-descriptionForeground);
+  font-variant-numeric: tabular-nums;
+}
+
+.np-zoom-label:empty {
+  display: none;
+}
+
+.np-controls .np-zoom-step {
+  min-width: 28px;
+  padding: 3px 8px;
+}
+
+.np-controls button:disabled {
+  opacity: 0.5;
+  cursor: default;
+  background: transparent;
+  outline: none;
+}
+
+.np-controls button[hidden] {
+  display: none;
 }
 
 .np-segmented {
@@ -242,6 +268,17 @@ body {
 .np-hit {
   fill: transparent;
   cursor: crosshair;
+  /* Sideways drags select a window to zoom into; up and down still scroll the panel. */
+  touch-action: pan-y;
+}
+
+.np-brush {
+  fill: var(--vscode-focusBorder);
+  fill-opacity: 0.15;
+  stroke: var(--vscode-focusBorder);
+  stroke-width: 1;
+  pointer-events: none;
+  shape-rendering: crispEdges;
 }
 
 .np-crosshair {

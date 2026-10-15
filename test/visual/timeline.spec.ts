@@ -3,6 +3,7 @@ import { lowestTextContrast } from './contrast';
 import { openPanel, strings } from './harness';
 import { sampleTimeline } from './sampleTimeline';
 import type { ThemeName } from './themes';
+import type { TimeWindow } from '../../src/shared/protocol';
 
 const SCREENS = 'test-results/screens';
 
@@ -151,5 +152,93 @@ test('says it is reading the logs until the first timeline arrives', async ({ pa
   await expect(page.getByText(strings.loading)).toBeVisible();
   await panel.post({ type: 'timeline', data: sampleTimeline('24h') });
   await expect(page.getByText(strings.loading)).toBeHidden();
+  expect(panel.problems).toEqual([]);
+});
+
+const zoomRequests = async (panel: Awaited<ReturnType<typeof openPanel>>) =>
+  (await panel.sent()).filter((message) => message.type === 'zoom') as Array<{
+    type: 'zoom';
+    window?: TimeWindow;
+  }>;
+
+test('zooms into a window dragged across the chart, and back out', async ({ page }) => {
+  const panel = await openPanel(page, 'dark');
+  const whole = sampleTimeline('24h');
+  await panel.init(whole);
+  const box = (await page.locator('.np-hit').boundingBox())!;
+  const y = box.y + 60;
+  await page.mouse.move(box.x + box.width * 0.55, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.7, y, { steps: 5 });
+  await expect(page.locator('.np-brush')).toBeVisible();
+  await page.mouse.up();
+  await expect(page.locator('.np-brush')).toHaveCount(0);
+
+  // Shown at once from what the panel has, then asked of the host.
+  await expect(page.locator('.np-zoom-label')).not.toBeEmpty();
+  await expect(page.getByRole('button', { name: strings.resetZoom })).toBeVisible();
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
+  const [request] = await zoomRequests(panel);
+  const span = whole.to - whole.from;
+  expect(request.window!.from).toBeGreaterThan(whole.from + span * 0.5);
+  expect(request.window!.to).toBeLessThan(whole.from + span * 0.75);
+
+  await panel.post({ type: 'timeline', data: sampleTimeline('24h', true, request.window) });
+  expect(await page.locator('.np-col').count()).toBeGreaterThan(20);
+  await page.screenshot({ path: `${SCREENS}/timeline-zoom-dark.png` });
+
+  await page.getByRole('button', { name: strings.resetZoom }).click();
+  await expect.poll(async () => (await zoomRequests(panel)).at(-1)).toEqual({ type: 'zoom' });
+  await panel.post({ type: 'timeline', data: whole });
+  await expect(page.getByRole('button', { name: strings.resetZoom })).toBeHidden();
+  await expect(page.getByRole('button', { name: strings.zoomOut })).toBeDisabled();
+  expect(panel.problems).toEqual([]);
+});
+
+test('zooms around the pointer with Ctrl + scroll and pans sideways', async ({ page }) => {
+  const panel = await openPanel(page, 'dark');
+  const whole = sampleTimeline('7d');
+  await panel.init(whole);
+  const box = (await page.locator('.np-hit').boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.9, box.y + 60);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -400);
+  await page.keyboard.up('Control');
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
+  const [zoomed] = await zoomRequests(panel);
+  const span = whole.to - whole.from;
+  expect(zoomed.window!.to - zoomed.window!.from).toBeLessThan(span * 0.6);
+  // The time under the pointer stays under it.
+  const pointer = whole.from + span * 0.9;
+  const share = (pointer - zoomed.window!.from) / (zoomed.window!.to - zoomed.window!.from);
+  expect(share).toBeCloseTo(0.9, 1);
+
+  const shown = sampleTimeline('7d', true, zoomed.window);
+  await panel.post({ type: 'timeline', data: shown });
+  await page.mouse.wheel(-300, 0);
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(2);
+  const panned = (await zoomRequests(panel))[1].window!;
+  // Earlier by as long as it was, no shorter or longer.
+  expect(panned.from).toBeLessThan(shown.from);
+  expect(panned.to - panned.from).toBe(shown.to - shown.from);
+  expect(panel.problems).toEqual([]);
+});
+
+test('zooms with the plus and minus keys and the buttons', async ({ page }) => {
+  const panel = await openPanel(page, 'light');
+  const whole = sampleTimeline('24h');
+  await panel.init(whole);
+  await page.getByRole('group', { name: strings.chartLabel }).focus();
+  await page.keyboard.press('End');
+  await page.keyboard.press('+');
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
+  const [byKey] = await zoomRequests(panel);
+  expect(byKey.window!.to).toBe(whole.to);
+  expect(byKey.window!.to - byKey.window!.from).toBeCloseTo((whole.to - whole.from) / 2, -3);
+  await panel.post({ type: 'timeline', data: sampleTimeline('24h', true, byKey.window) });
+  await page.screenshot({ path: `${SCREENS}/timeline-zoom-light.png` });
+
+  await page.getByRole('button', { name: strings.zoomOut }).click();
+  await expect.poll(async () => (await zoomRequests(panel)).at(-1)).toEqual({ type: 'zoom' });
   expect(panel.problems).toEqual([]);
 });

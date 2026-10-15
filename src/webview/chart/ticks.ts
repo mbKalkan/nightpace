@@ -1,10 +1,25 @@
 // Axis ticks: round values a reader can take in at a glance.
 
-const HOUR = 3_600_000;
+const MIN = 60_000;
+const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
-const TIME_STEPS = [HOUR, 2 * HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 5 * DAY, 7 * DAY];
+const TIME_STEPS = [
+  5 * MIN,
+  10 * MIN,
+  15 * MIN,
+  30 * MIN,
+  HOUR,
+  2 * HOUR,
+  3 * HOUR,
+  6 * HOUR,
+  12 * HOUR,
+  DAY,
+  2 * DAY,
+  5 * DAY,
+  7 * DAY,
+];
 
-/** Tick times on local hour or midnight boundaries, about `target` of them across the range. */
+/** Tick times on local minute, hour or midnight boundaries, about `target` of them. */
 export function timeTicks(
   from: number,
   to: number,
@@ -15,6 +30,9 @@ export function timeTicks(
   const start = new Date(from);
   if (step >= DAY) {
     start.setHours(0, 0, 0, 0);
+  } else if (step < HOUR) {
+    start.setSeconds(0, 0);
+    start.setMinutes(Math.ceil(start.getMinutes() / (step / MIN)) * (step / MIN));
   } else {
     start.setMinutes(0, 0, 0);
     start.setHours(Math.ceil(start.getHours() / (step / HOUR)) * (step / HOUR));

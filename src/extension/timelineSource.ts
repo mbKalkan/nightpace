@@ -1,4 +1,4 @@
-import type { RangeKey, TimelineData } from '../shared/protocol';
+import type { RangeKey, TimelineData, TimeWindow } from '../shared/protocol';
 import { buildTimeline } from './model/timeline';
 import type { QuotaStore } from './store/quotaStore';
 import { scanTranscripts } from './transcripts/scanner';
@@ -18,11 +18,12 @@ export class TimelineSource {
     private readonly store: QuotaStore,
   ) {}
 
-  async timeline(range: RangeKey, now = Date.now()): Promise<TimelineData> {
+  async timeline(range: RangeKey, zoom?: TimeWindow, now = Date.now()): Promise<TimelineData> {
     await this.scan();
     return buildTimeline({
       range,
       now,
+      zoom,
       requests: this.log.usage(),
       snapshots: await this.store.snapshots(),
     });

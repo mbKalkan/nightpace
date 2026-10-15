@@ -2,7 +2,7 @@
 // three sessions, mostly Opus with some Fable and Sonnet, and the quota climbing through a reset.
 import { buildTimeline, type TimelineRequest } from '../../src/extension/model/timeline';
 import type { QuotaSnapshot } from '../../src/extension/quota/snapshot';
-import type { RangeKey, TimelineData } from '../../src/shared/protocol';
+import type { RangeKey, TimelineData, TimeWindow } from '../../src/shared/protocol';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -86,10 +86,15 @@ export function sampleSnapshots(): QuotaSnapshot[] {
   return snapshots;
 }
 
-export function sampleTimeline(range: RangeKey = '24h', withQuota = true): TimelineData {
+export function sampleTimeline(
+  range: RangeKey = '24h',
+  withQuota = true,
+  zoom?: TimeWindow,
+): TimelineData {
   return buildTimeline({
     range,
     now: SAMPLE_NOW,
+    zoom,
     requests: sampleRequests(),
     snapshots: withQuota ? sampleSnapshots() : [],
   });

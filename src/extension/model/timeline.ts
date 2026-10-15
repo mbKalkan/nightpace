@@ -5,20 +5,45 @@ import type {
   QuotaPoint,
   RangeKey,
   TimelineData,
+  TimeWindow,
   TokenBucket,
 } from '../../shared/protocol';
 import { MODEL_FAMILIES } from '../../shared/protocol';
+import { clampWindow } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
 import { concurrency, sessionIntervals, type Step, type TimedRequest } from './activity';
 
-const HOUR = 3_600_000;
+const MIN = 60_000;
+const HOUR = 60 * MIN;
 
-export const RANGE_SPANS: Record<RangeKey, { span: number; bucket: number }> = {
-  '24h': { span: 24 * HOUR, bucket: HOUR / 2 },
-  '7d': { span: 7 * 24 * HOUR, bucket: 3 * HOUR },
-  '30d': { span: 30 * 24 * HOUR, bucket: 12 * HOUR },
+export const RANGE_SPANS: Record<RangeKey, number> = {
+  '24h': 24 * HOUR,
+  '7d': 7 * 24 * HOUR,
+  '30d': 30 * 24 * HOUR,
 };
+
+const MAX_BUCKETS = 60;
+// Each size divides the next ones it can meet within a range, so a zoomed window's buckets
+// line up with the whole range's.
+const BUCKET_SIZES = [
+  MIN,
+  2 * MIN,
+  5 * MIN,
+  10 * MIN,
+  15 * MIN,
+  30 * MIN,
+  HOUR,
+  3 * HOUR,
+  6 * HOUR,
+  12 * HOUR,
+  24 * HOUR,
+];
+
+/** The shortest bucket that keeps a span within about 60 columns. */
+export function bucketFor(span: number): number {
+  return BUCKET_SIZES.find((size) => span / size <= MAX_BUCKETS) ?? BUCKET_SIZES.at(-1)!;
+}
 
 export interface TimelineRequest extends TimedRequest {
   model: string;
@@ -49,15 +74,31 @@ export function weightedTokens(tokens: TokenCounts): number {
 export interface TimelineInput {
   range: RangeKey;
   now: number;
+  /** A part of the range to zoom into; the whole range without it. */
+  zoom?: TimeWindow;
   requests: Iterable<TimelineRequest>;
   snapshots: readonly QuotaSnapshot[];
 }
 
-export function buildTimeline({ range, now, requests, snapshots }: TimelineInput): TimelineData {
-  const { span, bucket: bucketMs } = RANGE_SPANS[range];
-  // Buckets line up with whole bucket lengths, so the chart doesn't shift every minute.
-  const to = now;
-  const from = Math.floor((now - span) / bucketMs) * bucketMs;
+/** The whole of a range: buckets line up with whole bucket lengths, so it doesn't shift every minute. */
+export function rangeExtent(range: RangeKey, now: number): TimeWindow {
+  const span = RANGE_SPANS[range];
+  const bucket = bucketFor(span);
+  return { from: Math.floor((now - span) / bucket) * bucket, to: now };
+}
+
+export function buildTimeline({
+  range,
+  now,
+  zoom,
+  requests,
+  snapshots,
+}: TimelineInput): TimelineData {
+  const extent = rangeExtent(range, now);
+  const shown = zoom ? clampWindow(zoom, extent) : extent;
+  const bucketMs = bucketFor(shown.to - shown.from);
+  const from = Math.floor(shown.from / bucketMs) * bucketMs;
+  const to = Math.min(Math.ceil(shown.to / bucketMs) * bucketMs, extent.to);
   const count = Math.ceil((to - from) / bucketMs);
   const buckets: TokenBucket[] = Array.from({ length: count }, (_, i) => ({
     start: from + i * bucketMs,
@@ -92,6 +133,7 @@ export function buildTimeline({ range, now, requests, snapshots }: TimelineInput
 
   return {
     range,
+    extent,
     from,
     to,
     bucketMs,
@@ -119,13 +161,14 @@ function clipSteps(steps: readonly Step[], from: number, to: number): Step[] {
   return clipped;
 }
 
+/** The observations within [from, to), with the last one before and the first one after. */
 function quotaPoints(snapshots: readonly QuotaSnapshot[], from: number, to: number): QuotaPoint[] {
-  const sorted = snapshots
-    .filter((snapshot) => snapshot.available && snapshot.time < to)
-    .sort((a, b) => a.time - b.time);
+  const sorted = snapshots.filter((snapshot) => snapshot.available).sort((a, b) => a.time - b.time);
   const firstInside = sorted.findIndex((snapshot) => snapshot.time >= from);
   const start = firstInside < 0 ? Math.max(sorted.length - 1, 0) : Math.max(firstInside - 1, 0);
-  return sorted.slice(start).map((snapshot) => ({
+  const firstAfter = sorted.findIndex((snapshot) => snapshot.time >= to);
+  const end = firstAfter < 0 ? sorted.length : firstAfter + 1;
+  return sorted.slice(start, end).map((snapshot) => ({
     time: snapshot.time,
     fiveHour: snapshot.fiveHour?.percent,
     fiveHourReset: snapshot.fiveHour?.resetsAt,
