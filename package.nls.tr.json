@@ -2,5 +2,7 @@
   "displayName": "Nightpace",
   "description": "Claude Code kota temposu: 5 saatlik ve haftalık limitlerinizin ne hızla tükendiğini, kaç oturumun paralel çalıştığını ve kotanızın ne zaman biteceğini görün.",
   "category": "Nightpace",
-  "command.showTimeline": "Zaman Çizelgesini Göster"
+  "command.showTimeline": "Zaman Çizelgesini Göster",
+  "command.deleteData": "Kaydedilen Verileri Sil",
+  "config.quota.enabled": "Planınızın 5 saatlik ve haftalık kotasını kaydeder. Nightpace bunu çalışırken 5 dakikada bir, diğer zamanlarda saatte bir Claude Code'a sorar; Claude Code sayıları kendi kullanım görünümü için yaptığı gibi Anthropic'ten alır. İstem gönderilmez, kota harcanmaz."
 }

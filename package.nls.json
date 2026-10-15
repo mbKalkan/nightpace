@@ -2,5 +2,7 @@
   "displayName": "Nightpace",
   "description": "Claude Code quota pace: see how fast your 5-hour and weekly limits burn, how many sessions run in parallel, and when your quota runs out.",
   "category": "Nightpace",
-  "command.showTimeline": "Show Timeline"
+  "command.showTimeline": "Show Timeline",
+  "command.deleteData": "Delete Recorded Data",
+  "config.quota.enabled": "Record your plan's 5-hour and weekly quota. Nightpace asks Claude Code for it every 5 minutes while you work and hourly otherwise; Claude Code gets the numbers from Anthropic, as it does for its own usage view. No prompt is sent and no quota is used."
 }
