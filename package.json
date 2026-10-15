@@ -19,15 +19,40 @@
     "vscode": "^1.90.0"
   },
   "categories": [
-    "Visualization",
-    "Other"
+    "AI",
+    "Visualization"
   ],
   "keywords": [
     "claude",
     "claude code",
+    "anthropic",
     "usage",
     "quota",
-    "rate limit"
+    "rate limit",
+    "limits",
+    "cost",
+    "api cost",
+    "spend",
+    "tokens",
+    "token usage",
+    "claude usage",
+    "claude code usage",
+    "claude quota",
+    "claude cost",
+    "claude code cost",
+    "claude limit",
+    "usage tracker",
+    "usage monitor",
+    "cost tracker",
+    "quota tracker",
+    "5-hour limit",
+    "weekly limit",
+    "timeline",
+    "status bar",
+    "parallel sessions",
+    "effort",
+    "opus",
+    "sonnet"
   ],
   "preview": true,
   "pricing": "Free",
