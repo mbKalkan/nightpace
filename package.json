@@ -1,0 +1,95 @@
+{
+  "name": "nightpace",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "0.0.0",
+  "publisher": "MBKDevStudio",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbKalkan/nightpace.git"
+  },
+  "homepage": "https://github.com/mbKalkan/nightpace#readme",
+  "bugs": {
+    "url": "https://github.com/mbKalkan/nightpace/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "usage",
+    "quota",
+    "rate limit"
+  ],
+  "preview": true,
+  "pricing": "Free",
+  "galleryBanner": {
+    "color": "#1e2033",
+    "theme": "dark"
+  },
+  "main": "./dist/extension.js",
+  "l10n": "./l10n",
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "nightpace.showTimeline",
+        "title": "%command.showTimeline%",
+        "category": "%category%"
+      }
+    ]
+  },
+  "files": [
+    "dist/**",
+    "l10n/**",
+    "package.nls*.json",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc -p tsconfig.extension.json && tsc -p tsconfig.webview.json && tsc -p tsconfig.json",
+    "lint": "eslint src scripts test",
+    "format": "prettier --write \"src/**/*.{ts,css}\" \"scripts/**/*.mjs\" \"test/**/*.ts\" \"*.{json,mjs,ts}\" \".github/**/*.yml\" \".vscode/*.json\" \"l10n/*.json\"",
+    "format:check": "prettier --check \"src/**/*.{ts,css}\" \"scripts/**/*.mjs\" \"test/**/*.ts\" \"*.{json,mjs,ts}\" \".github/**/*.yml\" \".vscode/*.json\" \"l10n/*.json\"",
+    "test": "vitest run",
+    "test:visual": "node scripts/build.mjs && playwright test",
+    "test:smoke": "node scripts/build.mjs && node scripts/smoke.mjs",
+    "package": "vsce package --no-dependencies",
+    "vscode:prepublish": "node scripts/build.mjs --production"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^22.20.5",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.4"
+  }
+}

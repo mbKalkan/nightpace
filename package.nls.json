@@ -1,0 +1,6 @@
+{
+  "displayName": "Nightpace",
+  "description": "Claude Code quota pace: see how fast your 5-hour and weekly limits burn, how many sessions run in parallel, and when your quota runs out.",
+  "category": "Nightpace",
+  "command.showTimeline": "Show Timeline"
+}

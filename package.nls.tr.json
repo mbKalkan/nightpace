@@ -1,0 +1,6 @@
+{
+  "displayName": "Nightpace",
+  "description": "Claude Code kota temposu: 5 saatlik ve haftalık limitlerinizin ne hızla tükendiğini, kaç oturumun paralel çalıştığını ve kotanızın ne zaman biteceğini görün.",
+  "category": "Nightpace",
+  "command.showTimeline": "Zaman Çizelgesini Göster"
+}

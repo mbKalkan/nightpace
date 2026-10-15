@@ -1,0 +1,5 @@
+{
+  "Claude Code usage": "Claude Code kullanımı",
+  "No usage recorded yet.": "Henüz kullanım kaydedilmedi.",
+  "Nightpace reads times, models, effort levels and token counts from Claude Code's local logs. It never stores prompts, replies, tool output or code.": "Nightpace, Claude Code'un yerel kayıtlarından zamanları, modelleri, effort düzeylerini ve token sayılarını okur. İstemleri, yanıtları, araç çıktılarını ya da kodu asla saklamaz."
+}
