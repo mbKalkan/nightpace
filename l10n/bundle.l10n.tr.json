@@ -60,7 +60,6 @@
   "Type": "Tür",
   "Show": "Göster",
   "Cost": "Maliyet",
-  "Cost at Anthropic's API list prices for each model, as if the requests had been paid per token instead of through your plan.": "Her modelin Anthropic API liste fiyatıyla maliyet: istekler planınız yerine token başına ödenseydi ne tutardı.",
   "Token counts as Claude Code logged them. Most are cache reads, which cost a tenth of input or less.": "Claude Code'un kaydettiği token sayıları. Çoğu önbellekten okumadır; girdinin onda biri ya da daha azına mal olur.",
   "Input": "Girdi",
   "Cache writes": "Önbelleğe yazma",
@@ -74,5 +73,6 @@
   "API cost": "API maliyeti",
   "{0} in this period": "bu dönemde {0}",
   "Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom.": "Plan kotası, aynı anda çalışan oturumlar ve API maliyeti ya da token zaman çizelgesi. Zamanda gezinmek için ok tuşlarını, yakınlaşıp uzaklaşmak için artı ve eksiyi kullanın.",
-  "Cost at API prices": "API fiyatıyla maliyet"
+  "If you had used the API": "API kullanılsaydı",
+  "Cost: what the requests would have cost had you used the API instead of your plan, at each model's list price per token.": "Maliyet: planınız yerine API kullanılsaydı bu isteklerin tutarı, her modelin token başına liste fiyatıyla."
 }

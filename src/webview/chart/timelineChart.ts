@@ -615,7 +615,10 @@ export class TimelineChart {
     // Within about a day the hour says enough; the panel shows the date of a zoomed window.
     const day = data.to - data.from > 26 * 3_600_000;
     const start = day ? this.formats.dayClock(bucket.start) : this.formats.clock(bucket.start);
-    return `${start}–${this.formats.clock(end)}`;
+    // A column that ends on another day names that day too.
+    const nextDay = new Date(end).toDateString() !== new Date(bucket.start).toDateString();
+    const finish = day && nextDay ? this.formats.dayClock(end) : this.formats.clock(end);
+    return `${start} – ${finish}`;
   }
 
   private describe(index: number): string[] {

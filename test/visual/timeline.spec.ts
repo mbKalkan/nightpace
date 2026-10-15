@@ -439,3 +439,18 @@ test.describe('cost and token types', () => {
     });
   }
 });
+
+test('scrolls in one place, never the page around the panel', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 500 });
+  const panel = await openPanel(page, 'dark');
+  await panel.init(sampleTimeline('7d'));
+  await expect(page.getByRole('region', { name: strings.breakdownTitle })).toBeAttached();
+  const overflow = await page.evaluate(() => ({
+    page: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    app:
+      document.getElementById('app')!.scrollHeight - document.getElementById('app')!.clientHeight,
+  }));
+  expect(overflow.page).toBeLessThanOrEqual(0);
+  expect(overflow.app).toBeGreaterThan(0);
+  expect(panel.problems).toEqual([]);
+});

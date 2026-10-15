@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prices, with cache reads and writes, fast mode, US-only inference and web searches) or
   **Tokens**, split by **Model**, **Effort** or **Type** (input, cache writes, cache reads,
   output).
-- **Cost at API prices**: what today, the last 7 days, the last 30 days and an average active day
+- **If you had used the API**: what today, the last 7 days, the last 30 days and an average active day
   would have cost on the API.
 - Below the timeline, **Where the tokens went** lists the sessions or projects of the period shown:
   when each session started, how long it worked, its requests, API cost, tokens, share, models
