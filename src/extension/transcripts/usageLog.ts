@@ -17,28 +17,39 @@ export class UsageLog {
   private readonly limitKeys = new Set<string>();
   readonly limits: LimitEvent[] = [];
 
-  add(event: TranscriptEvent): void {
+  /** Adds a transcript line; returns the request as it now stands if the line changed it. */
+  add(event: TranscriptEvent): RequestUsage | undefined {
     if (event.kind === 'limit') {
       const key = `${event.sessionId}|${event.time}`;
-      if (this.limitKeys.has(key)) return;
+      if (this.limitKeys.has(key)) return undefined;
       this.limitKeys.add(key);
       this.limits.push(event);
-      return;
+      return undefined;
     }
     const { kind: _, ...usage } = event;
-    const known = this.requests.get(event.requestId);
+    return this.merge({ ...usage, end: event.time });
+  }
+
+  /** Adds a request kept from earlier; returns it as it now stands if it changed anything. */
+  merge(request: RequestUsage): RequestUsage | undefined {
+    const known = this.requests.get(request.requestId);
     if (!known) {
-      this.requests.set(event.requestId, { ...usage, end: event.time });
-      return;
+      this.requests.set(request.requestId, request);
+      return request;
     }
     // The session that first wrote the request keeps it; a copy only completes its counts.
-    const later = !known.final && (event.final || event.tokens.output > known.tokens.output);
-    this.requests.set(event.requestId, {
+    const later = !known.final && (request.final || request.tokens.output > known.tokens.output);
+    const time = Math.min(known.time, request.time);
+    const end = Math.max(known.end, request.end);
+    if (!later && time === known.time && end === known.end) return undefined;
+    const merged = {
       ...known,
-      time: Math.min(known.time, event.time),
-      end: Math.max(known.end, event.time),
-      ...(later && { tokens: event.tokens, final: event.final }),
-    });
+      time,
+      end,
+      ...(later && { tokens: request.tokens, final: request.final }),
+    };
+    this.requests.set(request.requestId, merged);
+    return merged;
   }
 
   get size(): number {

@@ -20,7 +20,14 @@ for await (const line of createInterface({ input: process.stdin })) {
   if (mode === 'silent') continue;
   write({ type: 'system', subtype: 'status', note: `working on ${id}` });
   if (mode === 'refuse') {
-    write({ type: 'control_response', response: { subtype: 'error', request_id: id, error: 'Unsupported control request subtype: get_usage' } });
+    write({
+      type: 'control_response',
+      response: {
+        subtype: 'error',
+        request_id: id,
+        error: 'Unsupported control request subtype: get_usage',
+      },
+    });
     continue;
   }
   // Written in two pieces, as a pipe may deliver it.
@@ -35,7 +42,9 @@ for await (const line of createInterface({ input: process.stdin })) {
         rate_limits: {
           five_hour: { utilization: 41, resets_at: '2026-10-15T11:30:00.382961+00:00' },
           seven_day: { utilization: 7, resets_at: '2026-10-21T20:00:00+00:00' },
-          model_scoped: [{ display_name: 'Fable', utilization: 2, resets_at: '2026-10-21T20:00:00+00:00' }],
+          model_scoped: [
+            { display_name: 'Fable', utilization: 2, resets_at: '2026-10-21T20:00:00+00:00' },
+          ],
         },
       },
     },

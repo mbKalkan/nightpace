@@ -68,4 +68,16 @@ describe('UsageLog', () => {
     expect(log.limits).toHaveLength(2);
     expect(log.size).toBe(0);
   });
+
+  it('says which lines changed a request, so only those are kept again', () => {
+    const log = new UsageLog();
+    expect(log.add(request({ final: false, output: 10 }))).toMatchObject({ final: false });
+    expect(log.add(request({ final: false, output: 10 }))).toBeUndefined();
+    expect(log.add(request({ final: true, output: 400, time: 1009 }))).toMatchObject({
+      final: true,
+      end: 1009,
+    });
+    const kept = only(log);
+    expect(log.merge(kept)).toBeUndefined();
+  });
 });

@@ -1,7 +1,8 @@
 # Security policy
 
 Nightpace only reads usage metadata that Claude Code keeps on your machine: times, models, effort
-levels and token counts. It never stores prompts, replies, tool output or code, sends no
+levels, token counts and the folder a session ran in, and keeps a copy of them in VS Code's
+storage for the extension. It never stores prompts, replies, tool output or code, sends no
 telemetry, makes no network requests itself, and shows its panel in a webview with a strict
 Content Security Policy and no network access. Claude Code's logs are treated as untrusted input
 and are never written to. For the plan's quota it runs the installed Claude Code and asks it,
