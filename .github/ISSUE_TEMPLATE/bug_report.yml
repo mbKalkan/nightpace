@@ -1,0 +1,57 @@
+name: Bug report
+description: Something doesn't look or work right
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Please don't paste prompts, code or other private content from your Claude Code sessions.
+        Numbers and screenshots of the Nightpace panel are enough.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected and what you saw. A screenshot helps a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run Nightpace: Show Timeline …
+        2. …
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where do you run Claude Code?
+      multiple: true
+      options:
+        - VS Code extension (panel)
+        - Terminal (CLI)
+        - Both
+    validations:
+      required: true
+  - type: dropdown
+    id: plan
+    attributes:
+      label: Plan
+      options:
+        - Pro
+        - Max
+        - Team or Enterprise
+        - API key (no plan limits)
+        - Other
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Nightpace, Claude Code, VS Code and OS versions.
+      placeholder: Nightpace 0.1.0, Claude Code 2.1.300, VS Code 1.105.0, Windows 11
+    validations:
+      required: true
+  - type: input
+    id: theme
+    attributes:
+      label: Color theme
+      placeholder: Dark Modern
