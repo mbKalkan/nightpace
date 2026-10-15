@@ -16,9 +16,9 @@
 
 ## Privacy
 
-Local-first, with no telemetry, and Nightpace itself makes no network requests. It reads usage metadata (timestamps, models, effort levels, token counts) from Claude Code's local session logs and never stores your prompts, Claude's replies, tool output or source code.
+Local-first, with no telemetry, and Nightpace itself makes no network requests. It reads usage metadata (timestamps, models, effort levels, token counts) from Claude Code's local session logs and never stores your prompts, Claude's replies, tool output or source code. It keeps that metadata, with the folder each session ran in, in VS Code's storage for the extension, so your history outlasts Claude Code deleting old logs and opens without reading them all again.
 
-For the quota, Nightpace asks Claude Code: every 5 minutes while you work and hourly otherwise, it starts Claude Code briefly and asks for the plan's usage, the same request the Claude Code extension makes for its own usage view. Claude Code gets the numbers from Anthropic. No prompt is sent, no quota is used, and Nightpace never reads your credentials. Turn it off with the `nightpace.quota.enabled` setting; **Nightpace: Delete Recorded Data** deletes the history it kept.
+For the quota, Nightpace asks Claude Code: every 5 minutes while you work and hourly otherwise, it starts Claude Code briefly and asks for the plan's usage, the same request the Claude Code extension makes for its own usage view. Claude Code gets the numbers from Anthropic. No prompt is sent, no quota is used, and Nightpace never reads your credentials. Turn it off with the `nightpace.quota.enabled` setting; **Nightpace: Delete Recorded Data** deletes everything it kept.
 
 ## License
 

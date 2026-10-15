@@ -1,39 +1,68 @@
 import type { RangeKey, TimelineData, TimeWindow } from '../shared/protocol';
-import { buildTimeline } from './model/timeline';
+import { buildTimeline, RANGE_SPANS } from './model/timeline';
 import type { QuotaStore } from './store/quotaStore';
+import type { RequestStore } from './store/requestStore';
 import { scanTranscripts } from './transcripts/scanner';
-import { UsageLog } from './transcripts/usageLog';
+import { UsageLog, type RequestUsage } from './transcripts/usageLog';
+
+/** The longest range, and a day to spare for its first bucket. */
+const KEPT_IN_MEMORY_MS = RANGE_SPANS['30d'] + 24 * 3_600_000;
 
 /**
- * The data behind the timeline. Transcripts are read once in full when the panel first asks,
- * then only what was appended; the quota history comes from Nightpace's own store.
+ * The data behind the timeline. Requests come from Nightpace's request store, then from what
+ * Claude Code appended to its transcripts since the store last read them; whatever that adds is
+ * written back to the store. The quota history comes from Nightpace's quota store.
  */
 export class TimelineSource {
-  private readonly log = new UsageLog();
-  private readonly offsets = new Map<string, number>();
-  private scanning: Promise<void> | undefined;
+  private log = new UsageLog();
+  private offsets = new Map<string, number>();
+  private syncing: Promise<void> | undefined;
 
   constructor(
     private readonly roots: () => string[],
-    private readonly store: QuotaStore,
+    private readonly quota: QuotaStore,
+    private readonly requests: RequestStore,
   ) {}
 
   async timeline(range: RangeKey, zoom?: TimeWindow, now = Date.now()): Promise<TimelineData> {
-    await this.scan();
+    await this.sync(now);
     return buildTimeline({
       range,
       now,
       zoom,
       requests: this.log.usage(),
-      snapshots: await this.store.snapshots(),
+      snapshots: await this.quota.snapshots(),
     });
   }
 
-  /** One scan at a time; a caller arriving during one waits for it. */
-  private scan(): Promise<void> {
-    this.scanning ??= scanTranscripts(this.roots(), this.offsets, (event) => this.log.add(event))
-      .then(() => undefined)
-      .finally(() => (this.scanning = undefined));
-    return this.scanning;
+  /** Brings the store up to date with the transcripts. One sync at a time; others wait for it. */
+  sync(now = Date.now()): Promise<void> {
+    this.syncing ??= this.read(now).finally(() => (this.syncing = undefined));
+    return this.syncing;
+  }
+
+  /** Forgets every request, after the store is cleared, so the next sync starts over. */
+  async reset(): Promise<void> {
+    await this.syncing?.catch(() => undefined);
+    await this.requests.clear();
+    this.log = new UsageLog();
+    this.offsets = new Map();
+  }
+
+  private async read(now: number): Promise<void> {
+    // Offsets first: a window saves them only after appending their requests, so every request
+    // behind an offset read here is in the store by the time the store is read.
+    for (const [path, offset] of await this.requests.offsets()) {
+      if (offset > (this.offsets.get(path) ?? 0)) this.offsets.set(path, offset);
+    }
+    await this.requests.readNew(now - KEPT_IN_MEMORY_MS, (request) => this.log.merge(request));
+
+    const changed = new Map<string, RequestUsage>();
+    const { bytesRead } = await scanTranscripts(this.roots(), this.offsets, (event) => {
+      const request = this.log.add(event);
+      if (request) changed.set(request.requestId, request);
+    });
+    await this.requests.append(changed.values());
+    if (bytesRead > 0) await this.requests.saveOffsets(this.offsets);
   }
 }

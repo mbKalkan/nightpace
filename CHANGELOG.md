@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Nightpace records the quota in the background: it asks Claude Code every 5 minutes while you
   work and hourly otherwise, without sending a prompt or using quota. The
   `nightpace.quota.enabled` setting turns it off.
+- Nightpace keeps the usage it read from Claude Code's logs, so the timeline still shows it after
+  Claude Code deletes old logs, and opens in a fraction of a second instead of reading every log
+  again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
 [Unreleased]: https://github.com/mbKalkan/nightpace/commits/main

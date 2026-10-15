@@ -7,15 +7,31 @@ import { QuotaRecorder } from './quota/recorder';
 import { parseUsageResponse } from './quota/snapshot';
 import { QuotaStatusBar } from './statusBar';
 import { QuotaStore } from './store/quotaStore';
+import { RequestStore } from './store/requestStore';
 import { TimelinePanel } from './timelinePanel';
 import { TimelineSource } from './timelineSource';
 import { scanTranscripts, skipToEnd } from './transcripts/scanner';
+
+/** Keeps requests before Claude Code deletes old transcripts, without slowing VS Code's start. */
+const FIRST_SYNC_MS = 2 * 60_000;
+const SYNC_EVERY_MS = 60 * 60_000;
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('Nightpace', { log: true });
   const store = new QuotaStore(context.globalStorageUri.fsPath);
   const statusBar = new QuotaStatusBar();
-  const source = new TimelineSource(transcriptRoots, store);
+  const source = new TimelineSource(
+    transcriptRoots,
+    store,
+    new RequestStore(context.globalStorageUri.fsPath),
+  );
+  const sync = () =>
+    source.sync().catch((error: unknown) => output.warn(`Requests: ${String(error)}`));
+  let syncTimer: ReturnType<typeof setInterval> | undefined;
+  const firstSync = setTimeout(() => {
+    void sync();
+    syncTimer = setInterval(() => void sync(), SYNC_EVERY_MS);
+  }, FIRST_SYNC_MS);
   const recorder = new QuotaRecorder({
     query: askClaudeCode,
     lastActivity: transcriptActivity(),
@@ -45,6 +61,12 @@ export function activate(context: vscode.ExtensionContext): void {
     output,
     statusBar,
     { dispose: () => recorder.stop() },
+    {
+      dispose: () => {
+        clearTimeout(firstSync);
+        clearInterval(syncTimer);
+      },
+    },
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('nightpace.quota.enabled')) applySettings();
     }),
@@ -63,13 +85,14 @@ export function activate(context: vscode.ExtensionContext): void {
         {
           modal: true,
           detail: vscode.l10n.t(
-            "The quota history can't be recovered. Claude Code's own logs are not touched.",
+            "The quota history and the usage kept from Claude Code logs that have since been deleted can't be recovered. Claude Code's own logs are not touched.",
           ),
         },
         remove,
       );
       if (answer !== remove) return;
       await store.clear();
+      await source.reset();
       statusBar.show(undefined);
       TimelinePanel.refresh();
       vscode.window.setStatusBarMessage(vscode.l10n.t('Nightpace data deleted'), 3000);

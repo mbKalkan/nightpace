@@ -12,7 +12,7 @@
   "Claude Code reports these numbers; Nightpace asks it every few minutes while you work.": "Bu sayıları Claude Code bildirir; Nightpace siz çalışırken birkaç dakikada bir sorar.",
   "Delete": "Sil",
   "Delete everything Nightpace has recorded?": "Nightpace'in kaydettiği her şey silinsin mi?",
-  "The quota history can't be recovered. Claude Code's own logs are not touched.": "Kota geçmişi geri getirilemez. Claude Code'un kendi kayıtlarına dokunulmaz.",
+  "The quota history and the usage kept from Claude Code logs that have since been deleted can't be recovered. Claude Code's own logs are not touched.": "Kota geçmişi ve Claude Code'un o zamandan beri sildiği kayıtlardan saklanan kullanım geri getirilemez. Claude Code'un kendi kayıtlarına dokunulmaz.",
   "Nightpace data deleted": "Nightpace verileri silindi",
   "No Claude Code usage in this period.": "Bu dönemde Claude Code kullanımı yok.",
   "24 hours": "24 saat",
