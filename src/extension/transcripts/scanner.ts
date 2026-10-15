@@ -58,6 +58,29 @@ export async function scanTranscripts(
   return result;
 }
 
+/**
+ * Marks every transcript as read up to its current end, without reading it, so that later scans
+ * see only new activity. Returns when a transcript was last written to, if any exists.
+ */
+export async function skipToEnd(
+  roots: readonly string[],
+  offsets: Map<string, number>,
+): Promise<number | undefined> {
+  let latest: number | undefined;
+  for (const root of roots) {
+    for (const path of await transcriptFiles(root)) {
+      try {
+        const { size, mtimeMs } = await stat(path);
+        offsets.set(path, size);
+        latest = Math.max(latest ?? mtimeMs, mtimeMs);
+      } catch {
+        // Removed since it was listed.
+      }
+    }
+  }
+  return latest;
+}
+
 async function transcriptFiles(root: string): Promise<string[]> {
   try {
     const entries = await readdir(root, { recursive: true, withFileTypes: true });

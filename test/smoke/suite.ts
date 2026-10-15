@@ -28,6 +28,19 @@ const timelineTabs = () =>
     );
 
 const tests: Record<string, () => Promise<void>> = {
+  async 'starts with VS Code, to record the quota in the background'() {
+    await waitFor(() =>
+      vscode.extensions.getExtension(EXTENSION_ID)?.isActive ? true : undefined,
+    );
+  },
+
+  async 'contributes its commands'() {
+    const commands = await vscode.commands.getCommands(true);
+    for (const command of ['nightpace.showTimeline', 'nightpace.deleteData']) {
+      assert.ok(commands.includes(command), command);
+    }
+  },
+
   async 'opens the timeline from the command palette'() {
     await vscode.commands.executeCommand('nightpace.showTimeline');
     await waitFor(() => (timelineTabs().length === 1 ? true : undefined));

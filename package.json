@@ -45,15 +45,32 @@
     },
     "virtualWorkspaces": true
   },
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {
         "command": "nightpace.showTimeline",
         "title": "%command.showTimeline%",
         "category": "%category%"
+      },
+      {
+        "command": "nightpace.deleteData",
+        "title": "%command.deleteData%",
+        "category": "%category%"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Nightpace",
+      "properties": {
+        "nightpace.quota.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%config.quota.enabled%"
+        }
+      }
+    }
   },
   "files": [
     "dist/**",

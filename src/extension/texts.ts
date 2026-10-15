@@ -9,7 +9,7 @@ export function panelStrings(t: Translate): PanelStrings {
     title: t('Claude Code usage'),
     empty: t('No usage recorded yet.'),
     privacy: t(
-      "Nightpace reads times, models, effort levels and token counts from Claude Code's local logs. It never stores prompts, replies, tool output or code.",
+      "Nightpace reads times, models, effort levels and token counts from Claude Code's local logs, and asks Claude Code for your plan's quota. It never stores prompts, replies, tool output or code.",
     ),
   };
 }

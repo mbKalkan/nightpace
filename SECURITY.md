@@ -2,8 +2,10 @@
 
 Nightpace only reads usage metadata that Claude Code keeps on your machine: times, models, effort
 levels and token counts. It never stores prompts, replies, tool output or code, sends no
-telemetry, and shows its panel in a webview with a strict Content Security Policy and no network
-access. Claude Code's logs are treated as untrusted input and are never written to.
+telemetry, makes no network requests itself, and shows its panel in a webview with a strict
+Content Security Policy and no network access. Claude Code's logs are treated as untrusted input
+and are never written to. For the plan's quota it runs the installed Claude Code and asks it,
+without sending a prompt; Nightpace never reads Claude Code's credentials.
 
 ## Reporting a vulnerability
 

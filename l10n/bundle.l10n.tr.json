@@ -1,5 +1,18 @@
 {
   "Claude Code usage": "Claude Code kullanımı",
   "No usage recorded yet.": "Henüz kullanım kaydedilmedi.",
-  "Nightpace reads times, models, effort levels and token counts from Claude Code's local logs. It never stores prompts, replies, tool output or code.": "Nightpace, Claude Code'un yerel kayıtlarından zamanları, modelleri, effort düzeylerini ve token sayılarını okur. İstemleri, yanıtları, araç çıktılarını ya da kodu asla saklamaz."
+  "Nightpace reads times, models, effort levels and token counts from Claude Code's local logs, and asks Claude Code for your plan's quota. It never stores prompts, replies, tool output or code.": "Nightpace, Claude Code'un yerel kayıtlarından zamanları, modelleri, effort düzeylerini ve token sayılarını okur, planınızın kotasını da Claude Code'a sorar. İstemleri, yanıtları, araç çıktılarını ya da kodu asla saklamaz.",
+  "Wk": "Hf",
+  "5-hour limit: {0} used, resets at {1}": "5 saatlik limit: {0} kullanıldı, sıfırlanma: {1}",
+  "5-hour limit: {0} used": "5 saatlik limit: {0} kullanıldı",
+  "Weekly limit: {0} used, resets {1}": "Haftalık limit: {0} kullanıldı, sıfırlanma: {1}",
+  "Weekly limit: {0} used": "Haftalık limit: {0} kullanıldı",
+  "{0} weekly limit: {1} used": "{0} haftalık limiti: {1} kullanıldı",
+  "Updated at {0}": "Güncelleme: {0}",
+  "Claude Code quota": "Claude Code kotası",
+  "Claude Code reports these numbers; Nightpace asks it every few minutes while you work.": "Bu sayıları Claude Code bildirir; Nightpace siz çalışırken birkaç dakikada bir sorar.",
+  "Delete": "Sil",
+  "Delete everything Nightpace has recorded?": "Nightpace'in kaydettiği her şey silinsin mi?",
+  "The quota history can't be recovered. Claude Code's own logs are not touched.": "Kota geçmişi geri getirilemez. Claude Code'un kendi kayıtlarına dokunulmaz.",
+  "Nightpace data deleted": "Nightpace verileri silindi"
 }
