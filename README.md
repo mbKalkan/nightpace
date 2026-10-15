@@ -1,16 +1,16 @@
 # Nightpace
 
-**Claude Code quota pace for VS Code.** See how fast your 5-hour and weekly Claude limits are burning, how many sessions are running in parallel, and which models and effort levels use your tokens. Then plan ahead with rates measured from your own history: *"At this pace, three xhigh sessions run out on Thursday; two last until Sunday."*
+**Claude Code quota pace for VS Code.** See how fast your 5-hour and weekly Claude limits are burning, how many sessions are running in parallel, and which models and effort levels use your tokens. Then plan ahead with rates measured from your own history: _"At this pace, three xhigh sessions run out on Thursday; two last until Sunday."_
 
 > **Status:** early development. Not yet published.
 
 ## Features
 
+- **Timeline:** run **Nightpace: Show Timeline** for the last 24 hours, 7 days or 30 days on one time axis: the 5-hour and weekly quota as Claude Code reported it, how many sessions were working at once, and tokens by model, weighted the way API prices weigh them. Hover or use the arrow keys for every value at a time, or switch to a table.
 - **Status bar:** your plan's 5-hour and weekly usage and when the 5-hour window resets, like `5h 63% · Wk 41% · ↻14:02`, turning yellow at 80% and red at 95%. Hover for per-model weekly limits.
 
 ## Planned features
 
-- **One timeline:** 5-hour and weekly quota %, parallel session count, and token usage by model and effort level, all on the same time axis.
 - **Measured, not guessed:** quota rates are calibrated from your own observed usage; anything estimated is labelled as an estimate.
 - **Scenario planner:** compare session count, effort level and model, and see when each runs out.
 

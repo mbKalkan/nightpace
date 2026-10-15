@@ -1,0 +1,59 @@
+// The timeline as a table: every value the chart draws, readable without hovering.
+import type { PanelStrings, TimelineData } from '../shared/protocol';
+import { quotaAt } from './chart/timelineChart';
+import type { Formats } from './format';
+
+export function timelineTable(
+  data: TimelineData,
+  strings: PanelStrings,
+  formats: Formats,
+): HTMLElement {
+  const table = document.createElement('table');
+  table.className = 'np-table';
+  const caption = document.createElement('caption');
+  caption.textContent = strings.title;
+  caption.className = 'np-visually-hidden';
+  const head = document.createElement('thead');
+  const headings = [
+    strings.time,
+    strings.fiveHour,
+    strings.weekly,
+    strings.sessions,
+    ...data.models.map((model) => strings.models[model]),
+    strings.requests,
+  ];
+  const headRow = document.createElement('tr');
+  for (const text of headings) {
+    const cell = document.createElement('th');
+    cell.scope = 'col';
+    cell.textContent = text;
+    headRow.append(cell);
+  }
+  head.append(headRow);
+
+  const body = document.createElement('tbody');
+  // Newest first: the recent past is what a reader looks for.
+  for (const bucket of [...data.buckets].reverse()) {
+    const end = Math.min(bucket.start + data.bucketMs, data.to);
+    const quota = quotaAt(data.quota, end);
+    const recent = quota && end - quota.time <= data.bucketMs ? quota : undefined;
+    const cells = [
+      `${data.range === '24h' ? formats.clock(bucket.start) : formats.dayClock(bucket.start)}`,
+      recent?.fiveHour === undefined ? '—' : formats.percent(recent.fiveHour),
+      recent?.weekly === undefined ? '—' : formats.percent(recent.weekly),
+      String(bucket.maxSessions),
+      ...data.models.map((model) => formats.amount(bucket.byModel[model] ?? 0)),
+      String(bucket.requests),
+    ];
+    const row = document.createElement('tr');
+    cells.forEach((text, i) => {
+      const cell = document.createElement(i === 0 ? 'th' : 'td');
+      if (i === 0) (cell as HTMLTableCellElement).scope = 'row';
+      cell.textContent = text;
+      row.append(cell);
+    });
+    body.append(row);
+  }
+  table.append(caption, head, body);
+  return table;
+}

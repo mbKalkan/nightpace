@@ -3,7 +3,7 @@ import { extname, join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { panelStrings, type Translate } from '../../src/extension/texts';
 import { buildWebviewHtml } from '../../src/extension/webviewHtml';
-import type { HostToWebviewMessage } from '../../src/shared/protocol';
+import type { HostToWebviewMessage, TimelineData } from '../../src/shared/protocol';
 import { themes, type ThemeName } from './themes';
 
 interface Theme {
@@ -110,9 +110,10 @@ export async function openPanel(page: Page, theme: ThemeName) {
         message,
       );
     },
-    /** Sends what the host sends once the webview says it is ready. */
-    async init() {
+    /** Sends what the host sends once the webview says it is ready, then a timeline. */
+    async init(data?: TimelineData) {
       await this.post({ type: 'init', locale: 'en', strings });
+      if (data) await this.post({ type: 'timeline', data });
     },
     /** Switches the theme the way VS Code does: CSS variables plus body classes. */
     async setTheme(name: ThemeName) {

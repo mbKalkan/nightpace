@@ -1,3 +1,35 @@
+/* Series colors: a validated categorical palette, stepped for light and dark surfaces (D-007).
+   Everything else comes from the VS Code theme. */
+body {
+  --np-five: #2a78d6;
+  --np-week: #eb6834;
+  --np-sessions: #6250d6;
+  --np-opus: #1baf7a;
+  --np-fable: #eda100;
+  --np-sonnet: #e87ba4;
+  --np-haiku: #008300;
+  --np-other: #8a8a8a;
+  --np-grid: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
+  --np-baseline: color-mix(in srgb, var(--vscode-foreground) 30%, transparent);
+}
+
+body.vscode-dark,
+body.vscode-high-contrast:not(.vscode-high-contrast-light) {
+  --np-five: #3987e5;
+  --np-week: #d95926;
+  --np-sessions: #9085e9;
+  --np-opus: #199e70;
+  --np-fable: #c98500;
+  --np-sonnet: #d55181;
+  --np-haiku: #008300;
+  --np-other: #8a8a8a;
+}
+
+body.vscode-high-contrast {
+  --np-grid: color-mix(in srgb, var(--vscode-contrastBorder, currentColor) 45%, transparent);
+  --np-baseline: var(--vscode-contrastBorder, currentColor);
+}
+
 html,
 body {
   height: 100%;
@@ -19,21 +51,298 @@ body {
 
 .np-main {
   box-sizing: border-box;
-  max-width: 960px;
-  padding: 16px 20px;
+  max-width: 1200px;
+  padding: 16px 20px 24px;
+}
+
+.np-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
 }
 
 .np-title {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 1.4em;
   font-weight: 600;
 }
 
-.np-empty {
-  margin: 0 0 24px;
+.np-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.np-privacy {
-  margin: 0;
+.np-segmented {
+  display: inline-flex;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-contrastBorder, transparent));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.np-controls button {
+  font: inherit;
+  color: var(--vscode-foreground);
+  background: transparent;
+  border: none;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.np-segmented button + button {
+  border-left: 1px solid var(--vscode-widget-border, var(--vscode-contrastBorder, transparent));
+}
+
+.np-controls button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+  outline: 1px dashed var(--vscode-toolbar-hoverOutline, transparent);
+  outline-offset: -1px;
+}
+
+.np-segmented button[aria-pressed='true'] {
+  background: var(--vscode-inputOption-activeBackground);
+  color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+  outline: 1px solid var(--vscode-inputOption-activeBorder, transparent);
+  outline-offset: -1px;
+}
+
+.np-view-toggle {
+  border: 1px solid var(--vscode-widget-border, var(--vscode-contrastBorder, transparent)) !important;
+  border-radius: 4px;
+}
+
+.np-controls button:focus-visible,
+.np-chart:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.np-body {
+  min-height: 200px;
+  transition: opacity 0.15s;
+}
+
+.np-body.np-loading {
+  opacity: 0.5;
+}
+
+.np-chart {
+  position: relative;
+}
+
+.np-chart svg {
+  display: block;
+  overflow: visible;
+}
+
+.np-axis text,
+.np-legend-text,
+.np-end-label,
+.np-note {
+  fill: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.np-title-text {
+  fill: var(--vscode-foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.np-legend-text,
+.np-end-label {
+  fill: var(--vscode-foreground);
+}
+
+.np-grid {
+  stroke: var(--np-grid);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.np-baseline {
+  stroke: var(--np-baseline);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.np-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.np-area {
+  stroke: none;
+  opacity: 0.12;
+}
+
+.np-key {
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.np-s-five {
+  stroke: var(--np-five);
+  fill: var(--np-five);
+}
+.np-s-week {
+  stroke: var(--np-week);
+  fill: var(--np-week);
+}
+.np-s-sessions {
+  stroke: var(--np-sessions);
+  fill: var(--np-sessions);
+}
+.np-line.np-s-five,
+.np-line.np-s-week,
+.np-line.np-s-sessions {
+  fill: none;
+}
+.np-area.np-s-sessions {
+  fill: var(--np-sessions);
+}
+
+.np-m-opus {
+  fill: var(--np-opus);
+  background: var(--np-opus);
+}
+.np-m-fable {
+  fill: var(--np-fable);
+  background: var(--np-fable);
+}
+.np-m-sonnet {
+  fill: var(--np-sonnet);
+  background: var(--np-sonnet);
+}
+.np-m-haiku {
+  fill: var(--np-haiku);
+  background: var(--np-haiku);
+}
+.np-m-other {
+  fill: var(--np-other);
+  background: var(--np-other);
+}
+
+/* After the series colors, so the ring in the surface color wins over the series stroke. */
+.np-chart .np-dot {
+  stroke: var(--vscode-editor-background);
+  stroke-width: 2;
+}
+
+.np-hovering .np-col:not(.np-active) {
+  opacity: 0.45;
+}
+
+.np-hit {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.np-crosshair {
+  stroke: var(--vscode-foreground);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+  pointer-events: none;
+  shape-rendering: crispEdges;
+}
+
+.np-tooltip {
+  position: absolute;
+  z-index: 1;
+  min-width: 140px;
+  padding: 8px 10px;
+  pointer-events: none;
+  background: var(--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-widget-border, transparent));
+  border-radius: 4px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, transparent);
+  font-size: 12px;
+}
+
+.np-tooltip-title {
+  margin-bottom: 6px;
   color: var(--vscode-descriptionForeground);
+}
+
+.np-tooltip-rows {
+  display: grid;
+  grid-template-columns: 12px auto 1fr;
+  align-items: center;
+  gap: 3px 8px;
+}
+
+.np-tooltip-rows strong {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.np-tooltip-label {
+  color: var(--vscode-descriptionForeground);
+}
+
+/* A short line key in the series color; models key with their fill. */
+.np-tooltip-key {
+  height: 2px;
+  border-radius: 1px;
+}
+.np-tooltip-key.np-s-five {
+  background: var(--np-five);
+}
+.np-tooltip-key.np-s-week {
+  background: var(--np-week);
+}
+.np-tooltip-key.np-s-sessions {
+  background: var(--np-sessions);
+}
+.np-tooltip-key[class*='np-m-'] {
+  height: 8px;
+}
+
+.np-table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+
+.np-table th,
+.np-table td {
+  padding: 3px 10px;
+  text-align: right;
+  border-bottom: 1px solid var(--np-grid);
+  white-space: nowrap;
+}
+
+.np-table thead th {
+  color: var(--vscode-descriptionForeground);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+}
+
+.np-table th:first-child {
+  text-align: left;
+  font-weight: normal;
+}
+
+.np-note-text,
+.np-privacy {
+  margin: 12px 0 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.np-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
