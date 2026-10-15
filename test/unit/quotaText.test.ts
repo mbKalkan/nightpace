@@ -9,7 +9,9 @@ const english: Translate = (message, ...args) =>
 // Times in UTC, shown in the test's time zone: compare with the same formatter.
 const now = Date.UTC(2026, 9, 15, 11, 0);
 const hm = (time: number) =>
-  new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(time);
+  new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(
+    time,
+  );
 
 const snapshot = (overrides: Partial<QuotaSnapshot> = {}): QuotaSnapshot => ({
   time: now - 60_000,
@@ -30,6 +32,21 @@ describe('quotaText', () => {
     expect(text.tooltip[1]).toMatch(/^Weekly limit: 41% used, resets /);
     expect(text.tooltip[2]).toBe('Fable weekly limit: 12% used');
     expect(text.tooltip[3]).toBe(`Updated at ${hm(now - 60_000)}`);
+  });
+
+  it('shows times on a 24-hour clock in every locale', () => {
+    // 21:30 in any time zone from UTC-9 to UTC+2 is past noon.
+    const evening = Date.UTC(2026, 9, 15, 21, 30);
+    for (const locale of ['en-US', 'en', 'tr']) {
+      const text = quotaText(
+        snapshot({ time: now, fiveHour: { percent: 5, resetsAt: evening } }),
+        now,
+        english,
+        locale,
+      )!;
+      expect(text.text, locale).toMatch(/↻\d{2}:\d{2}$/);
+      expect([text.text, ...text.tooltip].join(' '), locale).not.toMatch(/AM|PM|ÖÖ|ÖS/);
+    }
   });
 
   it("doesn't show a window whose reset time has passed", () => {
