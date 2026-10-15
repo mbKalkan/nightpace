@@ -33,6 +33,10 @@
   "Requests": "İstekler",
   "Nightpace records the quota from now on; it appears here after the first reading.": "Nightpace kotayı bundan sonra kaydeder; ilk okumadan sonra burada görünür.",
   "Quota recorded since {0}": "Kota kaydının başlangıcı: {0}",
-  "Timeline of plan quota, sessions working at once and tokens by model. Use the arrow keys to move through time.": "Plan kotası, aynı anda çalışan oturumlar ve modele göre token zaman çizelgesi. Zamanda gezinmek için ok tuşlarını kullanın.",
+  "Timeline of plan quota, sessions working at once and tokens by model. Use the arrow keys to move through time, plus and minus to zoom.": "Plan kotası, aynı anda çalışan oturumlar ve modele göre token zaman çizelgesi. Zamanda gezinmek için ok tuşlarını, yakınlaşıp uzaklaşmak için artı ve eksiyi kullanın.",
+  "Zoom in": "Yakınlaştır",
+  "Zoom out": "Uzaklaştır",
+  "Whole range": "Tüm aralık",
+  "Drag across the chart to zoom in. Ctrl + scroll or pinch zooms in and out.": "Yakınlaştırmak için grafikte sürükleyin. Ctrl + kaydırma ya da iki parmak hareketi yakınlaştırır ve uzaklaştırır.",
   "Reading Claude Code's logs…": "Claude Code kayıtları okunuyor…"
 }

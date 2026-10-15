@@ -1,13 +1,17 @@
 // The timeline: three lanes on one time axis. Plan quota (5-hour and weekly, as observed), the
 // sessions working at once, and weighted tokens by model. Each lane has its own value axis;
 // no lane ever carries two (no dual axes). Colors come from CSS, so a theme change restyles it.
+// Dragging across it, Ctrl + scroll (or a pinch) and the plus and minus keys ask to zoom; the
+// panel decides what that means for the range.
 import type {
   ModelFamily,
   PanelStrings,
   QuotaPoint,
   TimelineData,
+  TimeWindow,
   TokenBucket,
 } from '../../shared/protocol';
+import { coversExtent, scaleWindow, shiftWindow } from '../../shared/window';
 import type { Formats } from '../format';
 import { columnPath, svg } from './svg';
 import { timeTicks, valueTicks } from './ticks';
@@ -18,6 +22,8 @@ const TITLE = 26;
 const LANE_GAP = 18;
 const AXIS = 24;
 const HEIGHTS = { quota: 140, sessions: 64, tokens: 120 };
+/** A drag shorter than this is a click, not a zoom. */
+const MIN_DRAG_PX = 6;
 /** Polling is hourly when idle: a longer silence means Nightpace wasn't running. */
 const QUOTA_GAP_MS = 75 * 60_000;
 const QUOTA_SERIES = [
@@ -39,10 +45,15 @@ export class TimelineChart {
   private svgRoot: SVGSVGElement | undefined;
   private index: number | undefined;
   private x: (time: number) => number = () => 0;
+  private plotRight = 0;
+  /** Where a drag to zoom started, as a client x coordinate. */
+  private dragFrom: number | undefined;
 
   constructor(
     private readonly strings: PanelStrings,
     private readonly formats: Formats,
+    /** Asks for a window to show, or the whole range without one. */
+    private readonly onZoom: (window: TimeWindow | undefined) => void,
   ) {
     this.element.className = 'np-chart';
     this.element.tabIndex = 0;
@@ -58,15 +69,23 @@ export class TimelineChart {
     this.element.addEventListener('blur', () => this.hover(undefined));
   }
 
-  render(data: TimelineData, width: number): void {
-    this.data = data;
+  /** Draws the timeline, or the part of it within `window` while the host zooms. */
+  render(data: TimelineData, width: number, window?: TimeWindow): void {
+    // The crosshair stays at the same time, not at the same column.
+    const previous = this.data;
+    const hovered =
+      previous && this.index !== undefined
+        ? previous.buckets[this.index].start + previous.bucketMs / 2
+        : undefined;
+    this.data = window ? viewOf(data, window) : data;
     this.width = Math.max(width, 320);
-    this.svgRoot = this.draw(data, this.width);
-    if (this.index !== undefined) this.hover(Math.min(this.index, data.buckets.length - 1));
+    this.svgRoot = this.draw(this.data, this.width);
+    if (hovered !== undefined) this.hover(this.bucketAt(hovered));
   }
 
   private draw(data: TimelineData, width: number): SVGSVGElement {
     const plotRight = width - RIGHT;
+    this.plotRight = plotRight;
     const span = data.to - data.from;
     const x = (time: number) => LEFT + ((time - data.from) / span) * (plotRight - LEFT);
     this.x = x;
@@ -108,14 +127,25 @@ export class TimelineChart {
       width: plotRight - LEFT,
       height: tokens.top + tokens.height - quota.top,
     });
-    hit.addEventListener('pointermove', (event) => {
-      const box = root.getBoundingClientRect();
-      const time = data.from + ((event.clientX - box.left - LEFT) / (plotRight - LEFT)) * span;
-      this.hover(this.bucketAt(time));
+    hit.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      hit.setPointerCapture(event.pointerId);
+      this.dragFrom = event.clientX;
     });
+    hit.addEventListener('pointermove', (event) => {
+      if (this.dragFrom !== undefined && Math.abs(event.clientX - this.dragFrom) >= MIN_DRAG_PX) {
+        this.hover(undefined);
+        this.drawBrush(root, this.dragFrom, event.clientX, quota.top, tokens.top + tokens.height);
+        return;
+      }
+      this.hover(this.bucketAt(this.timeAt(event.clientX)));
+    });
+    hit.addEventListener('pointerup', (event) => this.endDrag(event.clientX));
+    hit.addEventListener('pointercancel', () => this.endDrag(undefined));
     hit.addEventListener('pointerleave', () => {
       if (document.activeElement !== this.element) this.hover(undefined);
     });
+    hit.addEventListener('wheel', (event) => this.wheel(event), { passive: false });
     root.append(
       svg('line', {
         class: 'np-crosshair',
@@ -285,8 +315,11 @@ export class TimelineChart {
       root.append(
         svg('path', { d, class: `np-line ${series.className}`, 'clip-path': 'url(#np-plot-clip)' }),
       );
-      const last = [...data.quota].reverse().find((point) => point[series.key] !== undefined);
-      if (last && last.time >= data.from) {
+      // The latest reading gets a dot and a label, when the window reaches the present.
+      const last = [...data.quota]
+        .reverse()
+        .find((point) => point[series.key] !== undefined && point.time <= data.to);
+      if (last && last.time >= data.from && data.to >= data.extent.to) {
         const value = last[series.key]!;
         root.append(
           svg('circle', {
@@ -374,7 +407,7 @@ export class TimelineChart {
     const slot = x(data.from + data.bucketMs) - x(data.from);
     const width = Math.max(2, Math.min(24, slot - 4));
     const scale = lane.height / ticks[ticks.length - 1];
-    const columns = svg('g', { class: 'np-columns' });
+    const columns = svg('g', { class: 'np-columns', 'clip-path': 'url(#np-plot-clip)' });
     data.buckets.forEach((bucket, index) => {
       const left = x(bucket.start) + (slot - width) / 2;
       if (left + width > plotRight + 1) return;
@@ -400,13 +433,92 @@ export class TimelineChart {
   private bucketAt(time: number): number | undefined {
     const data = this.data;
     if (!data || data.buckets.length === 0) return undefined;
-    const index = Math.floor((time - data.from) / data.bucketMs);
+    const index = Math.floor((time - data.buckets[0].start) / data.bucketMs);
     return Math.min(Math.max(index, 0), data.buckets.length - 1);
+  }
+
+  /** The time under a client x coordinate, within the window shown. */
+  private timeAt(clientX: number): number {
+    const data = this.data!;
+    const box = this.svgRoot!.getBoundingClientRect();
+    const share = (clientX - box.left - LEFT) / (this.plotRight - LEFT);
+    return data.from + Math.min(Math.max(share, 0), 1) * (data.to - data.from);
+  }
+
+  private get window(): TimeWindow {
+    return { from: this.data!.from, to: this.data!.to };
+  }
+
+  private drawBrush(
+    root: SVGSVGElement,
+    from: number,
+    to: number,
+    top: number,
+    bottom: number,
+  ): void {
+    const box = root.getBoundingClientRect();
+    const left = Math.max(Math.min(from, to) - box.left, LEFT);
+    const right = Math.min(Math.max(from, to) - box.left, this.plotRight);
+    let brush = root.querySelector('.np-brush');
+    if (!brush) {
+      brush = svg('rect', { class: 'np-brush', y: top, height: bottom - top });
+      root.querySelector('.np-crosshair')!.before(brush);
+    }
+    brush.setAttribute('x', String(left));
+    brush.setAttribute('width', String(Math.max(right - left, 0)));
+  }
+
+  private endDrag(clientX: number | undefined): void {
+    const from = this.dragFrom;
+    this.dragFrom = undefined;
+    this.svgRoot?.querySelector('.np-brush')?.remove();
+    if (from === undefined || clientX === undefined || Math.abs(clientX - from) < MIN_DRAG_PX)
+      return;
+    const [a, b] = [this.timeAt(from), this.timeAt(clientX)];
+    this.onZoom({ from: Math.min(a, b), to: Math.max(a, b) });
+  }
+
+  /** Ctrl + scroll (a pinch on a touchpad) zooms around the pointer; sideways scroll pans. */
+  private wheel(event: WheelEvent): void {
+    const data = this.data;
+    if (!data) return;
+    if (event.ctrlKey) {
+      event.preventDefault();
+      const exponent =
+        event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 0.05 : 0.002);
+      const factor = Math.exp(Math.min(Math.max(exponent, -0.7), 0.7));
+      this.onZoom(scaleWindow(this.window, factor, this.timeAt(event.clientX)));
+      return;
+    }
+    const sideways = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+    if (coversExtent(this.window, data.extent) || !(sideways || event.shiftKey)) return;
+    event.preventDefault();
+    const pixels = sideways ? event.deltaX : event.deltaY;
+    const perPixel = (data.to - data.from) / (this.plotRight - LEFT);
+    this.onZoom(shiftWindow(this.window, pixels * perPixel));
+  }
+
+  /** Plus and minus zoom around the crosshair, or the middle; zero shows the whole range. */
+  private zoomKey(key: string): boolean {
+    const data = this.data!;
+    const center =
+      this.index !== undefined
+        ? data.buckets[this.index].start + data.bucketMs / 2
+        : (data.from + data.to) / 2;
+    if (key === '+' || key === '=') this.onZoom(scaleWindow(this.window, 0.5, center));
+    else if (key === '-' || key === '_') this.onZoom(scaleWindow(this.window, 2, center));
+    else if (key === '0') this.onZoom(undefined);
+    else return false;
+    return true;
   }
 
   private key(event: KeyboardEvent): void {
     const data = this.data;
     if (!data || data.buckets.length === 0) return;
+    if (this.zoomKey(event.key)) {
+      event.preventDefault();
+      return;
+    }
     const last = data.buckets.length - 1;
     const current = this.index ?? last;
     const next =
@@ -482,7 +594,8 @@ export class TimelineChart {
     const data = this.data!;
     const bucket = data.buckets[index];
     const end = Math.min(bucket.start + data.bucketMs, data.to);
-    const day = data.bucketMs >= 12 * 3_600_000 || data.range !== '24h';
+    // Within about a day the hour says enough; the panel shows the date of a zoomed window.
+    const day = data.to - data.from > 26 * 3_600_000;
     const start = day ? this.formats.dayClock(bucket.start) : this.formats.clock(bucket.start);
     return `${start}–${this.formats.clock(end)}`;
   }
@@ -509,6 +622,18 @@ export class TimelineChart {
     }
     this.tooltip.replaceChildren(title, list);
   }
+}
+
+/** The part of a timeline within a window, for showing at once while the host zooms. */
+export function viewOf(data: TimelineData, window: TimeWindow): TimelineData {
+  return {
+    ...data,
+    from: window.from,
+    to: window.to,
+    buckets: data.buckets.filter(
+      (bucket) => bucket.start + data.bucketMs > window.from && bucket.start < window.to,
+    ),
+  };
 }
 
 export function modelClass(model: ModelFamily): string {

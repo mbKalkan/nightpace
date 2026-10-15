@@ -31,12 +31,19 @@ export interface TokenBucket {
   maxSessions: number;
 }
 
+export interface TimeWindow {
+  from: number;
+  to: number;
+}
+
 export interface TimelineData {
   range: RangeKey;
+  /** The whole range; `from` and `to` lie within it when zoomed in. */
+  extent: TimeWindow;
   from: number;
   to: number;
   bucketMs: number;
-  /** Observations within the range, plus the last one before it. */
+  /** Observations within the window, plus the last one before and the first one after it. */
   quota: QuotaPoint[];
   /** Steps within the range; the first one starts at `from`. */
   sessions: SessionStep[];
@@ -71,10 +78,18 @@ export interface PanelStrings {
   /** `{0}`: when recording started. */
   quotaSince: string;
   chartLabel: string;
+  zoomIn: string;
+  zoomOut: string;
+  resetZoom: string;
+  zoomHint: string;
 }
 
 export type HostToWebviewMessage =
   | { type: 'init'; locale: string; strings: PanelStrings }
   | { type: 'timeline'; data: TimelineData };
 
-export type WebviewToHostMessage = { type: 'ready' } | { type: 'range'; range: RangeKey };
+export type WebviewToHostMessage =
+  | { type: 'ready' }
+  | { type: 'range'; range: RangeKey }
+  /** Zooms into a part of the range, or back out to the whole of it without a window. */
+  | { type: 'zoom'; window?: TimeWindow };

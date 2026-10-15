@@ -3,6 +3,7 @@ import {
   RANGES,
   type HostToWebviewMessage,
   type RangeKey,
+  type TimeWindow,
   type WebviewToHostMessage,
 } from '../shared/protocol';
 import { panelStrings } from './texts';
@@ -50,6 +51,8 @@ export class TimelinePanel {
   private readonly timer: ReturnType<typeof setInterval>;
   private ready = false;
   private updating = 0;
+  /** The part of the range zoomed into; not remembered past the panel. */
+  private zoom: TimeWindow | undefined;
 
   private constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -90,7 +93,18 @@ export class TimelinePanel {
       });
       void this.update();
     } else if (message.type === 'range' && RANGES.includes(message.range)) {
+      this.zoom = undefined;
       void this.context.state.update(RANGE_KEY, message.range).then(() => this.update());
+    } else if (message.type === 'zoom') {
+      const { window } = message;
+      this.zoom =
+        window &&
+        Number.isFinite(window.from) &&
+        Number.isFinite(window.to) &&
+        window.from < window.to
+          ? { from: window.from, to: window.to }
+          : undefined;
+      void this.update();
     }
   }
 
@@ -99,7 +113,7 @@ export class TimelinePanel {
     // A slower, older update must not replace a newer one.
     const id = ++this.updating;
     try {
-      const data = await this.context.source.timeline(this.range);
+      const data = await this.context.source.timeline(this.range, this.zoom);
       if (id === this.updating) this.post({ type: 'timeline', data });
     } catch (error) {
       this.context.log(`Timeline: ${String(error)}`);
