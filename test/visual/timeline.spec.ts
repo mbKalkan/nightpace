@@ -86,7 +86,7 @@ test('shows the same values as a table', async ({ page }) => {
   const panel = await openPanel(page, 'light');
   await panel.init(sampleTimeline('24h'));
   await page.getByRole('button', { name: strings.showTable }).click();
-  const table = page.getByRole('table');
+  const table = page.locator('.np-body').getByRole('table');
   await expect(table).toBeVisible();
   await expect(table.getByRole('columnheader')).toHaveText([
     strings.time,
@@ -241,4 +241,98 @@ test('zooms with the plus and minus keys and the buttons', async ({ page }) => {
   await page.getByRole('button', { name: strings.zoomOut }).click();
   await expect.poll(async () => (await zoomRequests(panel)).at(-1)).toEqual({ type: 'zoom' });
   expect(panel.problems).toEqual([]);
+});
+
+test.describe('where the tokens went', () => {
+  for (const theme of ['dark', 'light'] as ThemeName[]) {
+    test(`lists sessions and projects, most tokens first (${theme})`, async ({ page }) => {
+      const panel = await openPanel(page, theme);
+      const data = sampleTimeline('7d');
+      await panel.init(data);
+      const section = page.getByRole('region', { name: strings.breakdownTitle });
+      await section.scrollIntoViewIfNeeded();
+      const table = section.getByRole('table');
+      await expect(table.getByRole('columnheader')).toHaveText([
+        strings.project,
+        strings.started,
+        strings.active,
+        strings.requests,
+        strings.tokens,
+        strings.share,
+        strings.modelsColumn,
+        strings.effort,
+      ]);
+      await expect(table.getByRole('columnheader', { name: strings.tokens })).toHaveAttribute(
+        'aria-sort',
+        'descending',
+      );
+      // Twelve rows and a way to the rest.
+      expect(data.sessionList.length).toBeGreaterThan(12);
+      await expect(table.locator('tbody tr')).toHaveCount(12);
+      await expect(table.locator('tbody tr').first().locator('th')).toHaveText(
+        /atlas|beacon-api|notes/,
+      );
+      await expect(table.locator('tbody tr').first()).toContainText('xhigh');
+      await page.screenshot({ path: `${SCREENS}/breakdown-sessions-${theme}.png`, fullPage: true });
+
+      await section.getByRole('button', { name: strings.byProject }).click();
+      await expect(table.locator('tbody tr')).toHaveCount(3);
+      await expect(table.getByRole('columnheader').nth(1)).toHaveText(strings.sessions);
+      expect(await lowestTextContrast(page, '.np-breakdown')).toBeGreaterThanOrEqual(4.5);
+      await section.screenshot({ path: `${SCREENS}/breakdown-projects-${theme}.png` });
+      expect(panel.problems).toEqual([]);
+    });
+  }
+
+  test('sorts by a column and shows every row on request', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    const data = sampleTimeline('7d');
+    await panel.init(data);
+    const section = page.getByRole('region', { name: strings.breakdownTitle });
+    const table = section.getByRole('table');
+    await table.getByRole('button', { name: strings.started }).click();
+    await expect(table.getByRole('columnheader', { name: strings.started })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+    const newest = Math.max(...data.sessionList.map((session) => session.first));
+    const firstStarted = await table
+      .locator('tbody tr')
+      .first()
+      .locator('td')
+      .first()
+      .textContent();
+    expect(firstStarted).toContain(
+      new Intl.DateTimeFormat('en', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(newest),
+    );
+    await table.getByRole('button', { name: strings.started }).click();
+    await expect(table.getByRole('columnheader', { name: strings.started })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    );
+
+    await section
+      .getByRole('button', {
+        name: strings.showAll.replace('{0}', String(data.sessionList.length)),
+      })
+      .click();
+    await expect(table.locator('tbody tr')).toHaveCount(data.sessionList.length);
+    expect(panel.problems).toEqual([]);
+  });
+
+  test('remembers grouping by project while the panel lives', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    await panel.init(sampleTimeline('24h'));
+    await page.getByRole('button', { name: strings.byProject }).click();
+    await panel.post({ type: 'timeline', data: sampleTimeline('24h') });
+    await expect(page.getByRole('button', { name: strings.byProject })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(panel.problems).toEqual([]);
+  });
 });

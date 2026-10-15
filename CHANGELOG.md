@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the last 24 hours, 7 days or 30 days. Hover or use the arrow keys for the values at a time, or
   switch to a table. Drag across the chart, Ctrl + scroll, pinch or use the zoom buttons to look
   closer at part of the range, down to half an hour in one-minute columns.
+- Below the timeline, **Where the tokens went** lists the sessions or projects of the period shown:
+  when each session started, how long it worked, its requests, tokens, share, models and effort
+  levels. Sort by any column.
 - Your plan's 5-hour and weekly quota in the status bar, with the 5-hour reset time on a 24-hour clock; yellow from
   80% and red from 95% of any limit. The hover adds per-model weekly limits.
 - Nightpace records the quota in the background: it asks Claude Code every 5 minutes while you

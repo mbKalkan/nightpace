@@ -10,6 +10,7 @@ import {
 import { clampWindow, coversExtent, MIN_WINDOW_MS, scaleWindow } from '../shared/window';
 import { TimelineChart } from './chart/timelineChart';
 import { Formats } from './format';
+import { Breakdown, type Grouping } from './breakdown';
 import { timelineTable } from './table';
 import { vscode } from './vscodeApi';
 
@@ -19,6 +20,7 @@ const ZOOM_SETTLE_MS = 150;
 
 interface ViewState {
   table?: boolean;
+  grouping?: Grouping;
 }
 
 class Panel {
@@ -35,7 +37,8 @@ class Panel {
   /** The window shown at once while the host builds it. */
   private pending: TimeWindow | undefined;
   private zoomTimer: ReturnType<typeof setTimeout> | undefined;
-  private table = (vscode.getState() as ViewState | undefined)?.table === true;
+  private readonly breakdown: Breakdown;
+  private state: ViewState = (vscode.getState() as ViewState | undefined) ?? {};
 
   constructor(
     private readonly strings: PanelStrings,
@@ -72,7 +75,13 @@ class Panel {
     const privacy = document.createElement('p');
     privacy.className = 'np-privacy';
     privacy.textContent = strings.privacy;
-    main.append(header, this.body, hint, note, privacy);
+    this.breakdown = new Breakdown(
+      strings,
+      this.formats,
+      this.state.grouping === 'project' ? 'project' : 'session',
+      (grouping) => this.remember({ grouping }),
+    );
+    main.append(header, this.body, hint, note, this.breakdown.element, privacy);
     app.replaceChildren(main);
 
     new ResizeObserver(() => this.draw()).observe(this.body);
@@ -128,8 +137,7 @@ class Panel {
     this.viewButton.type = 'button';
     this.viewButton.className = 'np-view-toggle';
     this.viewButton.addEventListener('click', () => {
-      this.table = !this.table;
-      vscode.setState({ table: this.table } satisfies ViewState);
+      this.remember({ table: !this.table });
       this.draw();
     });
     row.append(this.zoomLabel, ranges, zoom, this.resetButton, this.viewButton);
@@ -166,6 +174,17 @@ class Panel {
       button.setAttribute('aria-pressed', String(range === data.range));
     }
     this.draw();
+    this.breakdown.render(data);
+  }
+
+  private get table(): boolean {
+    return this.state.table === true;
+  }
+
+  /** Kept by VS Code while the panel lives, hidden or not. */
+  private remember(change: ViewState): void {
+    this.state = { ...this.state, ...change };
+    vscode.setState(this.state);
   }
 
   private draw(): void {

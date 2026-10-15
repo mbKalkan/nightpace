@@ -383,3 +383,126 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.np-breakdown {
+  margin-top: 28px;
+}
+
+.np-breakdown-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.np-subtitle {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.np-breakdown-header button,
+.np-link-button {
+  font: inherit;
+  color: var(--vscode-foreground);
+  background: transparent;
+  border: none;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.np-breakdown-header button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.np-breakdown-header button[aria-pressed='true'] {
+  background: var(--vscode-inputOption-activeBackground);
+  color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+  outline: 1px solid var(--vscode-inputOption-activeBorder, transparent);
+  outline-offset: -1px;
+}
+
+.np-breakdown > div:last-child {
+  overflow-x: auto;
+}
+
+.np-table .np-text-cell {
+  text-align: left;
+}
+
+.np-breakdown-table tbody th {
+  max-width: 18em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.np-sort {
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.np-sort:hover {
+  color: var(--vscode-foreground);
+}
+
+[aria-sort] .np-sort::after {
+  content: ' ▾';
+}
+
+[aria-sort='ascending'] .np-sort::after {
+  content: ' ▴';
+}
+
+.np-token-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.np-mini-track {
+  display: inline-block;
+  width: 72px;
+}
+
+/* A fixed width, so every row's bar starts at the same place. */
+.np-token-cell > span:last-child {
+  min-width: 3.5em;
+  text-align: right;
+}
+
+.np-mini-bar {
+  display: flex;
+  gap: 1px;
+  height: 8px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.np-mini-bar > span {
+  flex-basis: 0;
+  min-width: 1px;
+}
+
+.np-link-button {
+  margin-top: 6px;
+  padding: 3px 0;
+  color: var(--vscode-textLink-foreground);
+}
+
+.np-link-button:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.np-breakdown button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}

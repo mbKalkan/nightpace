@@ -1,10 +1,12 @@
 // A made-up but realistic stretch of Claude Code use, for the panel's browser tests: waves of up to
-// three sessions, mostly Opus with some Fable and Sonnet, and the quota climbing through a reset.
+// three sessions in three projects, mostly Opus at xhigh effort with some Fable and Sonnet, and
+// the quota climbing through a reset.
 import { buildTimeline, type TimelineRequest } from '../../src/extension/model/timeline';
 import type { QuotaSnapshot } from '../../src/extension/quota/snapshot';
 import type { RangeKey, TimelineData, TimeWindow } from '../../src/shared/protocol';
 
 const MIN = 60_000;
+const PROJECTS = ['/work/atlas', '/work/beacon-api', '/home/dev/notes'];
 const HOUR = 60 * MIN;
 /** 15 October 2026, 17:40 UTC. */
 export const SAMPLE_NOW = Date.UTC(2026, 9, 15, 17, 40);
@@ -42,6 +44,8 @@ export function sampleRequests(days = 8): TimelineRequest[] {
             time,
             end: time + 15_000,
             model,
+            effort: s === 2 ? 'high' : 'xhigh',
+            project: PROJECTS[(s + day) % PROJECTS.length],
             sidechain: next() < 0.08,
             tokens: {
               input: 3,
