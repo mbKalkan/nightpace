@@ -6,7 +6,7 @@ import {
   type SessionSummary,
   type TimelineData,
 } from '../shared/protocol';
-import { modelClass } from './chart/timelineChart';
+import { modelClass } from './chart/series';
 import type { Formats } from './format';
 
 /** Rows shown before "Show all". */

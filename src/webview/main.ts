@@ -6,6 +6,7 @@ import {
   type RangeKey,
   type TimelineData,
   type TimeWindow,
+  type TokenSplit,
 } from '../shared/protocol';
 import { clampWindow, coversExtent, MIN_WINDOW_MS, scaleWindow } from '../shared/window';
 import { TimelineChart } from './chart/timelineChart';
@@ -21,6 +22,7 @@ const ZOOM_SETTLE_MS = 150;
 interface ViewState {
   table?: boolean;
   grouping?: Grouping;
+  split?: TokenSplit;
 }
 
 class Panel {
@@ -29,6 +31,7 @@ class Panel {
   private readonly body = document.createElement('div');
   private readonly rangeButtons = new Map<RangeKey, HTMLButtonElement>();
   private readonly viewButton = document.createElement('button');
+  private readonly splitButtons = new Map<TokenSplit, HTMLButtonElement>();
   private readonly zoomLabel = document.createElement('span');
   private readonly zoomInButton = document.createElement('button');
   private readonly zoomOutButton = document.createElement('button');
@@ -140,7 +143,26 @@ class Panel {
       this.remember({ table: !this.table });
       this.draw();
     });
-    row.append(this.zoomLabel, ranges, zoom, this.resetButton, this.viewButton);
+    const split = document.createElement('div');
+    split.className = 'np-segmented';
+    split.setAttribute('role', 'group');
+    split.setAttribute('aria-label', this.strings.splitLabel);
+    split.title = this.strings.splitLabel;
+    for (const [value, label] of [
+      ['model', this.strings.splitByModel],
+      ['effort', this.strings.splitByEffort],
+    ] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        this.remember({ split: value });
+        this.draw();
+      });
+      this.splitButtons.set(value, button);
+      split.append(button);
+    }
+    row.append(this.zoomLabel, ranges, zoom, this.resetButton, split, this.viewButton);
     return row;
   }
 
@@ -181,6 +203,10 @@ class Panel {
     return this.state.table === true;
   }
 
+  private get split(): TokenSplit {
+    return this.state.split === 'effort' ? 'effort' : 'model';
+  }
+
   /** Kept by VS Code while the panel lives, hidden or not. */
   private remember(change: ViewState): void {
     this.state = { ...this.state, ...change };
@@ -190,6 +216,9 @@ class Panel {
   private draw(): void {
     const data = this.data;
     this.viewButton.textContent = this.table ? this.strings.showChart : this.strings.showTable;
+    for (const [value, button] of this.splitButtons) {
+      button.setAttribute('aria-pressed', String(value === this.split));
+    }
     if (!data) return;
     const view = this.view!;
     const zoomed = !coversExtent(view, data.extent);
@@ -198,11 +227,12 @@ class Panel {
     this.zoomInButton.disabled = view.to - view.from <= MIN_WINDOW_MS;
     this.resetButton.hidden = !zoomed;
     if (this.table) {
-      this.body.replaceChildren(timelineTable(data, this.strings, this.formats));
+      this.body.replaceChildren(timelineTable(data, this.strings, this.formats, this.split));
       return;
     }
     if (this.chart.element.parentElement !== this.body)
       this.body.replaceChildren(this.chart.element);
+    this.chart.split = this.split;
     this.chart.render(data, this.body.clientWidth, this.pending);
   }
 }

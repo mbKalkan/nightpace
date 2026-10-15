@@ -1,5 +1,6 @@
 // The timeline as a table: every value the chart draws, readable without hovering.
-import type { PanelStrings, TimelineData } from '../shared/protocol';
+import type { PanelStrings, TimelineData, TokenSplit } from '../shared/protocol';
+import { tokenSeries } from './chart/series';
 import { quotaAt } from './chart/timelineChart';
 import type { Formats } from './format';
 
@@ -7,7 +8,9 @@ export function timelineTable(
   data: TimelineData,
   strings: PanelStrings,
   formats: Formats,
+  split: TokenSplit,
 ): HTMLElement {
+  const series = tokenSeries(data, split, strings);
   const table = document.createElement('table');
   table.className = 'np-table';
   const caption = document.createElement('caption');
@@ -19,7 +22,7 @@ export function timelineTable(
     strings.fiveHour,
     strings.weekly,
     strings.sessions,
-    ...data.models.map((model) => strings.models[model]),
+    ...series.map(({ label }) => label),
     strings.requests,
   ];
   const headRow = document.createElement('tr');
@@ -42,7 +45,7 @@ export function timelineTable(
       recent?.fiveHour === undefined ? '—' : formats.percent(recent.fiveHour),
       recent?.weekly === undefined ? '—' : formats.percent(recent.weekly),
       String(bucket.maxSessions),
-      ...data.models.map((model) => formats.amount(bucket.byModel[model] ?? 0)),
+      ...series.map(({ value }) => formats.amount(value(bucket))),
       String(bucket.requests),
     ];
     const row = document.createElement('tr');

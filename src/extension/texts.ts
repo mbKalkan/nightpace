@@ -22,6 +22,11 @@ export function panelStrings(t: Translate): PanelStrings {
     sessionsLane: t('Sessions working at once'),
     sessions: t('Sessions'),
     tokensLane: t('Tokens by model'),
+    tokensByEffortLane: t('Tokens by effort level'),
+    noEffort: t('Not recorded'),
+    splitLabel: t('Split tokens by'),
+    splitByModel: t('Model'),
+    splitByEffort: t('Effort'),
     tokensNote: t(
       'Weighted like API prices: cache reads count a tenth, cache writes 1.25 or 2 times, output 5 times.',
     ),

@@ -7,6 +7,14 @@ export type RangeKey = (typeof RANGES)[number];
 export const MODEL_FAMILIES = ['opus', 'fable', 'sonnet', 'haiku', 'other'] as const;
 export type ModelFamily = (typeof MODEL_FAMILIES)[number];
 
+/** Claude Code's effort levels, least first: the stacking and legend order. */
+export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+/** Where requests whose transcript names no effort level are counted. */
+export const NO_EFFORT = 'none';
+
+/** What the token lane splits its columns by. */
+export type TokenSplit = 'model' | 'effort';
+
 /** One quota observation, as Claude Code reported it. Percentages from 0 to 100. */
 export interface QuotaPoint {
   time: number;
@@ -26,6 +34,8 @@ export interface SessionStep {
 export interface TokenBucket {
   start: number;
   byModel: Partial<Record<ModelFamily, number>>;
+  /** By effort level as Claude Code names it, or `NO_EFFORT`. */
+  byEffort: Record<string, number>;
   requests: number;
   /** The most sessions working at once within the bucket. */
   maxSessions: number;
@@ -67,6 +77,8 @@ export interface TimelineData {
   buckets: TokenBucket[];
   /** The model families that used tokens within the range, in stacking order. */
   models: ModelFamily[];
+  /** The effort levels that used tokens within the range, least first, `NO_EFFORT` last. */
+  efforts: string[];
   /** Every session that made a request within the window, most tokens first. */
   sessionList: SessionSummary[];
   /** When Nightpace recorded its first quota snapshot, if ever. */
@@ -89,6 +101,11 @@ export interface PanelStrings {
   sessionsLane: string;
   sessions: string;
   tokensLane: string;
+  tokensByEffortLane: string;
+  noEffort: string;
+  splitLabel: string;
+  splitByModel: string;
+  splitByEffort: string;
   tokensNote: string;
   models: Record<ModelFamily, string>;
   time: string;

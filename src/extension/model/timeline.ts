@@ -9,7 +9,7 @@ import type {
   TimeWindow,
   TokenBucket,
 } from '../../shared/protocol';
-import { MODEL_FAMILIES } from '../../shared/protocol';
+import { EFFORT_LEVELS, MODEL_FAMILIES, NO_EFFORT } from '../../shared/protocol';
 import { clampWindow } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
@@ -112,19 +112,25 @@ export function buildTimeline({
   const buckets: TokenBucket[] = Array.from({ length: count }, (_, i) => ({
     start: from + i * bucketMs,
     byModel: {},
+    byEffort: {},
     requests: 0,
     maxSessions: 0,
   }));
 
   const all = [...requests];
   const used = new Set<ModelFamily>();
+  const efforts = new Set<string>();
   for (const request of all) {
     if (request.time < from || request.time >= to) continue;
     const bucket = buckets[Math.floor((request.time - from) / bucketMs)];
     const family = modelFamily(request.model);
-    bucket.byModel[family] = (bucket.byModel[family] ?? 0) + weightedTokens(request.tokens);
+    const effort = request.effort ?? NO_EFFORT;
+    const tokens = weightedTokens(request.tokens);
+    bucket.byModel[family] = (bucket.byModel[family] ?? 0) + tokens;
+    bucket.byEffort[effort] = (bucket.byEffort[effort] ?? 0) + tokens;
     bucket.requests++;
     used.add(family);
+    efforts.add(effort);
   }
 
   // Subagents work for their session: they don't count as sessions of their own.
@@ -151,9 +157,20 @@ export function buildTimeline({
     sessions,
     buckets,
     models: MODEL_FAMILIES.filter((family) => used.has(family)),
+    efforts: effortOrder(efforts),
     sessionList: summarizeSessions(all, intervals, from, to),
     recordingSince: snapshots.find((snapshot) => snapshot.available)?.time,
   };
+}
+
+/** Known levels least first, then any Claude Code adds later, then requests without one. */
+export function effortOrder(efforts: Iterable<string>): string[] {
+  const rank = (effort: string) => {
+    if (effort === NO_EFFORT) return EFFORT_LEVELS.length + 1;
+    const index = (EFFORT_LEVELS as readonly string[]).indexOf(effort);
+    return index < 0 ? EFFORT_LEVELS.length : index;
+  };
+  return [...new Set(efforts)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 }
 
 /** What each session did within [from, to), most tokens first. */

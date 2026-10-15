@@ -1,5 +1,6 @@
-/* Series colors: a validated categorical palette, stepped for light and dark surfaces (D-007).
-   Everything else comes from the VS Code theme. */
+/* Series colors: a validated categorical palette, stepped for light and dark surfaces (D-007),
+   and for effort levels, which are ordered, one validated blue ramp: more effort, more contrast
+   with the surface (D-011). Everything else comes from the VS Code theme. */
 body {
   --np-five: #2a78d6;
   --np-week: #eb6834;
@@ -9,6 +10,11 @@ body {
   --np-sonnet: #e87ba4;
   --np-haiku: #008300;
   --np-other: #8a8a8a;
+  --np-effort-1: #86b6ef;
+  --np-effort-2: #5598e7;
+  --np-effort-3: #2a78d6;
+  --np-effort-4: #1c5cab;
+  --np-effort-5: #104281;
   --np-grid: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
   --np-baseline: color-mix(in srgb, var(--vscode-foreground) 30%, transparent);
 }
@@ -23,6 +29,11 @@ body.vscode-high-contrast:not(.vscode-high-contrast-light) {
   --np-sonnet: #d55181;
   --np-haiku: #008300;
   --np-other: #8a8a8a;
+  --np-effort-1: #184f95;
+  --np-effort-2: #256abf;
+  --np-effort-3: #3987e5;
+  --np-effort-4: #6da7ec;
+  --np-effort-5: #9ec5f4;
 }
 
 body.vscode-high-contrast {
@@ -250,9 +261,30 @@ body {
   fill: var(--np-haiku);
   background: var(--np-haiku);
 }
-.np-m-other {
+.np-m-other,
+.np-e-other {
   fill: var(--np-other);
   background: var(--np-other);
+}
+.np-e-low {
+  fill: var(--np-effort-1);
+  background: var(--np-effort-1);
+}
+.np-e-medium {
+  fill: var(--np-effort-2);
+  background: var(--np-effort-2);
+}
+.np-e-high {
+  fill: var(--np-effort-3);
+  background: var(--np-effort-3);
+}
+.np-e-xhigh {
+  fill: var(--np-effort-4);
+  background: var(--np-effort-4);
+}
+.np-e-max {
+  fill: var(--np-effort-5);
+  background: var(--np-effort-5);
 }
 
 /* After the series colors, so the ring in the surface color wins over the series stroke. */
@@ -338,7 +370,8 @@ body {
 .np-tooltip-key.np-s-sessions {
   background: var(--np-sessions);
 }
-.np-tooltip-key[class*='np-m-'] {
+.np-tooltip-key[class*='np-m-'],
+.np-tooltip-key[class*='np-e-'] {
   height: 8px;
 }
 
