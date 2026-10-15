@@ -8,19 +8,24 @@ import { parseUsageResponse } from './quota/snapshot';
 import { QuotaStatusBar } from './statusBar';
 import { QuotaStore } from './store/quotaStore';
 import { TimelinePanel } from './timelinePanel';
+import { TimelineSource } from './timelineSource';
 import { scanTranscripts, skipToEnd } from './transcripts/scanner';
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('Nightpace', { log: true });
   const store = new QuotaStore(context.globalStorageUri.fsPath);
   const statusBar = new QuotaStatusBar();
+  const source = new TimelineSource(transcriptRoots, store);
   const recorder = new QuotaRecorder({
     query: askClaudeCode,
     lastActivity: transcriptActivity(),
     lastPoll: () => store.lastPoll(),
     recordPoll: (record) => store.recordPoll(record),
     append: (snapshot) => store.append(snapshot),
-    onSnapshot: (snapshot) => statusBar.show(snapshot),
+    onSnapshot: (snapshot) => {
+      statusBar.show(snapshot);
+      TimelinePanel.refresh();
+    },
     log: (message) => output.warn(message),
   });
 
@@ -44,7 +49,12 @@ export function activate(context: vscode.ExtensionContext): void {
       if (event.affectsConfiguration('nightpace.quota.enabled')) applySettings();
     }),
     vscode.commands.registerCommand('nightpace.showTimeline', () =>
-      TimelinePanel.show(context.extensionUri),
+      TimelinePanel.show({
+        extensionUri: context.extensionUri,
+        state: context.globalState,
+        source,
+        log: (message) => output.warn(message),
+      }),
     ),
     vscode.commands.registerCommand('nightpace.deleteData', async () => {
       const remove = vscode.l10n.t('Delete');
@@ -61,6 +71,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (answer !== remove) return;
       await store.clear();
       statusBar.show(undefined);
+      TimelinePanel.refresh();
       vscode.window.setStatusBarMessage(vscode.l10n.t('Nightpace data deleted'), 3000);
     }),
   );

@@ -14,12 +14,21 @@ export const lowestTextContrast = (page: Page, root = '#app') =>
       const lin = (c: number) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
       return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
     };
+    // Translucent backgrounds (VS Code's toggle and hover colors) are blended over the ones
+    // behind them, down to the first opaque one.
     const backgroundOf = (el: Element | null): number[] => {
+      const layers: Array<{ rgb: number[]; a: number }> = [];
       for (let node = el; node; node = node.parentElement) {
         const bg = parse(getComputedStyle(node).backgroundColor);
-        if (bg && bg.a >= 0.5) return bg.rgb;
+        if (!bg || bg.a === 0) continue;
+        layers.push(bg);
+        if (bg.a >= 1) break;
       }
-      return [255, 255, 255];
+      let rgb = [255, 255, 255];
+      for (const layer of layers.reverse()) {
+        rgb = rgb.map((c, i) => layer.rgb[i] * layer.a + c * (1 - layer.a));
+      }
+      return rgb;
     };
     let lowest = Infinity;
     const walker = document.createTreeWalker(
@@ -30,7 +39,9 @@ export const lowestTextContrast = (page: Page, root = '#app') =>
       const el = node.parentElement;
       if (!el || el.tagName === 'STYLE' || !node.textContent?.trim()) continue;
       if (!el.checkVisibility()) continue;
-      const fg = parse(getComputedStyle(el).color);
+      // SVG text is painted with its fill, not its color.
+      const style = getComputedStyle(el);
+      const fg = parse(el instanceof SVGElement ? style.fill : style.color);
       if (!fg) continue;
       const bg = backgroundOf(el);
       const text = fg.rgb.map((c, i) => c * fg.a + bg[i] * (1 - fg.a));
