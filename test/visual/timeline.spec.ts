@@ -17,7 +17,7 @@ for (const theme of ['dark', 'light', 'hcDark', 'hcLight'] as ThemeName[]) {
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(strings.title);
       const chart = page.locator('.np-chart svg');
       await expect(chart).toBeVisible();
-      for (const text of [strings.quotaLane, strings.sessionsLane, strings.tokensLane]) {
+      for (const text of [strings.quotaLane, strings.sessionsLane, strings.tokenLanes.cost.model]) {
         await expect(chart.getByText(text, { exact: true })).toBeVisible();
       }
       // Legends name every series, so color is never the only key.
@@ -96,6 +96,7 @@ test('shows the same values as a table', async ({ page }) => {
     'Opus',
     'Fable',
     'Sonnet',
+    strings.cost,
     strings.requests,
   ]);
   expect(await table.getByRole('row').count()).toBe(sampleTimeline('24h').buckets.length + 1);
@@ -245,7 +246,7 @@ test('zooms with the plus and minus keys and the buttons', async ({ page }) => {
 
 test.describe('where the tokens went', () => {
   for (const theme of ['dark', 'light'] as ThemeName[]) {
-    test(`lists sessions and projects, most tokens first (${theme})`, async ({ page }) => {
+    test(`lists sessions and projects, most cost first (${theme})`, async ({ page }) => {
       const panel = await openPanel(page, theme);
       const data = sampleTimeline('7d');
       await panel.init(data);
@@ -257,15 +258,17 @@ test.describe('where the tokens went', () => {
         strings.started,
         strings.active,
         strings.requests,
+        strings.cost,
         strings.tokens,
         strings.share,
         strings.modelsColumn,
         strings.effort,
       ]);
-      await expect(table.getByRole('columnheader', { name: strings.tokens })).toHaveAttribute(
+      await expect(table.getByRole('columnheader', { name: strings.cost })).toHaveAttribute(
         'aria-sort',
         'descending',
       );
+      await expect(table.locator('tbody tr').first()).toContainText('$');
       // Twelve rows and a way to the rest.
       expect(data.sessionList.length).toBeGreaterThan(12);
       await expect(table.locator('tbody tr')).toHaveCount(12);
@@ -345,7 +348,7 @@ test.describe('tokens by effort level', () => {
       const split = page.getByRole('group', { name: strings.splitLabel });
       await split.getByRole('button', { name: strings.splitByEffort }).click();
       const chart = page.locator('.np-chart svg');
-      await expect(chart.getByText(strings.tokensByEffortLane, { exact: true })).toBeVisible();
+      await expect(chart.getByText(strings.tokenLanes.cost.effort, { exact: true })).toBeVisible();
       for (const text of ['medium', 'high', 'xhigh', strings.noEffort]) {
         await expect(chart.getByText(text, { exact: true })).toBeVisible();
       }
@@ -369,6 +372,69 @@ test.describe('tokens by effort level', () => {
         'aria-pressed',
         'true',
       );
+      expect(panel.problems).toEqual([]);
+    });
+  }
+});
+
+test.describe('cost and token types', () => {
+  for (const theme of ['dark', 'light'] as ThemeName[]) {
+    test(`shows what the usage would cost at API prices (${theme})`, async ({ page }) => {
+      const panel = await openPanel(page, theme);
+      const data = sampleTimeline('7d');
+      await panel.init(data);
+      const spend = page.getByRole('region', { name: strings.spendTitle });
+      await expect(spend).toBeVisible();
+      for (const label of [
+        strings.spendToday,
+        strings.spendLast7Days,
+        strings.spendLast30Days,
+        strings.spendPerActiveDay,
+      ]) {
+        await expect(spend.getByText(label, { exact: true })).toBeVisible();
+      }
+      await expect(spend.locator('dd').nth(2)).toHaveText(/^\$[\d,]+(\.\d\d)?$/);
+      const chart = page.locator('.np-chart svg');
+      await expect(chart.getByText(strings.tokenLanes.cost.model, { exact: true })).toBeVisible();
+      await expect(chart.getByText(/in this period/)).toBeVisible();
+      expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);
+      await page.screenshot({ path: `${SCREENS}/cost-${theme}.png` });
+      expect(panel.problems).toEqual([]);
+    });
+
+    test(`splits the columns by token type, in tokens (${theme})`, async ({ page }) => {
+      const panel = await openPanel(page, theme);
+      await panel.init(sampleTimeline('24h'));
+      await page
+        .getByRole('group', { name: strings.measureLabel })
+        .getByRole('button', { name: strings.measures.tokens })
+        .click();
+      await page
+        .getByRole('group', { name: strings.splitLabel })
+        .getByRole('button', { name: strings.splitByType })
+        .click();
+      const chart = page.locator('.np-chart svg');
+      await expect(chart.getByText(strings.tokenLanes.tokens.type, { exact: true })).toBeVisible();
+      for (const type of ['input', 'cacheWrite', 'cacheRead', 'output'] as const) {
+        await expect(chart.getByText(strings.tokenTypes[type], { exact: true })).toBeVisible();
+      }
+      await expect(page.locator('.np-bar.np-t-cacheRead').first()).toBeVisible();
+      await expect(
+        page.locator('.np-note-text', { hasText: strings.measureNotes.tokens }),
+      ).toBeVisible();
+      const section = page.getByRole('region', { name: strings.breakdownTitle });
+      await expect(section.getByRole('columnheader', { name: strings.tokens })).toHaveAttribute(
+        'aria-sort',
+        'descending',
+      );
+      // Output is a sliver next to the cache reads in tokens; the tooltip still lists it.
+      const column = (await page.locator('.np-bar.np-t-cacheRead').last().boundingBox())!;
+      await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
+      const tooltip = page.locator('.np-tooltip');
+      await expect(tooltip.getByText(strings.tokenTypes.output, { exact: true })).toBeVisible();
+      await expect(tooltip.getByText(strings.cost, { exact: true })).toBeVisible();
+      expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);
+      await page.screenshot({ path: `${SCREENS}/types-${theme}.png` });
       expect(panel.problems).toEqual([]);
     });
   }

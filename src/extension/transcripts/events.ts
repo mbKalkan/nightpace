@@ -13,6 +13,8 @@ export interface TokenCounts {
   output: number;
   /** The thinking part of `output`, when Claude Code reports it. */
   thinking: number;
+  /** Web searches, which the API bills per search rather than by tokens. */
+  webSearches?: number;
 }
 
 export interface UsageEvent {
@@ -30,6 +32,10 @@ export interface UsageEvent {
   project?: string;
   /** False while the response was still streaming: the output count is not final yet. */
   final: boolean;
+  /** Fast mode, which the API bills at a premium. */
+  fast?: true;
+  /** Inference kept in the US, which the API bills at 1.1 times. */
+  usOnly?: true;
   tokens: TokenCounts;
 }
 
@@ -92,6 +98,8 @@ export function parseTranscriptLine(line: string): TranscriptEvent | undefined {
     sidechain: entry.isSidechain === true,
     project: typeof entry.cwd === 'string' ? entry.cwd : undefined,
     final: message.stop_reason !== null && message.stop_reason !== undefined,
+    ...(usage.speed === 'fast' && { fast: true }),
+    ...(usage.inference_geo === 'us' && { usOnly: true }),
     tokens: tokenCounts(usage),
   };
 }
@@ -102,6 +110,7 @@ function tokenCounts(usage: Usage): TokenCounts {
   // Older Claude Code versions report cache writes without the split; they were all 5-minute.
   const cacheWrite1h = split ? count(split.ephemeral_1h_input_tokens) : 0;
   const cacheWrite5m = split ? count(split.ephemeral_5m_input_tokens) : cacheWrite;
+  const webSearches = count(usage.server_tool_use?.web_search_requests);
   return {
     input: count(usage.input_tokens),
     cacheWrite5m,
@@ -109,6 +118,7 @@ function tokenCounts(usage: Usage): TokenCounts {
     cacheRead: count(usage.cache_read_input_tokens),
     output: count(usage.output_tokens),
     thinking: count(usage.output_tokens_details?.thinking_tokens),
+    ...(webSearches > 0 && { webSearches }),
   };
 }
 
@@ -149,4 +159,7 @@ interface Usage {
   cache_read_input_tokens?: number;
   cache_creation?: { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number };
   output_tokens_details?: { thinking_tokens?: number } | null;
+  server_tool_use?: { web_search_requests?: number } | null;
+  speed?: string;
+  inference_geo?: string;
 }

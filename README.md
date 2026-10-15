@@ -5,17 +5,18 @@
 [![CI](https://github.com/mbKalkan/nightpace/actions/workflows/ci.yml/badge.svg)](https://github.com/mbKalkan/nightpace/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**See how fast your Claude Code quota burns, and why.**
+**See how fast your Claude Code quota burns, why, and what it would cost on the API.**
 
 Nightpace puts your Claude Code usage on one timeline in VS Code: the 5-hour and weekly plan
-limits as Claude Code reports them, how many sessions were working at once, and the tokens they
-used by model and effort level. Below it, see which sessions and projects used them. The quota
-is in the status bar too, so you know where you stand without opening anything.
+limits as Claude Code reports them, how many sessions were working at once, and what the
+requests would have cost at Anthropic's API prices, by model, effort level or token type. Below
+it, see which sessions and projects spent it. The quota is in the status bar too, so you know
+where you stand without opening anything.
 
 > **Preview.** The timeline, the session list and the status bar work today. Forecasts from your
 > own history (_"three xhigh sessions run out on Thursday; two last until Sunday"_) are next.
 
-![A week of Claude Code usage in Nightpace: the 5-hour and weekly quota lines rise with the token columns, the sessions lane shows up to four sessions at once, and the table lists the sessions that used the most tokens](docs/images/timeline-dark.png)
+![A week of Claude Code usage in Nightpace: what it would cost at API prices today, over 7 and 30 days and per active day; the 5-hour and weekly quota lines rise with the cost columns, the sessions lane shows up to four sessions at once, and the table lists the sessions that cost the most](docs/images/timeline-dark.png)
 
 ## Why Nightpace
 
@@ -23,8 +24,11 @@ is in the status bar too, so you know where you stand without opening anything.
   records the quota every few minutes and shows how it got there, next to what you were doing.
 - **Parallel sessions in view.** See when two, three or four sessions were working at once and
   what that did to the 5-hour window.
-- **Model and effort level.** Split the token columns by model or by effort level to see what an
-  xhigh afternoon costs next to a medium one.
+- **What your plan is worth.** See what today, the last 7 and 30 days and an average working day
+  would have cost at API list prices.
+- **Model, effort level and token type.** Split the columns by model, effort level or input,
+  cache writes, cache reads and output, in dollars or in tokens, to see what an xhigh afternoon
+  costs next to a medium one and where the money goes.
 - **Private.** Reads usage metadata from Claude Code's local logs; never stores prompts, replies,
   tool output or code. No telemetry, and Nightpace itself makes no network requests.
 
@@ -39,23 +43,29 @@ days on one time axis:
   was recording.
 - **Sessions working at once:** a session counts as working until it has been quiet for 5
   minutes.
-- **Tokens:** by model or by effort level, weighted the way API prices weigh them (cache reads
-  count a tenth, cache writes 1.25 or 2 times, output 5 times), so a column shows cost rather
-  than raw cache reads.
+- **API cost or tokens:** by model, by effort level or by token type (input, cache writes, cache
+  reads, output). **Cost** prices every request at its model's API list price, cache reads and
+  writes, fast mode, US-only inference and web searches included. **Tokens** shows the counts
+  Claude Code logged.
 
 Hover or use the arrow keys for every value at a time, or switch to a table. Drag across the
 chart, Ctrl + scroll or pinch to zoom into part of the range; columns get finer as you zoom in,
 down to a minute.
 
-![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, tokens by model and requests of a quarter of an hour](docs/images/zoom-dark.png)
+![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, cost by model, tokens and requests of a quarter of an hour](docs/images/zoom-dark.png)
+
+### Cost at API prices
+
+Above the timeline, what Claude Code's requests would have cost had you paid per token instead
+of through your plan: today, the last 7 days, the last 30 days and per active day.
 
 ### Where the tokens went
 
 Below the timeline, the sessions or projects of the period shown: when each session started,
-how long it worked, its requests, tokens and share, and the models and effort levels it used.
-Sort by any column.
+how long it worked, its requests, API cost, tokens and share, and the models and effort levels
+it used. Sort by any column.
 
-![The timeline in a light theme with the token columns split by effort level, and the projects that used the tokens of the week](docs/images/effort-light.png)
+![The timeline in a light theme with the cost columns split by token type, cache writes and cache reads costing the most, and the projects that spent the week's cost](docs/images/types-light.png)
 
 ### Status bar
 
@@ -96,8 +106,13 @@ is sent, no quota is used, and Nightpace never reads your credentials.
   Vertex there is no plan quota; tokens and sessions still show.
 - **The quota is per account, the logs are per machine.** Claude Code on another computer and
   Claude on the web use the same quota but don't appear in the token columns here.
-- **Weighted tokens are not quota.** Anthropic doesn't publish how usage counts against the
-  limits; the weighting follows API prices. Measuring it from your own history is the next step.
+- **API cost is not quota.** Anthropic doesn't publish how usage counts against the plan limits;
+  the cost shows what the same requests would cost on the API. Measuring the link from your own
+  history is the next step.
+- **List prices, built in.** Prices are Anthropic's first-party API list prices of October 2026.
+  Batch and Priority Tier discounts, and Bedrock, Vertex AI or Foundry pricing, are not applied.
+  A model released after your Nightpace version has no price until Nightpace is updated; the
+  panel says how many requests that leaves out.
 - **The quota request is not a documented Claude Code API.** If a Claude Code update changes it,
   the quota line pauses until Nightpace is updated; tokens and sessions keep working.
 - Subagents' logs often record only part of their output tokens, so their share can be low.

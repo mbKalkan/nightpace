@@ -1,6 +1,8 @@
 /* Series colors: a validated categorical palette, stepped for light and dark surfaces (D-007),
    and for effort levels, which are ordered, one validated blue ramp: more effort, more contrast
-   with the surface (D-011). Everything else comes from the VS Code theme. */
+   with the surface (D-011). Token types take four of the categorical slots in an order that
+   keeps stacked neighbours apart for color-blind readers (D-013). Everything else comes from the
+   VS Code theme. */
 body {
   --np-five: #2a78d6;
   --np-week: #eb6834;
@@ -15,6 +17,10 @@ body {
   --np-effort-3: #2a78d6;
   --np-effort-4: #1c5cab;
   --np-effort-5: #104281;
+  --np-input: #e87ba4;
+  --np-cache-write: #eda100;
+  --np-cache-read: #1baf7a;
+  --np-output: #6250d6;
   --np-grid: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
   --np-baseline: color-mix(in srgb, var(--vscode-foreground) 30%, transparent);
 }
@@ -34,6 +40,10 @@ body.vscode-high-contrast:not(.vscode-high-contrast-light) {
   --np-effort-3: #3987e5;
   --np-effort-4: #6da7ec;
   --np-effort-5: #9ec5f4;
+  --np-input: #d55181;
+  --np-cache-write: #c98500;
+  --np-cache-read: #199e70;
+  --np-output: #9085e9;
 }
 
 body.vscode-high-contrast {
@@ -287,6 +297,69 @@ body {
   background: var(--np-effort-5);
 }
 
+.np-t-input {
+  fill: var(--np-input);
+  background: var(--np-input);
+}
+.np-t-cacheWrite {
+  fill: var(--np-cache-write);
+  background: var(--np-cache-write);
+}
+.np-t-cacheRead {
+  fill: var(--np-cache-read);
+  background: var(--np-cache-read);
+}
+.np-t-output {
+  fill: var(--np-output);
+  background: var(--np-output);
+}
+
+/* What the usage would cost at API prices: four figures in a row, two on a narrow panel. */
+.np-spend {
+  margin-bottom: 16px;
+}
+
+.np-spend[hidden] {
+  display: none;
+}
+
+.np-spend-title {
+  margin: 0 0 6px;
+  font-size: 1em;
+  font-weight: normal;
+  color: var(--vscode-descriptionForeground);
+}
+
+.np-spend-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.np-spend-tile {
+  padding: 8px 12px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-contrastBorder, transparent));
+  border-radius: 4px;
+  background: var(--vscode-sideBar-background, transparent);
+}
+
+.np-spend-tile dt {
+  color: var(--vscode-descriptionForeground);
+}
+
+.np-spend-tile dd {
+  margin: 2px 0 0;
+  font-size: 1.6em;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .np-spend-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* After the series colors, so the ring in the surface color wins over the series stroke. */
 .np-chart .np-dot {
   stroke: var(--vscode-editor-background);
@@ -371,7 +444,8 @@ body {
   background: var(--np-sessions);
 }
 .np-tooltip-key[class*='np-m-'],
-.np-tooltip-key[class*='np-e-'] {
+.np-tooltip-key[class*='np-e-'],
+.np-tooltip-key[class*='np-t-'] {
   height: 8px;
 }
 

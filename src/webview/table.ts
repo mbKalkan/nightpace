@@ -1,5 +1,5 @@
 // The timeline as a table: every value the chart draws, readable without hovering.
-import type { PanelStrings, TimelineData, TokenSplit } from '../shared/protocol';
+import type { PanelStrings, TimelineData, TokenMeasure, TokenSplit } from '../shared/protocol';
 import { tokenSeries } from './chart/series';
 import { quotaAt } from './chart/timelineChart';
 import type { Formats } from './format';
@@ -9,8 +9,11 @@ export function timelineTable(
   strings: PanelStrings,
   formats: Formats,
   split: TokenSplit,
+  measure: TokenMeasure,
 ): HTMLElement {
-  const series = tokenSeries(data, split, strings);
+  const series = tokenSeries(data, split, measure, strings);
+  const amount = (value: number) =>
+    measure === 'cost' ? formats.money(value) : formats.amount(value);
   const table = document.createElement('table');
   table.className = 'np-table';
   const caption = document.createElement('caption');
@@ -23,6 +26,7 @@ export function timelineTable(
     strings.weekly,
     strings.sessions,
     ...series.map(({ label }) => label),
+    measure === 'cost' ? strings.cost : strings.tokens,
     strings.requests,
   ];
   const headRow = document.createElement('tr');
@@ -45,7 +49,8 @@ export function timelineTable(
       recent?.fiveHour === undefined ? '—' : formats.percent(recent.fiveHour),
       recent?.weekly === undefined ? '—' : formats.percent(recent.weekly),
       String(bucket.maxSessions),
-      ...series.map(({ value }) => formats.amount(value(bucket))),
+      ...series.map(({ value }) => amount(value(bucket))),
+      amount(bucket[measure].total),
       String(bucket.requests),
     ];
     const row = document.createElement('tr');

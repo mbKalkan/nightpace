@@ -1,18 +1,22 @@
 // Everything the timeline panel draws for a time range, from the recorded quota snapshots and
 // the requests read from Claude Code's transcripts.
 import type {
+  Amounts,
   ModelFamily,
   QuotaPoint,
   RangeKey,
   SessionSummary,
+  Spend,
   TimelineData,
   TimeWindow,
   TokenBucket,
+  TokenType,
 } from '../../shared/protocol';
-import { EFFORT_LEVELS, MODEL_FAMILIES, NO_EFFORT } from '../../shared/protocol';
+import { EFFORT_LEVELS, MODEL_FAMILIES, NO_EFFORT, TOKEN_TYPES } from '../../shared/protocol';
 import { clampWindow } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
+import { requestCost } from './pricing';
 import {
   concurrency,
   sessionIntervals,
@@ -57,6 +61,8 @@ export interface TimelineRequest extends TimedRequest {
   effort?: string;
   sidechain: boolean;
   project?: string;
+  fast?: boolean;
+  usOnly?: boolean;
   tokens: TokenCounts;
 }
 
@@ -65,19 +71,41 @@ export function modelFamily(model: string): ModelFamily {
   return MODEL_FAMILIES.find((family) => family !== 'other' && id.includes(family)) ?? 'other';
 }
 
-/**
- * Tokens weighted the way Anthropic's API prices weigh them against input: cache reads at a
- * tenth, cache writes at 1.25× (5 minutes) or 2× (1 hour), output at 5×. Most raw tokens are
- * cheap cache reads, so a plain sum says little about what a request cost.
- */
-export function weightedTokens(tokens: TokenCounts): number {
-  return (
-    tokens.input +
-    tokens.cacheRead * 0.1 +
-    tokens.cacheWrite5m * 1.25 +
-    tokens.cacheWrite1h * 2 +
-    tokens.output * 5
-  );
+/** A request's tokens by type; the thinking part of output is in `output`. */
+export function tokensByType(tokens: TokenCounts): Record<TokenType, number> {
+  return {
+    input: tokens.input,
+    cacheWrite: tokens.cacheWrite5m + tokens.cacheWrite1h,
+    cacheRead: tokens.cacheRead,
+    output: tokens.output,
+  };
+}
+
+export function emptyAmounts(): Amounts {
+  return { total: 0, byModel: {}, byEffort: {}, byType: {} };
+}
+
+/** Adds an amount split by type to `amounts`, under a request's model and effort level. */
+function addTo(
+  amounts: Amounts,
+  family: ModelFamily,
+  effort: string,
+  byType: Record<TokenType, number>,
+): void {
+  let total = 0;
+  for (const type of TOKEN_TYPES) {
+    if (!byType[type]) continue;
+    amounts.byType[type] = (amounts.byType[type] ?? 0) + byType[type];
+    total += byType[type];
+  }
+  amounts.total += total;
+  amounts.byModel[family] = (amounts.byModel[family] ?? 0) + total;
+  amounts.byEffort[effort] = (amounts.byEffort[effort] ?? 0) + total;
+}
+
+/** A request's cost and tokens, each split by type; cost is undefined without a known price. */
+function measured(request: TimelineRequest) {
+  return { cost: requestCost(request), tokens: tokensByType(request.tokens) };
 }
 
 export interface TimelineInput {
@@ -87,6 +115,8 @@ export interface TimelineInput {
   zoom?: TimeWindow;
   requests: Iterable<TimelineRequest>;
   snapshots: readonly QuotaSnapshot[];
+  /** Local midnight today, for today's spend; the host's own when left out. */
+  startOfToday?: number;
 }
 
 /** The whole of a range: buckets line up with whole bucket lengths, so it doesn't shift every minute. */
@@ -102,6 +132,7 @@ export function buildTimeline({
   zoom,
   requests,
   snapshots,
+  startOfToday = new Date(now).setHours(0, 0, 0, 0),
 }: TimelineInput): TimelineData {
   const extent = rangeExtent(range, now);
   const shown = zoom ? clampWindow(zoom, extent) : extent;
@@ -111,8 +142,8 @@ export function buildTimeline({
   const count = Math.ceil((to - from) / bucketMs);
   const buckets: TokenBucket[] = Array.from({ length: count }, (_, i) => ({
     start: from + i * bucketMs,
-    byModel: {},
-    byEffort: {},
+    cost: emptyAmounts(),
+    tokens: emptyAmounts(),
     requests: 0,
     maxSessions: 0,
   }));
@@ -125,9 +156,9 @@ export function buildTimeline({
     const bucket = buckets[Math.floor((request.time - from) / bucketMs)];
     const family = modelFamily(request.model);
     const effort = request.effort ?? NO_EFFORT;
-    const tokens = weightedTokens(request.tokens);
-    bucket.byModel[family] = (bucket.byModel[family] ?? 0) + tokens;
-    bucket.byEffort[effort] = (bucket.byEffort[effort] ?? 0) + tokens;
+    const { cost, tokens } = measured(request);
+    if (cost) addTo(bucket.cost, family, effort, cost);
+    addTo(bucket.tokens, family, effort, tokens);
     bucket.requests++;
     used.add(family);
     efforts.add(effort);
@@ -159,6 +190,7 @@ export function buildTimeline({
     models: MODEL_FAMILIES.filter((family) => used.has(family)),
     efforts: effortOrder(efforts),
     sessionList: summarizeSessions(all, intervals, from, to),
+    spend: spendOf(all, now, startOfToday),
     recordingSince: snapshots.find((snapshot) => snapshot.available)?.time,
   };
 }
@@ -173,7 +205,33 @@ export function effortOrder(efforts: Iterable<string>): string[] {
   return [...new Set(efforts)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 }
 
-/** What each session did within [from, to), most tokens first. */
+const DAY = 24 * HOUR;
+
+/** What the requests up to `now` would have cost at API prices, over fixed periods. */
+export function spendOf(
+  requests: readonly TimelineRequest[],
+  now: number,
+  startOfToday: number,
+): Spend {
+  const spend: Spend = { today: 0, last7Days: 0, last30Days: 0, perActiveDay: 0, unpriced: 0 };
+  const days = new Set<number>();
+  for (const request of requests) {
+    if (request.time > now || request.time < now - 30 * DAY) continue;
+    const cost = requestCost(request);
+    if (!cost) {
+      spend.unpriced++;
+      continue;
+    }
+    spend.last30Days += cost.total;
+    if (request.time >= now - 7 * DAY) spend.last7Days += cost.total;
+    if (request.time >= startOfToday) spend.today += cost.total;
+    days.add(Math.floor((request.time - startOfToday) / DAY));
+  }
+  spend.perActiveDay = days.size > 0 ? spend.last30Days / days.size : 0;
+  return spend;
+}
+
+/** What each session did within [from, to), most cost first. */
 export function summarizeSessions(
   requests: readonly TimelineRequest[],
   intervals: ReadonlyMap<string, readonly Interval[]>,
@@ -191,30 +249,29 @@ export function summarizeSessions(
         last: request.end,
         active: 0,
         requests: 0,
-        tokens: 0,
-        byModel: {},
-        byEffort: {},
+        cost: emptyAmounts(),
+        tokens: emptyAmounts(),
       };
       byId.set(request.sessionId, session);
     }
     session.folder ??= request.project;
-    const tokens = weightedTokens(request.tokens);
     const family = modelFamily(request.model);
+    const effort = request.effort ?? NO_EFFORT;
+    const { cost, tokens } = measured(request);
     session.first = Math.min(session.first, request.time);
     session.last = Math.max(session.last, Math.min(request.end, to));
     session.requests++;
-    session.tokens += tokens;
-    session.byModel[family] = (session.byModel[family] ?? 0) + tokens;
-    if (request.effort) {
-      session.byEffort[request.effort] = (session.byEffort[request.effort] ?? 0) + tokens;
-    }
+    if (cost) addTo(session.cost, family, effort, cost);
+    addTo(session.tokens, family, effort, tokens);
   }
   for (const session of byId.values()) {
     for (const interval of intervals.get(session.id) ?? []) {
       session.active += Math.max(0, Math.min(interval.end, to) - Math.max(interval.start, from));
     }
   }
-  return [...byId.values()].sort((a, b) => b.tokens - a.tokens);
+  return [...byId.values()].sort(
+    (a, b) => b.cost.total - a.cost.total || b.tokens.total - a.tokens.total,
+  );
 }
 
 /** The steps within [from, to), starting with the count at `from`. */

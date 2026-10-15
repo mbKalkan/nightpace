@@ -13,7 +13,23 @@ export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
 export const NO_EFFORT = 'none';
 
 /** What the token lane splits its columns by. */
-export type TokenSplit = 'model' | 'effort';
+export type TokenSplit = 'model' | 'effort' | 'type';
+
+/** What the token lane measures: dollars at API list prices, or plain token counts. */
+export type TokenMeasure = 'cost' | 'tokens';
+
+/** Kinds of tokens, in stacking order; web searches are billed with `output`. */
+export const TOKEN_TYPES = ['input', 'cacheWrite', 'cacheRead', 'output'] as const;
+export type TokenType = (typeof TOKEN_TYPES)[number];
+
+/** An amount, in dollars or tokens, and how it splits. */
+export interface Amounts {
+  total: number;
+  byModel: Partial<Record<ModelFamily, number>>;
+  /** By effort level as Claude Code names it, or `NO_EFFORT`. */
+  byEffort: Record<string, number>;
+  byType: Partial<Record<TokenType, number>>;
+}
 
 /** One quota observation, as Claude Code reported it. Percentages from 0 to 100. */
 export interface QuotaPoint {
@@ -30,18 +46,18 @@ export interface SessionStep {
   count: number;
 }
 
-/** Token use within [start, start + bucketMs), weighted the way API prices weigh it. */
+/** Usage within [start, start + bucketMs). */
 export interface TokenBucket {
   start: number;
-  byModel: Partial<Record<ModelFamily, number>>;
-  /** By effort level as Claude Code names it, or `NO_EFFORT`. */
-  byEffort: Record<string, number>;
+  /** In dollars at API list prices; requests of models without a known price are left out. */
+  cost: Amounts;
+  tokens: Amounts;
   requests: number;
   /** The most sessions working at once within the bucket. */
   maxSessions: number;
 }
 
-/** What one session did within the window shown. Tokens are weighted like `TokenBucket`'s. */
+/** What one session did within the window shown. */
 export interface SessionSummary {
   id: string;
   /** The folder the session ran in, when the transcript says. */
@@ -52,10 +68,20 @@ export interface SessionSummary {
   /** Time spent working within the window, subagents' included through their session. */
   active: number;
   requests: number;
-  tokens: number;
-  byModel: Partial<Record<ModelFamily, number>>;
-  /** By effort level as Claude Code names it (`low` … `max`); requests without one are left out. */
-  byEffort: Record<string, number>;
+  cost: Amounts;
+  tokens: Amounts;
+}
+
+/** What Claude Code's requests would have cost at API list prices, in dollars. */
+export interface Spend {
+  /** Since midnight. */
+  today: number;
+  last7Days: number;
+  last30Days: number;
+  /** Over the days of the last 30 that had any requests. */
+  perActiveDay: number;
+  /** Requests of the last 30 days whose model has no known price, so they aren't counted. */
+  unpriced: number;
 }
 
 export interface TimeWindow {
@@ -79,8 +105,10 @@ export interface TimelineData {
   models: ModelFamily[];
   /** The effort levels that used tokens within the range, least first, `NO_EFFORT` last. */
   efforts: string[];
-  /** Every session that made a request within the window, most tokens first. */
+  /** Every session that made a request within the window, most cost first. */
   sessionList: SessionSummary[];
+  /** Fixed periods up to now, whatever the range shown. */
+  spend: Spend;
   /** When Nightpace recorded its first quota snapshot, if ever. */
   recordingSince?: number;
 }
@@ -100,14 +128,29 @@ export interface PanelStrings {
   weekly: string;
   sessionsLane: string;
   sessions: string;
-  tokensLane: string;
-  tokensByEffortLane: string;
+  /** The token lane's title for each measure and split. */
+  tokenLanes: Record<TokenMeasure, Record<TokenSplit, string>>;
   noEffort: string;
   splitLabel: string;
   splitByModel: string;
   splitByEffort: string;
-  tokensNote: string;
+  splitByType: string;
+  measureLabel: string;
+  measures: Record<TokenMeasure, string>;
+  /** What the lane's measure means, under the chart. */
+  measureNotes: Record<TokenMeasure, string>;
+  tokenTypes: Record<TokenType, string>;
   models: Record<ModelFamily, string>;
+  spendTitle: string;
+  spendToday: string;
+  spendLast7Days: string;
+  spendLast30Days: string;
+  spendPerActiveDay: string;
+  /** `{0}`: how many requests. */
+  spendUnpriced: string;
+  cost: string;
+  /** `{0}`: the amount within the window shown. */
+  periodTotal: string;
   time: string;
   requests: string;
   noQuotaYet: string;

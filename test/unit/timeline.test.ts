@@ -5,7 +5,7 @@ import {
   effortOrder,
   modelFamily,
   RANGE_SPANS,
-  weightedTokens,
+  spendOf,
   type TimelineRequest,
 } from '../../src/extension/model/timeline';
 import type { QuotaSnapshot } from '../../src/extension/quota/snapshot';
@@ -48,16 +48,6 @@ const snapshot = (minutesAgo: number, fiveHour: number, weekly: number): QuotaSn
   models: [],
 });
 
-describe('weightedTokens', () => {
-  it('weighs tokens the way API prices do', () => {
-    expect(
-      weightedTokens(
-        tokens({ input: 10, cacheRead: 1000, cacheWrite5m: 100, cacheWrite1h: 100, output: 20 }),
-      ),
-    ).toBe(10 + 100 + 125 + 200 + 100);
-  });
-});
-
 describe('modelFamily', () => {
   it('groups models by family', () => {
     expect(modelFamily('claude-opus-5-5')).toBe('opus');
@@ -98,11 +88,14 @@ describe('buildTimeline', () => {
     expect(data.extent).toEqual({ from: data.from, to: now });
     expect(data.buckets).toHaveLength(48);
     expect(data.buckets[47]).toMatchObject({
-      byModel: { opus: 100, sonnet: 50 },
+      tokens: { total: 110, byModel: { opus: 100, sonnet: 10 } },
       requests: 2,
       maxSessions: 1,
     });
-    expect(data.buckets[46]).toMatchObject({ byModel: { opus: 100 }, requests: 1 });
+    // Opus 5.5 input at $4, Sonnet 5.5 output at $10 per million tokens.
+    expect(data.buckets[47].cost.byModel.opus).toBeCloseTo(0.0004, 10);
+    expect(data.buckets[47].cost.byModel.sonnet).toBeCloseTo(0.0001, 10);
+    expect(data.buckets[46]).toMatchObject({ tokens: { byModel: { opus: 100 } }, requests: 1 });
     expect(data.models).toEqual(['opus', 'sonnet']);
   });
 
@@ -213,10 +206,13 @@ describe('buildTimeline', () => {
       folder: '/work/alpha',
       first: now - 50 * MIN,
       requests: 3,
-      tokens: 300,
-      byModel: { opus: 200, fable: 100 },
-      byEffort: { xhigh: 200, high: 100 },
+      tokens: {
+        total: 300,
+        byModel: { opus: 200, fable: 100 },
+        byEffort: { xhigh: 200, high: 100 },
+      },
     });
+    expect(a.cost.total).toBeCloseTo(0.0018, 10);
     // 50 to 46 minutes ago, through the last request's 20 seconds.
     expect(a.active).toBe(4 * MIN + 20_000);
     expect(data.sessionList[0].folder).toBeUndefined();
@@ -234,7 +230,81 @@ describe('buildTimeline', () => {
       snapshots: [],
     });
     expect(data.efforts).toEqual(['low', 'xhigh', 'none']);
-    expect(data.buckets[47].byEffort).toEqual({ xhigh: 100, low: 100, none: 100 });
+    expect(data.buckets[47].tokens.byEffort).toEqual({ xhigh: 100, low: 100, none: 100 });
+  });
+
+  it('splits by token type, cache writes of both lifetimes together', () => {
+    const data = buildTimeline({
+      range: '24h',
+      now,
+      requests: [
+        request('a', 10, {
+          tokens: tokens({ input: 1, cacheWrite5m: 2, cacheWrite1h: 3, cacheRead: 40, output: 5 }),
+        }),
+      ],
+      snapshots: [],
+    });
+    expect(data.buckets[47].tokens.byType).toEqual({
+      input: 1,
+      cacheWrite: 5,
+      cacheRead: 40,
+      output: 5,
+    });
+    const cost = data.buckets[47].cost;
+    expect(cost.byType.cacheRead).toBeCloseTo((40 * 4 * 0.05) / 1e6, 12);
+    expect(cost.total).toBeCloseTo((1 * 4 + 2 * 5 + 3 * 8 + 40 * 0.2 + 5 * 20) / 1e6, 12);
+  });
+
+  it('leaves out the cost of models without a known price, not their tokens', () => {
+    const data = buildTimeline({
+      range: '24h',
+      now,
+      requests: [request('a', 10, { model: 'claude-opus-9' })],
+      snapshots: [],
+    });
+    expect(data.buckets[47].tokens.total).toBe(100);
+    expect(data.buckets[47].cost.total).toBe(0);
+    expect(data.spend.unpriced).toBe(1);
+  });
+});
+
+describe('spendOf', () => {
+  const million = tokens({ output: 1_000_000 });
+  const startOfToday = now - 12 * HOUR;
+
+  it('adds up what requests would cost at API prices over fixed periods', () => {
+    const spend = spendOf(
+      [
+        request('a', 60, { tokens: million }),
+        request('a', 13 * 60, { tokens: million }),
+        request('b', 3 * 24 * 60, { tokens: million }),
+        request('c', 10 * 24 * 60, { tokens: million }),
+        request('d', 31 * 24 * 60, { tokens: million }),
+      ],
+      now,
+      startOfToday,
+    );
+    expect(spend).toEqual({
+      today: 20,
+      last7Days: 60,
+      last30Days: 80,
+      // Four days had requests within the 30.
+      perActiveDay: 20,
+      unpriced: 0,
+    });
+  });
+
+  it('bills fast mode, US-only inference and web searches', () => {
+    const fast = spendOf([request('a', 1, { tokens: million, fast: true })], now, startOfToday);
+    expect(fast.today).toBe(40);
+    const us = spendOf([request('a', 1, { tokens: million, usOnly: true })], now, startOfToday);
+    expect(us.today).toBeCloseTo(22, 10);
+    const searches = spendOf(
+      [request('a', 1, { tokens: tokens({ webSearches: 3 }) })],
+      now,
+      startOfToday,
+    );
+    expect(searches.today).toBeCloseTo(0.03, 10);
   });
 });
 
