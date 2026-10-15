@@ -336,3 +336,40 @@ test.describe('where the tokens went', () => {
     expect(panel.problems).toEqual([]);
   });
 });
+
+test.describe('tokens by effort level', () => {
+  for (const theme of ['dark', 'light'] as ThemeName[]) {
+    test(`stacks the columns by effort level instead of model (${theme})`, async ({ page }) => {
+      const panel = await openPanel(page, theme);
+      await panel.init(sampleTimeline('7d'));
+      const split = page.getByRole('group', { name: strings.splitLabel });
+      await split.getByRole('button', { name: strings.splitByEffort }).click();
+      const chart = page.locator('.np-chart svg');
+      await expect(chart.getByText(strings.tokensByEffortLane, { exact: true })).toBeVisible();
+      for (const text of ['medium', 'high', 'xhigh', strings.noEffort]) {
+        await expect(chart.getByText(text, { exact: true })).toBeVisible();
+      }
+      await expect(chart.getByText('Opus', { exact: true })).toHaveCount(0);
+      await expect(page.locator('.np-bar.np-e-xhigh').first()).toBeVisible();
+      expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);
+
+      const column = (await page.locator('.np-bar.np-e-xhigh').last().boundingBox())!;
+      await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
+      await expect(page.locator('.np-tooltip').getByText('xhigh', { exact: true })).toBeVisible();
+      await page.screenshot({ path: `${SCREENS}/timeline-effort-${theme}.png` });
+
+      await page.getByRole('button', { name: strings.showTable }).click();
+      await expect(page.locator('.np-body').getByRole('columnheader')).toContainText([
+        'medium',
+        'high',
+        'xhigh',
+        strings.noEffort,
+      ]);
+      await expect(split.getByRole('button', { name: strings.splitByEffort })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(panel.problems).toEqual([]);
+    });
+  }
+});

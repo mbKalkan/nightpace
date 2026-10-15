@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sessions working at once, and tokens by model weighted like API prices, on one time axis over
   the last 24 hours, 7 days or 30 days. Hover or use the arrow keys for the values at a time, or
   switch to a table. Drag across the chart, Ctrl + scroll, pinch or use the zoom buttons to look
-  closer at part of the range, down to half an hour in one-minute columns.
+  closer at part of the range, down to half an hour in one-minute columns. **Model | Effort**
+  splits the token columns by model or by effort level.
 - Below the timeline, **Where the tokens went** lists the sessions or projects of the period shown:
   when each session started, how long it worked, its requests, tokens, share, models and effort
   levels. Sort by any column.

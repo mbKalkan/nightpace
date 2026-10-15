@@ -44,7 +44,15 @@ export function sampleRequests(days = 8): TimelineRequest[] {
             time,
             end: time + 15_000,
             model,
-            effort: s === 2 ? 'high' : 'xhigh',
+            // Now and then a transcript names no effort level.
+            effort:
+              requests.length % 50 === 0
+                ? undefined
+                : s === 2
+                  ? 'high'
+                  : s === 1 && day % 2 === 0
+                    ? 'medium'
+                    : 'xhigh',
             project: PROJECTS[(s + day) % PROJECTS.length],
             sidechain: next() < 0.08,
             tokens: {

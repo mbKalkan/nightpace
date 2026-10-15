@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bucketFor,
   buildTimeline,
+  effortOrder,
   modelFamily,
   RANGE_SPANS,
   weightedTokens,
@@ -219,5 +220,31 @@ describe('buildTimeline', () => {
     // 50 to 46 minutes ago, through the last request's 20 seconds.
     expect(a.active).toBe(4 * MIN + 20_000);
     expect(data.sessionList[0].folder).toBeUndefined();
+  });
+
+  it('splits tokens by effort level too, least effort first and unnamed last', () => {
+    const data = buildTimeline({
+      range: '24h',
+      now,
+      requests: [
+        request('a', 10, { effort: 'xhigh' }),
+        request('a', 11, { effort: 'low' }),
+        request('a', 12),
+      ],
+      snapshots: [],
+    });
+    expect(data.efforts).toEqual(['low', 'xhigh', 'none']);
+    expect(data.buckets[47].byEffort).toEqual({ xhigh: 100, low: 100, none: 100 });
+  });
+});
+
+describe('effortOrder', () => {
+  it('puts levels Claude Code adds later after the known ones', () => {
+    expect(effortOrder(['none', 'max', 'turbo', 'medium', 'medium'])).toEqual([
+      'medium',
+      'max',
+      'turbo',
+      'none',
+    ]);
   });
 });

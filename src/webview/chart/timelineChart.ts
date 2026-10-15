@@ -4,15 +4,16 @@
 // Dragging across it, Ctrl + scroll (or a pinch) and the plus and minus keys ask to zoom; the
 // panel decides what that means for the range.
 import type {
-  ModelFamily,
   PanelStrings,
   QuotaPoint,
   TimelineData,
   TimeWindow,
   TokenBucket,
+  TokenSplit,
 } from '../../shared/protocol';
 import { coversExtent, scaleWindow, shiftWindow } from '../../shared/window';
 import type { Formats } from '../format';
+import { tokenSeries } from './series';
 import { columnPath, svg } from './svg';
 import { timeTicks, valueTicks } from './ticks';
 
@@ -46,6 +47,8 @@ export class TimelineChart {
   private index: number | undefined;
   private x: (time: number) => number = () => 0;
   private plotRight = 0;
+  /** What the token lane's columns are split by; the panel sets it before rendering. */
+  split: TokenSplit = 'model';
   /** Where a drag to zoom started, as a client x coordinate. */
   private dragFrom: number | undefined;
 
@@ -376,15 +379,12 @@ export class TimelineChart {
     plotRight: number,
   ): void {
     const s = this.strings;
+    const series = tokenSeries(data, this.split, s);
     this.laneTitle(
       root,
       lane,
-      s.tokensLane,
-      data.models.map((model) => ({
-        className: modelClass(model),
-        label: s.models[model],
-        shape: 'rect' as const,
-      })),
+      this.split === 'effort' ? s.tokensByEffortLane : s.tokensLane,
+      series.map(({ className, label }) => ({ className, label, shape: 'rect' as const })),
     );
     const totals = data.buckets.map(total);
     const ticks = valueTicks(Math.max(...totals, 0), 2);
@@ -413,14 +413,14 @@ export class TimelineChart {
       if (left + width > plotRight + 1) return;
       const group = svg('g', { class: 'np-col', 'data-index': index });
       let base = y(0);
-      const drawn = data.models.filter((model) => (bucket.byModel[model] ?? 0) * scale >= 0.5);
-      drawn.forEach((model, i) => {
+      const drawn = series.filter((item) => item.value(bucket) * scale >= 0.5);
+      drawn.forEach((item, i) => {
         if (i > 0) base -= 2; // the surface gap between stacked segments
-        const height = Math.max(1, (bucket.byModel[model] ?? 0) * scale - (i > 0 ? 2 : 0));
+        const height = Math.max(1, item.value(bucket) * scale - (i > 0 ? 2 : 0));
         group.append(
           svg('path', {
             d: columnPath(left, base - height, width, height, i === drawn.length - 1),
-            class: `np-bar ${modelClass(model)}`,
+            class: `np-bar ${item.className}`,
           }),
         );
         base -= height;
@@ -582,9 +582,9 @@ export class TimelineChart {
     if (quota?.weekly !== undefined)
       rows.push([this.formats.percent(quota.weekly), s.weekly, 'np-s-week']);
     rows.push([String(bucket.maxSessions), s.sessions, 'np-s-sessions']);
-    for (const model of data.models) {
-      const value = bucket.byModel[model];
-      if (value) rows.push([this.formats.amount(value), s.models[model], modelClass(model)]);
+    for (const { value, label, className } of tokenSeries(data, this.split, s)) {
+      const amount = value(bucket);
+      if (amount) rows.push([this.formats.amount(amount), label, className]);
     }
     rows.push([String(bucket.requests), s.requests, '']);
     return rows;
@@ -634,10 +634,6 @@ export function viewOf(data: TimelineData, window: TimeWindow): TimelineData {
       (bucket) => bucket.start + data.bucketMs > window.from && bucket.start < window.to,
     ),
   };
-}
-
-export function modelClass(model: ModelFamily): string {
-  return `np-m-${model}`;
 }
 
 function total(bucket: TokenBucket): number {
