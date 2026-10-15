@@ -42,7 +42,7 @@ export function panelStrings(t: Translate): PanelStrings {
     measures: { cost: t('Cost'), tokens: t('Tokens') },
     measureNotes: {
       cost: t(
-        "Cost at Anthropic's API list prices for each model, as if the requests had been paid per token instead of through your plan.",
+        "Cost: what the requests would have cost had you used the API instead of your plan, at each model's list price per token.",
       ),
       tokens: t(
         'Token counts as Claude Code logged them. Most are cache reads, which cost a tenth of input or less.',
@@ -61,7 +61,7 @@ export function panelStrings(t: Translate): PanelStrings {
       haiku: 'Haiku',
       other: t('Other models'),
     },
-    spendTitle: t('Cost at API prices'),
+    spendTitle: t('If you had used the API'),
     spendToday: t('Today'),
     spendLast7Days: t('Last 7 days'),
     spendLast30Days: t('Last 30 days'),

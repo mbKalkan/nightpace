@@ -54,7 +54,7 @@ down to a minute.
 
 ![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, cost by model, tokens and requests of a quarter of an hour](docs/images/zoom-dark.png)
 
-### Cost at API prices
+### If you had used the API
 
 Above the timeline, what Claude Code's requests would have cost had you paid per token instead
 of through your plan: today, the last 7 days, the last 30 days and per active day.
