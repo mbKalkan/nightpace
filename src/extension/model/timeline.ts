@@ -4,6 +4,7 @@ import type {
   ModelFamily,
   QuotaPoint,
   RangeKey,
+  SessionSummary,
   TimelineData,
   TimeWindow,
   TokenBucket,
@@ -12,7 +13,13 @@ import { MODEL_FAMILIES } from '../../shared/protocol';
 import { clampWindow } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
-import { concurrency, sessionIntervals, type Step, type TimedRequest } from './activity';
+import {
+  concurrency,
+  sessionIntervals,
+  type Interval,
+  type Step,
+  type TimedRequest,
+} from './activity';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -47,7 +54,9 @@ export function bucketFor(span: number): number {
 
 export interface TimelineRequest extends TimedRequest {
   model: string;
+  effort?: string;
   sidechain: boolean;
+  project?: string;
   tokens: TokenCounts;
 }
 
@@ -119,7 +128,8 @@ export function buildTimeline({
   }
 
   // Subagents work for their session: they don't count as sessions of their own.
-  const steps = concurrency(sessionIntervals(all.filter((request) => !request.sidechain)).values());
+  const intervals = sessionIntervals(all.filter((request) => !request.sidechain));
+  const steps = concurrency(intervals.values());
   const sessions = clipSteps(steps, from, to);
   for (let i = 0; i < sessions.length; i++) {
     const start = sessions[i].time;
@@ -141,8 +151,53 @@ export function buildTimeline({
     sessions,
     buckets,
     models: MODEL_FAMILIES.filter((family) => used.has(family)),
+    sessionList: summarizeSessions(all, intervals, from, to),
     recordingSince: snapshots.find((snapshot) => snapshot.available)?.time,
   };
+}
+
+/** What each session did within [from, to), most tokens first. */
+export function summarizeSessions(
+  requests: readonly TimelineRequest[],
+  intervals: ReadonlyMap<string, readonly Interval[]>,
+  from: number,
+  to: number,
+): SessionSummary[] {
+  const byId = new Map<string, SessionSummary>();
+  for (const request of requests) {
+    if (request.time < from || request.time >= to) continue;
+    let session = byId.get(request.sessionId);
+    if (!session) {
+      session = {
+        id: request.sessionId,
+        first: request.time,
+        last: request.end,
+        active: 0,
+        requests: 0,
+        tokens: 0,
+        byModel: {},
+        byEffort: {},
+      };
+      byId.set(request.sessionId, session);
+    }
+    session.folder ??= request.project;
+    const tokens = weightedTokens(request.tokens);
+    const family = modelFamily(request.model);
+    session.first = Math.min(session.first, request.time);
+    session.last = Math.max(session.last, Math.min(request.end, to));
+    session.requests++;
+    session.tokens += tokens;
+    session.byModel[family] = (session.byModel[family] ?? 0) + tokens;
+    if (request.effort) {
+      session.byEffort[request.effort] = (session.byEffort[request.effort] ?? 0) + tokens;
+    }
+  }
+  for (const session of byId.values()) {
+    for (const interval of intervals.get(session.id) ?? []) {
+      session.active += Math.max(0, Math.min(interval.end, to) - Math.max(interval.start, from));
+    }
+  }
+  return [...byId.values()].sort((a, b) => b.tokens - a.tokens);
 }
 
 /** The steps within [from, to), starting with the count at `from`. */

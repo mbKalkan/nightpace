@@ -31,6 +31,23 @@ export interface TokenBucket {
   maxSessions: number;
 }
 
+/** What one session did within the window shown. Tokens are weighted like `TokenBucket`'s. */
+export interface SessionSummary {
+  id: string;
+  /** The folder the session ran in, when the transcript says. */
+  folder?: string;
+  /** Its first request's start and its last request's end within the window. */
+  first: number;
+  last: number;
+  /** Time spent working within the window, subagents' included through their session. */
+  active: number;
+  requests: number;
+  tokens: number;
+  byModel: Partial<Record<ModelFamily, number>>;
+  /** By effort level as Claude Code names it (`low` … `max`); requests without one are left out. */
+  byEffort: Record<string, number>;
+}
+
 export interface TimeWindow {
   from: number;
   to: number;
@@ -50,6 +67,8 @@ export interface TimelineData {
   buckets: TokenBucket[];
   /** The model families that used tokens within the range, in stacking order. */
   models: ModelFamily[];
+  /** Every session that made a request within the window, most tokens first. */
+  sessionList: SessionSummary[];
   /** When Nightpace recorded its first quota snapshot, if ever. */
   recordingSince?: number;
 }
@@ -78,6 +97,19 @@ export interface PanelStrings {
   /** `{0}`: when recording started. */
   quotaSince: string;
   chartLabel: string;
+  breakdownTitle: string;
+  bySession: string;
+  byProject: string;
+  project: string;
+  unknownFolder: string;
+  started: string;
+  active: string;
+  tokens: string;
+  share: string;
+  modelsColumn: string;
+  effort: string;
+  /** `{0}`: how many rows there are. */
+  showAll: string;
   zoomIn: string;
   zoomOut: string;
   resetZoom: string;

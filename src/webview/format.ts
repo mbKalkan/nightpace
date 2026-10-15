@@ -10,6 +10,8 @@ export class Formats {
   private readonly day: Intl.DateTimeFormat;
   private readonly date: Intl.DateTimeFormat;
   private readonly compact: Intl.NumberFormat;
+  private readonly hours: Intl.NumberFormat;
+  private readonly minutes: Intl.NumberFormat;
 
   constructor(locale: string) {
     this.time = new Intl.DateTimeFormat(locale, clock);
@@ -20,6 +22,16 @@ export class Formats {
     this.compact = new Intl.NumberFormat(locale, {
       notation: 'compact',
       maximumFractionDigits: 1,
+    });
+    this.hours = new Intl.NumberFormat(locale, {
+      style: 'unit',
+      unit: 'hour',
+      unitDisplay: 'narrow',
+    });
+    this.minutes = new Intl.NumberFormat(locale, {
+      style: 'unit',
+      unit: 'minute',
+      unitDisplay: 'narrow',
     });
   }
 
@@ -55,6 +67,19 @@ export class Formats {
   /** `1.2M` */
   amount(value: number): string {
     return this.compact.format(value);
+  }
+
+  /** `2h 15m`, to the minute. */
+  duration(ms: number): string {
+    const total = Math.round(ms / 60_000);
+    const [h, m] = [Math.floor(total / 60), total % 60];
+    if (h === 0) return this.minutes.format(m);
+    return m === 0 ? this.hours.format(h) : `${this.hours.format(h)} ${this.minutes.format(m)}`;
+  }
+
+  /** A share from 0 to 1 as a whole percentage, with `<1%` for a sliver. */
+  share(value: number): string {
+    return value > 0 && value < 0.005 ? '<1%' : this.percent(value * 100);
   }
 
   percent(value: number): string {

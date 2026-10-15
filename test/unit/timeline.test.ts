@@ -191,4 +191,33 @@ describe('buildTimeline', () => {
     });
     expect(data.quota.map((point) => point.fiveHour)).toEqual([1, 2, 3]);
   });
+
+  it('sums each session within the window, subagents in their session, most tokens first', () => {
+    const data = buildTimeline({
+      range: '24h',
+      now,
+      requests: [
+        request('a', 50, { project: '/work/alpha', effort: 'xhigh' }),
+        request('a', 48, { project: '/work/alpha', effort: 'xhigh', sidechain: true }),
+        request('a', 46, { model: 'claude-fable-5-1', project: '/work/alpha', effort: 'high' }),
+        request('b', 20, { tokens: tokens({ output: 1000 }) }),
+        // Before the window: left out.
+        request('a', 25 * 60, { project: '/work/alpha' }),
+      ],
+      snapshots: [],
+    });
+    expect(data.sessionList.map((session) => session.id)).toEqual(['b', 'a']);
+    const [, a] = data.sessionList;
+    expect(a).toMatchObject({
+      folder: '/work/alpha',
+      first: now - 50 * MIN,
+      requests: 3,
+      tokens: 300,
+      byModel: { opus: 200, fable: 100 },
+      byEffort: { xhigh: 200, high: 100 },
+    });
+    // 50 to 46 minutes ago, through the last request's 20 seconds.
+    expect(a.active).toBe(4 * MIN + 20_000);
+    expect(data.sessionList[0].folder).toBeUndefined();
+  });
 });
