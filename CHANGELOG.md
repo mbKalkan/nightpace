@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-16
+
+A new panel layout, the tokens of the period by type with what caching saved, and a timeline
+that zooms with a plain scroll.
+
 ### Changed
 
 - Scrolling over the timeline now zooms in and out around the pointer, without holding Ctrl.
@@ -80,5 +85,6 @@ First preview release.
   again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
-[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/mbKalkan/nightpace/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/mbKalkan/nightpace/releases/tag/v0.1.0
