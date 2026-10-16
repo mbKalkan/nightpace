@@ -51,9 +51,9 @@ days on one time axis:
   writes, fast mode, US-only inference and web searches included. **Tokens** shows the counts
   Claude Code logged.
 
-Hover or use the arrow keys for every value at a time, or switch to a table. Drag across the
-chart, Ctrl + scroll or pinch to zoom into part of the range; columns get finer as you zoom in,
-down to a minute.
+Hover or use the arrow keys for every value at a time, or switch to a table. Scroll or pinch over
+the chart to zoom in and out around the pointer, or drag across part of the range; Shift + scroll
+moves along time. Columns get finer as you zoom in, down to a minute.
 
 ![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, cost by model, tokens and requests of a quarter of an hour](docs/images/zoom-dark.png)
 
