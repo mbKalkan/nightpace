@@ -11,7 +11,6 @@ import {
 } from '../shared/protocol';
 import { typeClass } from './chart/series';
 import type { Formats } from './format';
-import { TypeFlow } from './typeFlow';
 
 /** The color of each kind: both cache writes share theirs. */
 const TYPE_OF: Record<TokenDetailKey, TokenType> = {
@@ -23,8 +22,6 @@ const TYPE_OF: Record<TokenDetailKey, TokenType> = {
 };
 
 interface Row {
-  /** The kind, for the rows the chart shows too. */
-  key?: TokenDetailKey;
   label: string;
   detail: TokenDetail;
   className?: string;
@@ -37,7 +34,6 @@ export class TokenDetailsView {
   readonly element = document.createElement('section');
   private readonly summary = document.createElement('p');
   private readonly content = document.createElement('div');
-  private readonly flow: TypeFlow;
 
   constructor(
     private readonly strings: PanelStrings,
@@ -52,12 +48,7 @@ export class TokenDetailsView {
     title.textContent = strings.tokenDetailsTitle;
     this.summary.className = 'np-details-summary';
     this.content.className = 'np-table-scroll';
-    this.flow = new TypeFlow(strings, formats, (key) => this.highlightRow(key));
-    // The table and the chart side by side, the chart under the table where there is no room.
-    const body = document.createElement('div');
-    body.className = 'np-details-body';
-    body.append(this.content, this.flow.element);
-    this.element.append(title, this.summary, body);
+    this.element.append(title, this.summary, this.content);
   }
 
   render(details: TokenDetails): void {
@@ -75,7 +66,6 @@ export class TokenDetailsView {
       // A kind Claude Code didn't use, like hour-long cache writes, is left out.
       if (details[key].tokens === 0) continue;
       rows.push({
-        key,
         label: s.tokenDetails[key],
         detail: details[key],
         className: typeClass(TYPE_OF[key]),
@@ -111,21 +101,6 @@ export class TokenDetailsView {
     for (const row of rows) body.append(this.row(row, total));
     table.append(caption, head, body);
     this.content.replaceChildren(table);
-    this.flow.render(
-      rows.flatMap((row) =>
-        row.key
-          ? [
-              {
-                key: row.key,
-                label: row.label,
-                className: row.className!,
-                tokens: row.detail.tokens,
-                cost: row.detail.cost,
-              },
-            ]
-          : [],
-      ),
-    );
 
     const prompt =
       details.input.tokens +
@@ -140,23 +115,10 @@ export class TokenDetailsView {
       .replace('{2}', this.formats.money(details.uncachedCost));
   }
 
-  /** Lights up the table row of the type pointed at in the chart. */
-  private highlightRow(key: string | undefined): void {
-    for (const tr of this.content.querySelectorAll('tbody tr')) {
-      tr.classList.toggle('np-active', key !== undefined && tr.getAttribute('data-key') === key);
-    }
-  }
-
   private row(row: Row, total: TokenDetail): HTMLTableRowElement {
     const tr = document.createElement('tr');
     if (row.part) tr.className = 'np-details-part';
     if (row.total) tr.className = 'np-details-total';
-    if (row.key) {
-      const key = row.key;
-      tr.setAttribute('data-key', key);
-      tr.addEventListener('mouseenter', () => this.flow.highlight(key));
-      tr.addEventListener('mouseleave', () => this.flow.highlight(undefined));
-    }
     const name = document.createElement('th');
     name.scope = 'row';
     name.className = 'np-text-cell';

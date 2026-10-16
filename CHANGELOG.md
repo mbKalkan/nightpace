@@ -17,10 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Tokens by type**: the input, cache writes (5-minute and 1-hour), cache reads and output of
-  the period shown, with the thinking part of output, each with its tokens, API cost and share of
-  both, and beside it a bar of the tokens and a bar of the cost joined type by type. A line above
-  says how much of the prompt came from the cache and what caching saved at API prices.
+- **Tokens by type**, beside the timeline: the input, cache writes (5-minute and 1-hour), cache
+  reads and output of the period shown, with the thinking part of output, each with its tokens,
+  API cost and share of both. A line above it says how much of the prompt came from the cache and
+  what caching saved at API prices. The timeline and the tokens by type take half the panel each,
+  and go one under the other in a narrow panel.
 - **Where the tokens went** has a **From cache** column, and pointing at a row's tokens shows them
   by type.
 - Double-click the chart for the whole range again. Press Escape to let go of a window being

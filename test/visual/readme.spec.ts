@@ -28,7 +28,7 @@ test('one working day zoomed in, with every value at a time', async ({ page }) =
   await panel.init(readmeTimeline('24h', { from: README_NOW - 11.5 * HOUR, to: README_NOW }));
   const box = (await page.locator('.np-hit').boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.62, box.y + 60);
-  await expect(page.locator('.np-chart .np-tooltip')).toBeVisible();
+  await expect(page.locator('.np-tooltip')).toBeVisible();
   await settle(page);
   await page.screenshot({ path: `${IMAGES}/zoom-dark.png` });
   expect(panel.problems).toEqual([]);
@@ -37,7 +37,7 @@ test('one working day zoomed in, with every value at a time', async ({ page }) =
 test('cost by token type, the tokens by type and the projects, in a light theme', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1200, height: 712 });
+  await page.setViewportSize({ width: 1200, height: 836 });
   const panel = await openPanel(page, 'light');
   await panel.init(readmeTimeline('7d'));
   await page
@@ -45,9 +45,12 @@ test('cost by token type, the tokens by type and the projects, in a light theme'
     .getByRole('button', { name: strings.splitByType })
     .click();
   await page.getByRole('button', { name: strings.byProject }).click();
-  // Scrolled to the end, high enough to open with the title of the cost lane.
-  await page.locator('.np-privacy').scrollIntoViewIfNeeded();
-  // Off the charts, so nothing is lit up.
+  // From the window shown above the chart down to the end of the projects.
+  await page.locator('.np-zoom-label').evaluate((label: HTMLElement) => {
+    label.style.scrollMarginTop = '8px';
+    label.scrollIntoView({ block: 'start' });
+  });
+  // Away from the rows, which would mark their time on the chart.
   await page.locator('.np-privacy').hover();
   await settle(page);
   await page.screenshot({ path: `${IMAGES}/types-light.png` });

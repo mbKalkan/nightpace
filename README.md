@@ -19,7 +19,7 @@ where you stand without opening anything.
 > Forecasts from your own history (_"three xhigh sessions run out on Thursday; two last until
 > Sunday"_) are next.
 
-![A week of Claude Code usage in Nightpace: what it would cost at API prices today, over 7 and 30 days and per active day; the 5-hour and weekly quota lines rise with the cost columns, the sessions lane shows up to four sessions at once, and the table lists the sessions that cost the most](docs/images/timeline-dark.png)
+![A week of Claude Code usage in Nightpace: what it would cost at API prices today, over 7 and 30 days and per active day; the 5-hour and weekly quota lines rise with the cost columns and the sessions lane shows up to four sessions at once; beside the timeline, the week's tokens by type, and below, the sessions that cost the most](docs/images/timeline-dark.png)
 
 ## Why Nightpace
 
@@ -67,11 +67,11 @@ of through your plan: today, the last 7 days, the last 30 days and per active da
 
 ### Tokens by type
 
-The tokens of the period shown by kind: input, cache writes (5-minute and 1-hour), cache reads
-and output, with the thinking part of output when Claude Code reports it. Each kind's tokens,
-API cost and share of both. Beside the table, a bar of the tokens and a bar of the cost, joined
-type by type: cache reads are most of the tokens and a fraction of the cost. A line above says
-how much of the prompt came from the cache and what caching saved at API prices.
+Beside the timeline, the tokens of the period shown by kind: input, cache writes (5-minute and
+1-hour), cache reads and output, with the thinking part of output when Claude Code reports it.
+Each kind's tokens, API cost and share of both: cache reads are most of the tokens and a
+fraction of the cost. A line above says how much of the prompt came from the cache and what
+caching saved at API prices. In a narrow panel it moves under the timeline.
 
 ### Where the tokens went
 
@@ -81,7 +81,7 @@ and the models and effort levels it used. Point at a row's tokens for them by ki
 column. Point at a row to see its time on the chart, and click it to zoom the chart to that
 session or project.
 
-![The cost columns of a week split by token type in a light theme; below them, the week's tokens by type in a table and beside it a bar of the tokens joined to a bar of the cost, cache reads 97% of the tokens and a third of the cost, caching saving most of what the requests would have cost; and the projects, each with 97% of its prompt from the cache](docs/images/types-light.png)
+![The cost columns of a week split by token type in a light theme; beside them, the week's tokens by type, cache reads 97% of the tokens and a third of the cost, caching saving most of what the requests would have cost; below, the projects, each with 97% of its prompt from the cache](docs/images/types-light.png)
 
 ### Status bar
 

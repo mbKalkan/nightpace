@@ -115,9 +115,6 @@ export function panelStrings(t: Translate): PanelStrings {
       '{2}',
     ),
     fromCache: t('From cache'),
-    flowLabel: t(
-      'Share of the tokens and share of the API cost of each type, side by side; the table beside it has the numbers.',
-    ),
     zoomToSession: t('Click to zoom the chart to this session'),
     zoomToProject: t('Click to zoom the chart to this project'),
     zoomHint: t(
