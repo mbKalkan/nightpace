@@ -50,7 +50,7 @@
   "Zoom in": "Yakınlaştır",
   "Zoom out": "Uzaklaştır",
   "Whole range": "Tüm aralık",
-  "Scroll or pinch over the chart to zoom in and out, or drag across it. Shift + scroll, or dragging with the wheel held down, moves along time.": "Yakınlaşıp uzaklaşmak için grafiğin üzerinde kaydırın ya da iki parmak hareketi yapın; bir aralığı seçmek için sürükleyin. Shift + kaydırma ya da tekerleğe basılı tutup sürüklemek zamanda ilerletir.",
+  "Scroll or pinch over the chart to zoom in and out, or drag across it with the right button. Drag it with the left button, or Shift + scroll, to move along time.": "Yakınlaşıp uzaklaşmak için grafiğin üzerinde kaydırın ya da iki parmak hareketi yapın; bir aralığa yakınlaşmak için sağ tuşla sürükleyin. Zamanda ilerlemek için sol tuşla sürükleyin ya da Shift + kaydırın.",
   "Reading Claude Code's logs…": "Claude Code kayıtları okunuyor…",
   "API cost by model": "Modele göre API maliyeti",
   "API cost by effort level": "Effort seviyesine göre API maliyeti",

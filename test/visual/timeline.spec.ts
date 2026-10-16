@@ -171,10 +171,10 @@ test('zooms into a window dragged across the chart, and back out', async ({ page
   const top = await chartTop();
   const y = box.y + 60;
   await page.mouse.move(box.x + box.width * 0.55, y);
-  await page.mouse.down();
+  await page.mouse.down({ button: 'right' });
   await page.mouse.move(box.x + box.width * 0.7, y, { steps: 5 });
   await expect(page.locator('.np-brush')).toBeVisible();
-  await page.mouse.up();
+  await page.mouse.up({ button: 'right' });
   await expect(page.locator('.np-brush')).toHaveCount(0);
 
   // Shown at once from what the panel has, then asked of the host.
@@ -254,7 +254,7 @@ test('zooms around the pointer with the scroll wheel and pans sideways', async (
   expect(panel.problems).toEqual([]);
 });
 
-test('pans when dragged with the wheel held down', async ({ page }) => {
+test('pans when dragged with the left button', async ({ page }) => {
   const panel = await openPanel(page, 'dark');
   const whole = sampleTimeline('7d');
   await panel.init(whole);
@@ -262,9 +262,9 @@ test('pans when dragged with the wheel held down', async ({ page }) => {
   const y = box.y + 60;
   // With the whole range shown there is nowhere to go.
   await page.mouse.move(box.x + box.width * 0.5, y);
-  await page.mouse.down({ button: 'middle' });
+  await page.mouse.down({ button: 'left' });
   await page.mouse.move(box.x + box.width * 0.3, y, { steps: 5 });
-  await page.mouse.up({ button: 'middle' });
+  await page.mouse.up({ button: 'left' });
   await page.waitForTimeout(300);
   expect(await zoomRequests(panel)).toEqual([]);
 
@@ -275,10 +275,10 @@ test('pans when dragged with the wheel held down', async ({ page }) => {
   });
   await panel.post({ type: 'timeline', data: shown });
   await page.mouse.move(box.x + box.width * 0.5, y);
-  await page.mouse.down({ button: 'middle' });
+  await page.mouse.down({ button: 'left' });
   await page.mouse.move(box.x + box.width * 0.25, y, { steps: 5 });
   await expect(page.locator('.np-chart.np-panning')).toHaveCount(1);
-  await page.mouse.up({ button: 'middle' });
+  await page.mouse.up({ button: 'left' });
   await expect(page.locator('.np-chart.np-panning')).toHaveCount(0);
   await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
   const [panned] = await zoomRequests(panel);
