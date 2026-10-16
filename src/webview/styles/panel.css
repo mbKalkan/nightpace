@@ -102,12 +102,10 @@ body {
 }
 
 .np-zoom-label {
+  min-height: 1.4em;
+  margin: 0 0 4px;
   color: var(--vscode-descriptionForeground);
   font-variant-numeric: tabular-nums;
-}
-
-.np-zoom-label:empty {
-  display: none;
 }
 
 .np-controls .np-zoom-step {

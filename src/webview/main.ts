@@ -38,7 +38,8 @@ class Panel {
   private readonly measureButtons = new Map<TokenMeasure, HTMLButtonElement>();
   private readonly measureNote = document.createElement('p');
   private readonly spend: SpendTiles;
-  private readonly zoomLabel = document.createElement('span');
+  /** Below the header, not in it: a label that comes and goes there wraps the controls. */
+  private readonly zoomLabel = document.createElement('p');
   private readonly zoomInButton = document.createElement('button');
   private readonly zoomOutButton = document.createElement('button');
   private readonly resetButton = document.createElement('button');
@@ -92,6 +93,7 @@ class Panel {
     main.append(
       header,
       this.spend.element,
+      this.zoomLabel,
       this.body,
       hint,
       this.measureNote,
@@ -148,7 +150,7 @@ class Panel {
     this.resetButton.type = 'button';
     this.resetButton.className = 'np-view-toggle';
     this.resetButton.textContent = this.strings.resetZoom;
-    this.resetButton.hidden = true;
+    this.resetButton.disabled = true;
     this.resetButton.addEventListener('click', () => this.zoom(undefined, 0));
     this.viewButton.type = 'button';
     this.viewButton.className = 'np-view-toggle';
@@ -193,7 +195,7 @@ class Panel {
       this.measureButtons.set(value, button);
       measure.append(button);
     }
-    row.append(this.zoomLabel, ranges, zoom, this.resetButton, measure, split, this.viewButton);
+    row.append(ranges, zoom, this.resetButton, measure, split, this.viewButton);
     return row;
   }
 
@@ -263,10 +265,11 @@ class Panel {
     if (!data) return;
     const view = this.view!;
     const zoomed = !coversExtent(view, data.extent);
-    this.zoomLabel.textContent = zoomed ? this.formats.window(view.from, view.to) : '';
+    // The window shown, zoomed or not, so the line keeps its place.
+    this.zoomLabel.textContent = this.formats.window(view.from, view.to);
     this.zoomOutButton.disabled = !zoomed;
     this.zoomInButton.disabled = view.to - view.from <= MIN_WINDOW_MS;
-    this.resetButton.hidden = !zoomed;
+    this.resetButton.disabled = !zoomed;
     if (this.table) {
       this.body.replaceChildren(
         timelineTable(data, this.strings, this.formats, this.split, this.measure),

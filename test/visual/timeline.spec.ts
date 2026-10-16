@@ -167,6 +167,8 @@ test('zooms into a window dragged across the chart, and back out', async ({ page
   const whole = sampleTimeline('24h');
   await panel.init(whole);
   const box = (await page.locator('.np-hit').boundingBox())!;
+  const chartTop = async () => (await page.locator('.np-chart').boundingBox())!.y;
+  const top = await chartTop();
   const y = box.y + 60;
   await page.mouse.move(box.x + box.width * 0.55, y);
   await page.mouse.down();
@@ -177,7 +179,9 @@ test('zooms into a window dragged across the chart, and back out', async ({ page
 
   // Shown at once from what the panel has, then asked of the host.
   await expect(page.locator('.np-zoom-label')).not.toBeEmpty();
-  await expect(page.getByRole('button', { name: strings.resetZoom })).toBeVisible();
+  await expect(page.getByRole('button', { name: strings.resetZoom })).toBeEnabled();
+  // Zooming moves nothing on the page: the chart stays under the pointer.
+  expect(await chartTop()).toBe(top);
   await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
   const [request] = await zoomRequests(panel);
   const span = whole.to - whole.from;
@@ -191,7 +195,7 @@ test('zooms into a window dragged across the chart, and back out', async ({ page
   await page.getByRole('button', { name: strings.resetZoom }).click();
   await expect.poll(async () => (await zoomRequests(panel)).at(-1)).toEqual({ type: 'zoom' });
   await panel.post({ type: 'timeline', data: whole });
-  await expect(page.getByRole('button', { name: strings.resetZoom })).toBeHidden();
+  await expect(page.getByRole('button', { name: strings.resetZoom })).toBeDisabled();
   await expect(page.getByRole('button', { name: strings.zoomOut })).toBeDisabled();
   expect(panel.problems).toEqual([]);
 });
