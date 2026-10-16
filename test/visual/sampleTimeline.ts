@@ -90,7 +90,8 @@ export function sampleSnapshots(): QuotaSnapshot[] {
       fiveHour: { percent: fiveHour, resetsAt: beforeReset ? firstReset : firstReset + 5 * HOUR },
       weekly: {
         percent: Math.round(31 + ((time - (SAMPLE_NOW - 9 * HOUR)) / HOUR) * 1.6),
-        resetsAt: SAMPLE_NOW + 50 * HOUR,
+        // On the hour, as Claude Code reports it.
+        resetsAt: Date.UTC(2026, 9, 17, 20),
       },
       models: [],
     });

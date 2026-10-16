@@ -25,8 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Columns start on local hours and midnights. Outside UTC, a day's column in the 30-day view ran
-  from one local 03:00 (or wherever midnight UTC falls) to the next.
+- Columns are counted from your plan's weekly reset, marked on the chart with a dashed line, so
+  seven day columns make one quota week. They used to start at midnight UTC, so outside UTC a
+  day's column ran from one local 03:00 (or wherever midnight UTC falls) to the next. Before any
+  quota reading, they start at local midnight.
 - The table names a month's rows by date, and picks the time format by the length of the window
   shown, zoomed or not.
 

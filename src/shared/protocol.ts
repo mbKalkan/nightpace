@@ -98,6 +98,11 @@ export interface TimelineData {
   bucketMs: number;
   /** Observations within the window, plus the last one before and the first one after it. */
   quota: QuotaPoint[];
+  /**
+   * The weekly quota's resets within the window, a week apart from the last one Claude Code
+   * reported; the columns are counted from them. Empty before any quota reading.
+   */
+  weeklyResets: number[];
   /** Steps within the range; the first one starts at `from`. */
   sessions: SessionStep[];
   buckets: TokenBucket[];
@@ -154,6 +159,7 @@ export interface PanelStrings {
   time: string;
   requests: string;
   noQuotaYet: string;
+  weeklyReset: string;
   /** `{0}`: when recording started. */
   quotaSince: string;
   chartLabel: string;

@@ -72,7 +72,13 @@ export class Formats {
    */
   columnStart(time: number, bucketMs: number, windowMs: number): string {
     const DAY = 86_400_000;
-    if (bucketMs >= DAY) return this.calendarDay(time);
+    // Day columns start at the weekly reset, which need not be midnight.
+    if (bucketMs >= DAY) {
+      const date = new Date(time);
+      return date.getHours() === 0 && date.getMinutes() === 0
+        ? this.calendarDay(time)
+        : this.dateClock(time);
+    }
     // A day's range starts at the column before, so it spans a little more than a day.
     if (windowMs <= 26 * 3_600_000) return this.clock(time);
     return windowMs <= 7.5 * DAY ? this.dayClock(time) : this.dateClock(time);

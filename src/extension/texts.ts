@@ -75,6 +75,7 @@ export function panelStrings(t: Translate): PanelStrings {
       'Nightpace records the quota from now on; it appears here after the first reading.',
     ),
     quotaSince: t('Quota recorded since {0}', '{0}'),
+    weeklyReset: t('Weekly reset'),
     chartLabel: t(
       'Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom, Shift and the arrow keys to move the zoomed window, and zero for the whole range.',
     ),
