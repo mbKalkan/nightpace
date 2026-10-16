@@ -247,6 +247,11 @@ body {
   stroke: var(--np-sessions);
   fill: var(--np-sessions);
 }
+.np-reset {
+  stroke: var(--np-week);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
 .np-line.np-s-five,
 .np-line.np-s-week,
 .np-line.np-s-sessions {

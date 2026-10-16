@@ -36,8 +36,8 @@ export const RANGE_SPANS: Record<RangeKey, number> = {
 
 const MAX_BUCKETS = 60;
 // Each size divides the next ones it can meet within a range, so a zoomed window's buckets
-// line up with the whole range's. They are counted in local time: a day's column starts at
-// local midnight, as the axis does, not at midnight UTC.
+// line up with the whole range's. Every size divides a week too: counted from the weekly
+// quota's reset, seven day columns make one quota week.
 const BUCKET_SIZES = [
   MIN,
   2 * MIN,
@@ -119,25 +119,47 @@ export interface TimelineInput {
   /** Local midnight today, for today's spend; the host's own when left out. */
   startOfToday?: number;
   /**
-   * How far local time is ahead of UTC now; the host's own when left out. One offset serves the
-   * whole range, so across a daylight saving change the older columns start an hour off.
+   * How far local time is ahead of UTC now; the host's own when left out. Before any quota
+   * reading, columns start on local hours and midnights instead of at the weekly reset.
    */
   utcOffset?: number;
 }
 
-/** `time` rounded down to a whole number of `size` in local time. */
-function floorLocal(time: number, size: number, utcOffset: number): number {
-  return Math.floor((time + utcOffset) / size) * size - utcOffset;
+const WEEK = 7 * 24 * HOUR;
+
+/**
+ * The time the columns are counted from: the weekly quota's reset as Claude Code last reported
+ * it, to the minute (it comes with a second's jitter), or local midnight before any reading.
+ */
+export function columnAnchor(
+  snapshots: readonly QuotaSnapshot[],
+  utcOffset: number,
+): { time: number; reset: boolean } {
+  let latest: QuotaSnapshot | undefined;
+  for (const snapshot of snapshots) {
+    if (snapshot.available && snapshot.weekly?.resetsAt !== undefined) {
+      if (!latest || snapshot.time > latest.time) latest = snapshot;
+    }
+  }
+  const reset = latest?.weekly?.resetsAt;
+  return reset === undefined
+    ? { time: -utcOffset, reset: false }
+    : { time: Math.round(reset / MIN) * MIN, reset: true };
 }
 
-function ceilLocal(time: number, size: number, utcOffset: number): number {
-  return Math.ceil((time + utcOffset) / size) * size - utcOffset;
+/** `time` rounded down to a whole number of `size` after `anchor`. */
+function floorFrom(time: number, size: number, anchor: number): number {
+  return anchor + Math.floor((time - anchor) / size) * size;
+}
+
+function ceilFrom(time: number, size: number, anchor: number): number {
+  return anchor + Math.ceil((time - anchor) / size) * size;
 }
 
 /** The whole of a range: buckets line up with whole bucket lengths, so it doesn't shift every minute. */
-export function rangeExtent(range: RangeKey, now: number, utcOffset: number): TimeWindow {
+export function rangeExtent(range: RangeKey, now: number, anchor: number): TimeWindow {
   const span = RANGE_SPANS[range];
-  return { from: floorLocal(now - span, bucketFor(span), utcOffset), to: now };
+  return { from: floorFrom(now - span, bucketFor(span), anchor), to: now };
 }
 
 export function buildTimeline({
@@ -149,11 +171,18 @@ export function buildTimeline({
   startOfToday = new Date(now).setHours(0, 0, 0, 0),
   utcOffset = -new Date(now).getTimezoneOffset() * MIN,
 }: TimelineInput): TimelineData {
-  const extent = rangeExtent(range, now, utcOffset);
+  const anchor = columnAnchor(snapshots, utcOffset);
+  const extent = rangeExtent(range, now, anchor.time);
   const shown = zoom ? clampWindow(zoom, extent) : extent;
   const bucketMs = bucketFor(shown.to - shown.from);
-  const from = floorLocal(shown.from, bucketMs, utcOffset);
-  const to = Math.min(ceilLocal(shown.to, bucketMs, utcOffset), extent.to);
+  const from = floorFrom(shown.from, bucketMs, anchor.time);
+  const to = Math.min(ceilFrom(shown.to, bucketMs, anchor.time), extent.to);
+  const weeklyResets: number[] = [];
+  if (anchor.reset) {
+    for (let time = floorFrom(from, WEEK, anchor.time); time <= to; time += WEEK) {
+      if (time >= from) weeklyResets.push(time);
+    }
+  }
   const count = Math.ceil((to - from) / bucketMs);
   const buckets: TokenBucket[] = Array.from({ length: count }, (_, i) => ({
     start: from + i * bucketMs,
@@ -200,6 +229,7 @@ export function buildTimeline({
     to,
     bucketMs,
     quota: quotaPoints(snapshots, from, to),
+    weeklyResets,
     sessions,
     buckets,
     models: MODEL_FAMILIES.filter((family) => used.has(family)),

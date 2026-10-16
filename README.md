@@ -54,7 +54,9 @@ days on one time axis:
 Hover or use the arrow keys for every value at a time, or switch to a table. Scroll or pinch over
 the chart to zoom in and out around the pointer, or drag across part of the range with the right
 button. Drag the chart with the left button, or Shift + scroll, to move along time, and
-double-click for the whole range again. Columns get finer as you zoom in, down to a minute.
+double-click for the whole range again. Columns get finer as you zoom in, down to a minute, and
+are counted from your plan's weekly reset, marked with a dashed line, so seven day columns make
+one quota week.
 
 ![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, cost by model, tokens and requests of a quarter of an hour](docs/images/zoom-dark.png)
 

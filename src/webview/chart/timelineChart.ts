@@ -269,6 +269,13 @@ export class TimelineChart {
         ),
       );
     }
+    // Where one quota week ends and the next begins: the columns are counted from here.
+    for (const time of data.weeklyResets) {
+      if (time <= data.from || time >= data.to) continue;
+      group.append(
+        svg('line', { class: 'np-reset', x1: x(time), x2: x(time), y1: top, y2: bottom }),
+      );
+    }
     root.append(group);
   }
 
@@ -377,6 +384,9 @@ export class TimelineChart {
       [
         { className: 'np-s-five', label: s.fiveHour, shape: 'line' },
         { className: 'np-s-week', label: s.weekly, shape: 'line' },
+        ...(data.weeklyResets.length > 0
+          ? [{ className: 'np-reset', label: s.weeklyReset, shape: 'line' as const }]
+          : []),
       ],
       note,
     );

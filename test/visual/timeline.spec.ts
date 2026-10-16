@@ -101,13 +101,20 @@ test('shows the same values as a table', async ({ page }) => {
   ]);
   expect(await table.getByRole('row').count()).toBe(sampleTimeline('24h').buckets.length + 1);
   await page.screenshot({ path: `${SCREENS}/timeline-table-light.png` });
-  // A month's rows are days, named by their date: weekdays repeat within it.
+  // A month's rows are days from the weekly reset, named by their date: weekdays repeat in it.
   const month = sampleTimeline('30d');
   await panel.post({ type: 'timeline', data: month });
   const newest = month.buckets.at(-1)!.start;
-  expect(new Date(newest).getHours()).toBe(0);
+  const reset = month.weeklyResets.at(-1)!;
+  expect((newest - reset) % (24 * 3_600_000)).toBe(0);
   await expect(table.locator('tbody tr').first().locator('th')).toHaveText(
-    new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(newest),
+    new Intl.DateTimeFormat('en', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(newest),
   );
   await page.getByRole('button', { name: strings.showChart }).click();
   await expect(page.locator('.np-chart svg')).toBeVisible();

@@ -157,7 +157,30 @@ describe('buildTimeline', () => {
     expect(data.sessions[0]).toEqual({ time: data.from, count: 0 });
   });
 
-  it('starts the daily columns at local midnight, not at midnight UTC', () => {
+  it('counts the columns from the weekly reset, so seven day columns make a quota week', () => {
+    // Wednesday 20:00 UTC, as Claude Code reports it: a few milliseconds off.
+    const reset = Date.UTC(2026, 9, 21, 20);
+    const snapshots: QuotaSnapshot[] = [
+      { ...snapshot(60, 10, 20), weekly: { percent: 20, resetsAt: reset - 300 } },
+      { ...snapshot(5, 10, 20), weekly: { percent: 20, resetsAt: reset + 71 } },
+    ];
+    const utcOffset = 3 * HOUR;
+    const data = buildTimeline({ range: '30d', now, utcOffset, requests: [], snapshots });
+    expect(data.bucketMs).toBe(24 * HOUR);
+    expect(data.buckets.every((bucket) => (reset - bucket.start) % (24 * HOUR) === 0)).toBe(true);
+    // The last column is the quota day under way: from Wednesday's reset hour on Thursday.
+    expect(data.buckets.at(-1)!.start).toBe(Date.UTC(2026, 9, 14, 20));
+    expect(data.weeklyResets).toEqual(
+      [4, 3, 2, 1, 0].map((weeks) => Date.UTC(2026, 9, 14, 20) - weeks * 7 * 24 * HOUR),
+    );
+
+    const week = buildTimeline({ range: '7d', now, utcOffset, requests: [], snapshots });
+    expect(week.bucketMs).toBe(3 * HOUR);
+    expect(week.buckets.every((bucket) => (reset - bucket.start) % (3 * HOUR) === 0)).toBe(true);
+    expect(week.weeklyResets).toEqual([Date.UTC(2026, 9, 14, 20)]);
+  });
+
+  it('before any quota reading, starts the daily columns at local midnight', () => {
     // Three hours ahead of UTC, as in Istanbul: noon UTC is 15:00 there.
     const utcOffset = 3 * HOUR;
     const data = buildTimeline({ range: '30d', now, utcOffset, requests: [], snapshots: [] });
@@ -169,9 +192,10 @@ describe('buildTimeline', () => {
     );
     // Today's column, from local midnight to now.
     expect(data.buckets.at(-1)!.start).toBe(Date.UTC(2026, 9, 14, 21));
+    expect(data.weeklyResets).toEqual([]);
   });
 
-  it('starts columns on local hours where the offset is not a whole number of them', () => {
+  it('before any quota reading, starts columns on local hours in half-hour offset zones', () => {
     // Five and a half hours ahead of UTC, as in India.
     const utcOffset = 5.5 * HOUR;
     const data = buildTimeline({ range: '7d', now, utcOffset, requests: [], snapshots: [] });
