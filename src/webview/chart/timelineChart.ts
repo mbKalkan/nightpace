@@ -1,8 +1,8 @@
 // The timeline: three lanes on one time axis. Plan quota (5-hour and weekly, as observed), the
 // sessions working at once, and API cost or tokens by model, effort level or token type. Each lane has its own value axis;
 // no lane ever carries two (no dual axes). Colors come from CSS, so a theme change restyles it.
-// Dragging across it, scrolling (or a pinch) and the plus and minus keys ask to zoom; the
-// panel decides what that means for the range.
+// Dragging across it, scrolling (or a pinch) and the plus and minus keys ask to zoom, and
+// dragging with the wheel held down pans; the panel decides what that means for the range.
 import type {
   PanelStrings,
   QuotaPoint,
@@ -53,6 +53,8 @@ export class TimelineChart {
   measure: TokenMeasure = 'cost';
   /** Where a drag to zoom started, as a client x coordinate. */
   private dragFrom: number | undefined;
+  /** Whether the wheel is held down to pan. */
+  private panning = false;
   /**
    * Takes the pointer and the wheel over the plot. It outlives the redraws: Chromium sends the rest
    * of a scroll to the element that took its first wheel event, and a replaced one would leave the
@@ -84,12 +86,18 @@ export class TimelineChart {
   }
 
   private listen(hit: SVGRectElement): void {
+    // The wheel button would otherwise start the browser's autoscroll.
+    hit.addEventListener('mousedown', (event) => {
+      if (event.button === 1) event.preventDefault();
+    });
     hit.addEventListener('pointerdown', (event) => {
+      if (event.button === 1) this.startPan(event);
       if (event.button !== 0) return;
       hit.setPointerCapture(event.pointerId);
       this.dragFrom = event.clientX;
     });
     hit.addEventListener('pointermove', (event) => {
+      if (this.panning) return;
       if (this.dragFrom !== undefined && Math.abs(event.clientX - this.dragFrom) >= MIN_DRAG_PX) {
         this.hover(undefined);
         this.drawBrush(this.dragFrom, event.clientX);
@@ -103,6 +111,37 @@ export class TimelineChart {
       if (document.activeElement !== this.element) this.hover(undefined);
     });
     hit.addEventListener('wheel', (event) => this.wheel(event), { passive: false });
+  }
+
+  /**
+   * Moving with the wheel held down drags the window along time, like a map. The moves are
+   * followed on the page, not on the plot: each step redraws it, which would drop a capture.
+   */
+  private startPan(event: PointerEvent): void {
+    const data = this.data;
+    if (!data || coversExtent(this.window, data.extent)) return;
+    event.preventDefault();
+    const start = this.window;
+    const from = event.clientX;
+    const perPixel = (start.to - start.from) / (this.plotRight - LEFT);
+    this.panning = true;
+    this.hover(undefined);
+    this.element.classList.add('np-panning');
+    const end = () => {
+      this.panning = false;
+      this.element.classList.remove('np-panning');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+    const move = (moved: PointerEvent) => {
+      // Let go of outside the panel, where the release is never seen.
+      if ((moved.buttons & 4) === 0) return end();
+      this.onZoom(shiftWindow(start, (from - moved.clientX) * perPixel));
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
   }
 
   /** Draws the timeline, or the part of it within `window` while the host zooms. */
