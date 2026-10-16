@@ -221,6 +221,8 @@ export interface PanelStrings {
   cacheSummary: string;
   /** The column of the share of prompt tokens read from the cache. */
   fromCache: string;
+  /** What the chart beside the token details shows, for screen readers. */
+  flowLabel: string;
 }
 
 export type HostToWebviewMessage =

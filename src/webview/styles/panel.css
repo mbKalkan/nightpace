@@ -576,6 +576,72 @@ body {
   width: auto;
 }
 
+.np-details-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 40px;
+}
+
+.np-details-body > .np-table-scroll {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.np-flow {
+  position: relative;
+  flex: 1 1 320px;
+  min-width: 280px;
+  max-width: 640px;
+}
+
+.np-flow svg {
+  display: block;
+  overflow: visible;
+}
+
+.np-flow-name {
+  fill: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.np-flow-share {
+  fill: var(--vscode-foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.np-flow-ribbon {
+  fill-opacity: 0.22;
+  transition: fill-opacity 0.15s;
+}
+
+.np-flow-bar,
+.np-flow-ribbon,
+.np-flow-share {
+  transition: opacity 0.15s;
+}
+
+.np-flow svg.np-hovering [data-key]:not(.np-active) {
+  opacity: 0.3;
+}
+
+.np-flow svg.np-hovering .np-flow-ribbon.np-active {
+  fill-opacity: 0.4;
+}
+
+.np-details-table tbody tr.np-active {
+  background: var(--vscode-list-hoverBackground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-flow-bar,
+  .np-flow-ribbon,
+  .np-flow-share {
+    transition: none;
+  }
+}
+
 .np-details-key {
   display: inline-block;
   width: 10px;
