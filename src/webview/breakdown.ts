@@ -8,6 +8,7 @@ import {
   type PanelStrings,
   type SessionSummary,
   type TimelineData,
+  type TimeWindow,
   type TokenMeasure,
 } from '../shared/protocol';
 import { modelClass } from './chart/series';
@@ -22,11 +23,18 @@ const MEASURE_COLUMNS: Record<TokenMeasure, number> = { cost: 4, tokens: 5 };
 
 export type Grouping = 'session' | 'project';
 
+/** What the rows ask of the chart: to mark their time while pointed at, and to zoom to it. */
+export interface RowActions {
+  mark(span: TimeWindow | undefined): void;
+  zoom(span: TimeWindow): void;
+}
+
 interface Row {
   key: string;
   label: string;
   folder?: string;
   first: number;
+  last: number;
   sessions: number;
   active: number;
   requests: number;
@@ -64,6 +72,7 @@ export class Breakdown {
     private readonly formats: Formats,
     private grouping: Grouping,
     private readonly onGrouping: (grouping: Grouping) => void,
+    private readonly actions: RowActions,
   ) {
     this.element.className = 'np-breakdown';
     this.element.setAttribute('aria-labelledby', 'np-breakdown-title');
@@ -137,6 +146,10 @@ export class Breakdown {
       max: Math.max(...rows.map((row) => row[measure].total)),
     };
     const shown = this.expanded ? rows : rows.slice(0, FIRST_ROWS);
+    // The rows are about to be replaced, and a replaced row never says the pointer left it.
+    this.actions.mark(undefined);
+    const hint =
+      this.grouping === 'session' ? this.strings.zoomToSession : this.strings.zoomToProject;
 
     const table = document.createElement('table');
     table.className = 'np-table np-breakdown-table';
@@ -152,14 +165,30 @@ export class Breakdown {
     const body = document.createElement('tbody');
     for (const row of shown) {
       const tr = document.createElement('tr');
+      const span = { from: row.first, to: row.last };
+      tr.title = hint;
+      tr.addEventListener('mouseenter', () => this.actions.mark(span));
+      tr.addEventListener('mouseleave', () => this.actions.mark(undefined));
+      tr.addEventListener('click', () => this.actions.zoom(span));
       columns.forEach((column, index) => {
         const cell = document.createElement(index === 0 ? 'th' : 'td');
+        if (column.text) cell.classList.add('np-text-cell');
+        const content = column.cell(row, context);
         if (index === 0) {
           (cell as HTMLTableCellElement).scope = 'row';
           if (row.folder) cell.title = row.folder;
+          // The row's click, within reach of the keyboard; the click itself reaches the row.
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'np-row-button';
+          button.setAttribute('aria-description', hint);
+          button.append(content);
+          button.addEventListener('focus', () => this.actions.mark(span));
+          button.addEventListener('blur', () => this.actions.mark(undefined));
+          cell.append(button);
+        } else {
+          cell.append(content);
         }
-        if (column.text) cell.classList.add('np-text-cell');
-        cell.append(column.cell(row, context));
         tr.append(cell);
       });
       body.append(tr);
@@ -315,6 +344,7 @@ function sessionRows(sessions: readonly SessionSummary[]): Row[] {
     label: session.folder ? folderName(session.folder) : '',
     folder: session.folder,
     first: session.first,
+    last: session.last,
     sessions: 1,
     active: session.active,
     requests: session.requests,
@@ -334,6 +364,7 @@ function projectRows(data: TimelineData): Row[] {
         label: session.folder ? folderName(session.folder) : '',
         folder: session.folder,
         first: session.first,
+        last: session.last,
         sessions: 0,
         active: 0,
         requests: 0,
@@ -343,6 +374,7 @@ function projectRows(data: TimelineData): Row[] {
       byFolder.set(key, row);
     }
     row.first = Math.min(row.first, session.first);
+    row.last = Math.max(row.last, session.last);
     row.sessions++;
     row.active += session.active;
     row.requests += session.requests;

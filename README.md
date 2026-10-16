@@ -53,8 +53,8 @@ days on one time axis:
 
 Hover or use the arrow keys for every value at a time, or switch to a table. Scroll or pinch over
 the chart to zoom in and out around the pointer, or drag across part of the range with the right
-button. Drag the chart with the left button, or Shift + scroll, to move along time. Columns get
-finer as you zoom in, down to a minute.
+button. Drag the chart with the left button, or Shift + scroll, to move along time, and
+double-click for the whole range again. Columns get finer as you zoom in, down to a minute.
 
 ![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, cost by model, tokens and requests of a quarter of an hour](docs/images/zoom-dark.png)
 
@@ -67,7 +67,8 @@ of through your plan: today, the last 7 days, the last 30 days and per active da
 
 Below the timeline, the sessions or projects of the period shown: when each session started,
 how long it worked, its requests, API cost, tokens and share, and the models and effort levels
-it used. Sort by any column.
+it used. Sort by any column. Point at a row to see its time on the chart, and click it to zoom
+the chart to that session or project.
 
 ![The timeline in a light theme with the cost columns split by token type, cache writes and cache reads costing the most, and the projects that spent the week's cost](docs/images/types-light.png)
 

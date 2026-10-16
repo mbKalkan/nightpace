@@ -289,6 +289,87 @@ test('pans when dragged with the left button', async ({ page }) => {
   expect(panel.problems).toEqual([]);
 });
 
+test('double-click shows the whole range, and Escape lets go of a selection', async ({ page }) => {
+  const panel = await openPanel(page, 'dark');
+  const whole = sampleTimeline('24h');
+  await panel.init(whole);
+  const box = (await page.locator('.np-hit').boundingBox())!;
+  const y = box.y + 60;
+  await page.mouse.move(box.x + box.width * 0.4, y);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(box.x + box.width * 0.6, y, { steps: 5 });
+  await expect(page.locator('.np-brush')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.np-brush')).toHaveCount(0);
+  await page.mouse.up({ button: 'right' });
+  // Nothing at the whole range either.
+  await page.mouse.dblclick(box.x + box.width * 0.5, y);
+  await page.waitForTimeout(300);
+  expect(await zoomRequests(panel)).toEqual([]);
+
+  const span = whole.to - whole.from;
+  const window = { from: whole.from + span * 0.5, to: whole.from + span * 0.75 };
+  await panel.post({ type: 'timeline', data: sampleTimeline('24h', true, window) });
+  await expect(page.locator('.np-chart.np-zoomed')).toHaveCount(1);
+  await page.mouse.dblclick(box.x + box.width * 0.5, y);
+  await expect.poll(async () => (await zoomRequests(panel)).at(-1)).toEqual({ type: 'zoom' });
+  await expect(page.locator('.np-chart.np-zoomed')).toHaveCount(0);
+  expect(panel.problems).toEqual([]);
+});
+
+test('Shift and the arrow keys move the zoomed window', async ({ page }) => {
+  const panel = await openPanel(page, 'light');
+  const whole = sampleTimeline('7d');
+  const span = whole.to - whole.from;
+  const shown = sampleTimeline('7d', true, {
+    from: whole.from + span * 0.25,
+    to: whole.from + span * 0.5,
+  });
+  await panel.init(shown);
+  await page.getByRole('group', { name: strings.chartLabel }).focus();
+  await page.keyboard.press('Shift+ArrowLeft');
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
+  const [moved] = await zoomRequests(panel);
+  const length = shown.to - shown.from;
+  expect(moved.window!.to - moved.window!.from).toBe(length);
+  expect(moved.window!.from).toBe(shown.from - length / 4);
+  expect(panel.problems).toEqual([]);
+});
+
+test('a row of the table marks its time on the chart and zooms to it', async ({ page }) => {
+  const panel = await openPanel(page, 'dark');
+  const data = sampleTimeline('7d');
+  await panel.init(data);
+  const table = page.getByRole('region', { name: strings.breakdownTitle }).getByRole('table');
+  const row = table.locator('tbody tr').first();
+  await expect(row).toHaveAttribute('title', strings.zoomToSession);
+  await row.locator('td').nth(2).hover();
+  await expect(page.locator('.np-mark')).toHaveCount(1);
+  await page.mouse.move(0, 0);
+  await expect(page.locator('.np-mark')).toHaveCount(0);
+  // The keyboard reaches a row through its first cell.
+  const second = table.locator('tbody tr').nth(1).getByRole('button');
+  await second.focus();
+  await expect(page.locator('.np-mark')).toHaveCount(1);
+  await second.blur();
+  await expect(page.locator('.np-mark')).toHaveCount(0);
+
+  // The table is sorted by cost, most first, like the session list.
+  const session = data.sessionList[0];
+  await row.locator('td').nth(2).click();
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
+  const [zoomed] = await zoomRequests(panel);
+  expect(zoomed.window!.from).toBeLessThan(session.first);
+  expect(zoomed.window!.to).toBeGreaterThan(session.last);
+  await expect(page.locator('.np-mark')).toHaveCount(0);
+  await expect(page.locator('.np-zoom-label')).toContainText('·');
+
+  await second.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(2);
+  expect(panel.problems).toEqual([]);
+});
+
 test('zooms with the plus and minus keys and the buttons', async ({ page }) => {
   const panel = await openPanel(page, 'light');
   const whole = sampleTimeline('24h');

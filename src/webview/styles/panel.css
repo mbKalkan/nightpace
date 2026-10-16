@@ -378,8 +378,17 @@ body {
   touch-action: pan-y;
 }
 
+.np-zoomed .np-hit {
+  cursor: grab;
+}
+
 .np-panning .np-hit {
   cursor: grabbing;
+}
+
+.np-mark {
+  fill: var(--vscode-focusBorder);
+  fill-opacity: 0.12;
 }
 
 .np-brush {
@@ -548,6 +557,26 @@ body {
   max-width: 18em;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* A row zooms the chart to its time: the whole row takes the click, its first cell the focus. */
+.np-breakdown-table tbody tr {
+  cursor: pointer;
+}
+
+.np-breakdown-table tbody tr:hover,
+.np-breakdown-table tbody tr:focus-within {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.np-row-button {
+  all: unset;
+  cursor: pointer;
+}
+
+.np-row-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
 }
 
 .np-sort {
