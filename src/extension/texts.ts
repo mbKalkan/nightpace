@@ -93,6 +93,8 @@ export function panelStrings(t: Translate): PanelStrings {
     zoomIn: t('Zoom in'),
     zoomOut: t('Zoom out'),
     resetZoom: t('Whole range'),
-    zoomHint: t('Drag across the chart to zoom in. Ctrl + scroll or pinch zooms in and out.'),
+    zoomHint: t(
+      'Scroll or pinch over the chart to zoom in and out, or drag across it. Shift + scroll moves along time.',
+    ),
   };
 }

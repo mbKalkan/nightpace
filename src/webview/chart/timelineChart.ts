@@ -1,7 +1,7 @@
 // The timeline: three lanes on one time axis. Plan quota (5-hour and weekly, as observed), the
 // sessions working at once, and API cost or tokens by model, effort level or token type. Each lane has its own value axis;
 // no lane ever carries two (no dual axes). Colors come from CSS, so a theme change restyles it.
-// Dragging across it, Ctrl + scroll (or a pinch) and the plus and minus keys ask to zoom; the
+// Dragging across it, scrolling (or a pinch) and the plus and minus keys ask to zoom; the
 // panel decides what that means for the range.
 import type {
   PanelStrings,
@@ -486,24 +486,30 @@ export class TimelineChart {
     this.onZoom({ from: Math.min(a, b), to: Math.max(a, b) });
   }
 
-  /** Ctrl + scroll (a pinch on a touchpad) zooms around the pointer; sideways scroll pans. */
+  /**
+   * Scrolling (a pinch on a touchpad) zooms around the pointer; sideways or Shift + scroll pans.
+   * Scrolling out with the whole range shown is left to the page, and so is a page scroll that
+   * started elsewhere and runs on under the pointer: it can no longer be cancelled.
+   */
   private wheel(event: WheelEvent): void {
     const data = this.data;
-    if (!data) return;
-    if (event.ctrlKey) {
+    if (!data || !event.cancelable) return;
+    const whole = coversExtent(this.window, data.extent);
+    const sideways = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+    if (sideways || (event.shiftKey && !event.ctrlKey)) {
+      if (whole) return;
       event.preventDefault();
-      const exponent =
-        event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 0.05 : 0.002);
-      const factor = Math.exp(Math.min(Math.max(exponent, -0.7), 0.7));
-      this.onZoom(scaleWindow(this.window, factor, this.timeAt(event.clientX)));
+      const pixels = sideways ? event.deltaX : event.deltaY;
+      const perPixel = (data.to - data.from) / (this.plotRight - LEFT);
+      this.onZoom(shiftWindow(this.window, pixels * perPixel));
       return;
     }
-    const sideways = Math.abs(event.deltaX) > Math.abs(event.deltaY);
-    if (coversExtent(this.window, data.extent) || !(sideways || event.shiftKey)) return;
+    // A pinch always stays here: let through, it would zoom all of VS Code.
+    if (whole && event.deltaY > 0 && !event.ctrlKey) return;
     event.preventDefault();
-    const pixels = sideways ? event.deltaX : event.deltaY;
-    const perPixel = (data.to - data.from) / (this.plotRight - LEFT);
-    this.onZoom(shiftWindow(this.window, pixels * perPixel));
+    const exponent = event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 0.05 : 0.002);
+    const factor = Math.exp(Math.min(Math.max(exponent, -0.7), 0.7));
+    this.onZoom(scaleWindow(this.window, factor, this.timeAt(event.clientX)));
   }
 
   /** Plus and minus zoom around the crosshair, or the middle; zero shows the whole range. */

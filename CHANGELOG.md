@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Scrolling over the timeline now zooms in and out around the pointer, without holding Ctrl.
+  Shift + scroll moves along time; scrolling out with the whole range shown scrolls the panel.
+
 ## [0.1.0] - 2026-10-15
 
 First preview release.

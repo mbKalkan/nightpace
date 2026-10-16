@@ -196,15 +196,20 @@ test('zooms into a window dragged across the chart, and back out', async ({ page
   expect(panel.problems).toEqual([]);
 });
 
-test('zooms around the pointer with Ctrl + scroll and pans sideways', async ({ page }) => {
+test('zooms around the pointer with the scroll wheel and pans sideways', async ({ page }) => {
   const panel = await openPanel(page, 'dark');
   const whole = sampleTimeline('7d');
   await panel.init(whole);
   const box = (await page.locator('.np-hit').boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.9, box.y + 60);
-  await page.keyboard.down('Control');
+  // Scrolling out with the whole range shown is the page's.
+  const scrolledOut = await page.evaluate(() => {
+    const event = new WheelEvent('wheel', { deltaY: 100, cancelable: true, bubbles: true });
+    document.querySelector('.np-hit')!.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(scrolledOut).toBe(false);
   await page.mouse.wheel(0, -400);
-  await page.keyboard.up('Control');
   await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
   const [zoomed] = await zoomRequests(panel);
   const span = whole.to - whole.from;
@@ -222,6 +227,16 @@ test('zooms around the pointer with Ctrl + scroll and pans sideways', async ({ p
   // Earlier by as long as it was, no shorter or longer.
   expect(panned.from).toBeLessThan(shown.from);
   expect(panned.to - panned.from).toBe(shown.to - shown.from);
+
+  const moved = sampleTimeline('7d', true, panned);
+  await panel.post({ type: 'timeline', data: moved });
+  await page.keyboard.down('Shift');
+  await page.mouse.wheel(0, 300);
+  await page.keyboard.up('Shift');
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(3);
+  const later = (await zoomRequests(panel))[2].window!;
+  expect(later.from).toBeGreaterThan(moved.from);
+  expect(later.to - later.from).toBe(moved.to - moved.from);
   expect(panel.problems).toEqual([]);
 });
 
