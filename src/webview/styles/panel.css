@@ -252,6 +252,14 @@ body {
   stroke-width: 1;
   stroke-dasharray: 3 3;
 }
+/* Dotted where Nightpace wasn't running and the value can't be worked out. */
+.np-line.np-unrecorded {
+  stroke-dasharray: 0.5 5;
+}
+.np-key.np-unrecorded {
+  stroke: var(--vscode-descriptionForeground);
+  stroke-dasharray: 0.5 4;
+}
 .np-line.np-s-five,
 .np-line.np-s-week,
 .np-line.np-s-sessions {

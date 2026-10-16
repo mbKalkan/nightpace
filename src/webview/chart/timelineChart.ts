@@ -29,8 +29,8 @@ const MIN_DRAG_PX = 6;
 /** Polling is hourly when idle: a longer silence means Nightpace wasn't running. */
 const QUOTA_GAP_MS = 75 * 60_000;
 const QUOTA_SERIES = [
-  { key: 'fiveHour', reset: 'fiveHourReset', className: 'np-s-five' },
-  { key: 'weekly', reset: 'weeklyReset', className: 'np-s-week' },
+  { key: 'fiveHour', reset: 'fiveHourReset', span: 5 * 3_600_000, className: 'np-s-five' },
+  { key: 'weekly', reset: 'weeklyReset', span: 7 * 86_400_000, className: 'np-s-week' },
 ] as const;
 
 interface Lane {
@@ -377,6 +377,12 @@ export class TimelineChart {
         : recording > data.from
           ? s.quotaSince.replace('{0}', this.formats.dayClock(recording))
           : undefined;
+    // The same scale as the lane's value axis, drawn after the legend.
+    const percentY = (value: number) => lane.top + lane.height - (value / 100) * lane.height;
+    const paths = QUOTA_SERIES.map((series) => ({
+      series,
+      ...quotaPath(data.quota, series.key, series.reset, series.span, x, percentY),
+    }));
     this.laneTitle(
       root,
       lane,
@@ -386,6 +392,9 @@ export class TimelineChart {
         { className: 'np-s-week', label: s.weekly, shape: 'line' },
         ...(data.weeklyResets.length > 0
           ? [{ className: 'np-reset', label: s.weeklyReset, shape: 'line' as const }]
+          : []),
+        ...(paths.some((path) => path.unrecorded)
+          ? [{ className: 'np-unrecorded', label: s.notRecorded, shape: 'line' as const }]
           : []),
       ],
       note,
@@ -407,12 +416,24 @@ export class TimelineChart {
       return;
     }
     const ends: Array<{ y: number; text: string; className: string }> = [];
-    for (const series of QUOTA_SERIES) {
-      const d = quotaPath(data.quota, series.key, series.reset, x, y);
-      if (!d) continue;
+    for (const { series, observed, unrecorded } of paths) {
+      if (!observed) continue;
       root.append(
-        svg('path', { d, class: `np-line ${series.className}`, 'clip-path': 'url(#np-plot-clip)' }),
+        svg('path', {
+          d: observed,
+          class: `np-line ${series.className}`,
+          'clip-path': 'url(#np-plot-clip)',
+        }),
       );
+      if (unrecorded) {
+        root.append(
+          svg('path', {
+            d: unrecorded,
+            class: `np-line np-unrecorded ${series.className}`,
+            'clip-path': 'url(#np-plot-clip)',
+          }),
+        );
+      }
       // The latest reading gets a dot and a label, when the window reaches the present.
       const last = [...data.quota]
         .reverse()
@@ -783,16 +804,22 @@ export function quotaAt(points: readonly QuotaPoint[], time: number): QuotaPoint
 
 /**
  * A quota series as observed: straight between readings, dropping to zero where its window
- * reset between two of them, and broken where Nightpace wasn't running.
+ * reset between two of them. Where Nightpace wasn't running, what can be worked out is still
+ * observed: a usage share only falls at a reset, so one that is the same on both sides of the
+ * silence held all along, and a window that opened in it was empty until it opened (its reset
+ * says when). The rest of a silence is unrecorded, drawn apart.
  */
-function quotaPath(
+export function quotaPath(
   points: readonly QuotaPoint[],
   key: 'fiveHour' | 'weekly',
   resetKey: 'fiveHourReset' | 'weeklyReset',
+  /** How long the window lasts once it opens. */
+  span: number,
   x: (time: number) => number,
   y: (value: number) => number,
-): string {
-  let d = '';
+): { observed: string; unrecorded: string } {
+  let observed = '';
+  let unrecorded = '';
   let previous: QuotaPoint | undefined;
   for (const point of points) {
     const value = point[key];
@@ -800,21 +827,31 @@ function quotaPath(
       previous = undefined;
       continue;
     }
-    const reset = previous?.[resetKey];
     if (!previous) {
-      d += `M${x(point.time)},${y(value)}`;
-    } else if (reset !== undefined && reset <= point.time) {
-      d += `L${x(reset)},${y(previous[key]!)}V${y(0)}`;
-      d +=
-        point.time - reset > QUOTA_GAP_MS
-          ? `M${x(point.time)},${y(value)}`
-          : `L${x(point.time)},${y(value)}`;
-    } else if (point.time - previous.time > QUOTA_GAP_MS) {
-      d += `M${x(point.time)},${y(value)}`;
+      observed += `M${x(point.time)},${y(value)}`;
+      previous = point;
+      continue;
+    }
+    let from = { time: previous.time, value: previous[key]! };
+    const reset = previous[resetKey];
+    if (reset !== undefined && reset <= point.time) {
+      observed += `L${x(reset)},${y(from.value)}V${y(0)}`;
+      from = { time: reset, value: 0 };
+    }
+    const opened = (point[resetKey] ?? Infinity) - span;
+    if (from.value === 0 && opened > from.time && opened < point.time) {
+      observed += `L${x(opened)},${y(0)}`;
+      from = { time: opened, value: 0 };
+    }
+    const silence = point.time - from.time;
+    // Held all along: no reset in between, and too short for a window to open and close unseen.
+    if (silence <= QUOTA_GAP_MS || (value === from.value && silence < span)) {
+      observed += `L${x(point.time)},${y(value)}`;
     } else {
-      d += `L${x(point.time)},${y(value)}`;
+      unrecorded += `M${x(from.time)},${y(from.value)}L${x(point.time)},${y(value)}`;
+      observed += `M${x(point.time)},${y(value)}`;
     }
     previous = point;
   }
-  return d;
+  return { observed, unrecorded };
 }

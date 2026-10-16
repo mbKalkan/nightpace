@@ -160,6 +160,8 @@ export interface PanelStrings {
   requests: string;
   noQuotaYet: string;
   weeklyReset: string;
+  /** Where Nightpace wasn't running and the quota can't be worked out. */
+  notRecorded: string;
   /** `{0}`: when recording started. */
   quotaSince: string;
   chartLabel: string;
