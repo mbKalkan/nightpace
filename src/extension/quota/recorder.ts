@@ -54,6 +54,7 @@ export class QuotaRecorder {
         now,
         lastPoll: last?.time,
         lastFailed: last?.failed,
+        failures: last?.failures,
         lastActivity: await deps.lastActivity(),
       });
       if (!due) return undefined;
@@ -66,7 +67,8 @@ export class QuotaRecorder {
         this.show(snapshot);
         return snapshot;
       } catch (error) {
-        await deps.recordPoll({ time: now, failed: true, snapshot: last?.snapshot });
+        const failures = last?.failed ? (last.failures ?? 1) + 1 : 1;
+        await deps.recordPoll({ time: now, failed: true, failures, snapshot: last?.snapshot });
         deps.log(`Couldn't get the quota from Claude Code: ${String(error)}`);
         return undefined;
       }

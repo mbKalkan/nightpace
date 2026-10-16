@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The quota lines no longer break where Nightpace wasn't running when what happened is known: a
   share that is the same on both sides held all along, and a 5-hour window was empty until it
   opened. Only the rest is dotted, as **Not recorded**.
+- When asking Claude Code for the quota fails, as it can right after the computer starts, the next
+  try comes after 2 minutes, then 5, then every 15, instead of 15 from the start.
 
 ## [0.1.0] - 2026-10-15
 
