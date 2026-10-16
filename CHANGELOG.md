@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   quota reading, they start at local midnight.
 - The table names a month's rows by date, and picks the time format by the length of the window
   shown, zoomed or not.
+- The quota lines no longer break where Nightpace wasn't running when what happened is known: a
+  share that is the same on both sides held all along, and a 5-hour window was empty until it
+  opened. Only the rest is dotted, as **Not recorded**.
 
 ## [0.1.0] - 2026-10-15
 

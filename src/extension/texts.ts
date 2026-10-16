@@ -76,6 +76,7 @@ export function panelStrings(t: Translate): PanelStrings {
     ),
     quotaSince: t('Quota recorded since {0}', '{0}'),
     weeklyReset: t('Weekly reset'),
+    notRecorded: t('Not recorded'),
     chartLabel: t(
       'Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom, Shift and the arrow keys to move the zoomed window, and zero for the whole range.',
     ),
