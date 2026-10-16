@@ -36,7 +36,8 @@ export const RANGE_SPANS: Record<RangeKey, number> = {
 
 const MAX_BUCKETS = 60;
 // Each size divides the next ones it can meet within a range, so a zoomed window's buckets
-// line up with the whole range's.
+// line up with the whole range's. They are counted in local time: a day's column starts at
+// local midnight, as the axis does, not at midnight UTC.
 const BUCKET_SIZES = [
   MIN,
   2 * MIN,
@@ -117,13 +118,26 @@ export interface TimelineInput {
   snapshots: readonly QuotaSnapshot[];
   /** Local midnight today, for today's spend; the host's own when left out. */
   startOfToday?: number;
+  /**
+   * How far local time is ahead of UTC now; the host's own when left out. One offset serves the
+   * whole range, so across a daylight saving change the older columns start an hour off.
+   */
+  utcOffset?: number;
+}
+
+/** `time` rounded down to a whole number of `size` in local time. */
+function floorLocal(time: number, size: number, utcOffset: number): number {
+  return Math.floor((time + utcOffset) / size) * size - utcOffset;
+}
+
+function ceilLocal(time: number, size: number, utcOffset: number): number {
+  return Math.ceil((time + utcOffset) / size) * size - utcOffset;
 }
 
 /** The whole of a range: buckets line up with whole bucket lengths, so it doesn't shift every minute. */
-export function rangeExtent(range: RangeKey, now: number): TimeWindow {
+export function rangeExtent(range: RangeKey, now: number, utcOffset: number): TimeWindow {
   const span = RANGE_SPANS[range];
-  const bucket = bucketFor(span);
-  return { from: Math.floor((now - span) / bucket) * bucket, to: now };
+  return { from: floorLocal(now - span, bucketFor(span), utcOffset), to: now };
 }
 
 export function buildTimeline({
@@ -133,12 +147,13 @@ export function buildTimeline({
   requests,
   snapshots,
   startOfToday = new Date(now).setHours(0, 0, 0, 0),
+  utcOffset = -new Date(now).getTimezoneOffset() * MIN,
 }: TimelineInput): TimelineData {
-  const extent = rangeExtent(range, now);
+  const extent = rangeExtent(range, now, utcOffset);
   const shown = zoom ? clampWindow(zoom, extent) : extent;
   const bucketMs = bucketFor(shown.to - shown.from);
-  const from = Math.floor(shown.from / bucketMs) * bucketMs;
-  const to = Math.min(Math.ceil(shown.to / bucketMs) * bucketMs, extent.to);
+  const from = floorLocal(shown.from, bucketMs, utcOffset);
+  const to = Math.min(ceilLocal(shown.to, bucketMs, utcOffset), extent.to);
   const count = Math.ceil((to - from) / bucketMs);
   const buckets: TokenBucket[] = Array.from({ length: count }, (_, i) => ({
     start: from + i * bucketMs,

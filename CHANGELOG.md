@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and click it, or press Enter, to zoom the chart to it.
 - The dates above a zoomed chart say how long the window is.
 
+### Fixed
+
+- Columns start on local hours and midnights. Outside UTC, a day's column in the 30-day view ran
+  from one local 03:00 (or wherever midnight UTC falls) to the next.
+- The table names a month's rows by date, and picks the time format by the length of the window
+  shown, zoomed or not.
+
 ## [0.1.0] - 2026-10-15
 
 First preview release.

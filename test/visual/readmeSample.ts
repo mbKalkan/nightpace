@@ -187,5 +187,8 @@ export function readmeTimeline(range: RangeKey, zoom?: TimeWindow): TimelineData
     zoom,
     requests,
     snapshots: readmeSnapshots(requests),
+    // The README's screenshots are taken in UTC, whatever the machine's zone.
+    utcOffset: 0,
+    startOfToday: Math.floor(README_NOW / 86_400_000) * 86_400_000,
   });
 }
