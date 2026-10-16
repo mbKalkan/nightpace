@@ -85,5 +85,6 @@
   "Share of tokens": "Token payı",
   "Share of cost": "Maliyet payı",
   "{0} of prompt tokens were read from the cache. At API prices, caching saved {1}: without it, these requests would have cost {2}.": "İstem tokenlarının {0} kadarı önbellekten okundu. API fiyatlarıyla önbellek {1} tasarruf sağladı: önbellek olmasaydı bu istekler {2} tutardı.",
-  "From cache": "Önbellekten"
+  "From cache": "Önbellekten",
+  "Share of the tokens and share of the API cost of each type, side by side; the table beside it has the numbers.": "Her türün token payı ve API maliyeti payı, yan yana; sayılar yanındaki tabloda."
 }

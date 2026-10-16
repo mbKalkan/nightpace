@@ -46,7 +46,7 @@ test('shows every value at a time on hover', async ({ page }) => {
   const hit = page.locator('.np-hit');
   const box = (await hit.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.97, box.y + 40);
-  const tooltip = page.locator('.np-tooltip');
+  const tooltip = page.locator('.np-chart .np-tooltip');
   await expect(tooltip).toBeVisible();
   for (const text of [
     strings.fiveHour,
@@ -72,13 +72,13 @@ test('moves through time with the keyboard and reads the values out', async ({ p
   const chart = page.getByRole('group', { name: strings.chartLabel });
   await chart.focus();
   await page.keyboard.press('End');
-  await expect(page.locator('.np-tooltip')).toBeVisible();
+  await expect(page.locator('.np-chart .np-tooltip')).toBeVisible();
   const last = await page.locator('.np-tooltip-title').textContent();
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.np-tooltip-title')).not.toHaveText(last!);
   await expect(page.locator('[aria-live="polite"]')).toContainText(strings.sessions);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.np-tooltip')).toBeHidden();
+  await expect(page.locator('.np-chart .np-tooltip')).toBeHidden();
   expect(panel.problems).toEqual([]);
 });
 
@@ -530,6 +530,25 @@ test.describe('tokens by type', () => {
       await expect(section.locator('.np-details-summary')).toBeVisible();
       await expect(section.locator('.np-details-summary')).toContainText('$');
       expect(await lowestTextContrast(page, '.np-details')).toBeGreaterThanOrEqual(4.5);
+
+      // Beside the table, a bar of the tokens and one of the cost, by type.
+      const flow = section.getByRole('img', { name: strings.flowLabel });
+      await expect(flow).toBeVisible();
+      const tableBox = (await table.boundingBox())!;
+      const flowBox = (await flow.boundingBox())!;
+      expect(flowBox.x).toBeGreaterThan(tableBox.x + tableBox.width);
+      const kinds = ['input', 'cacheWrite5m', 'cacheWrite1h', 'cacheRead', 'output'] as const;
+      const withTokens = kinds.filter((kind) => details[kind].tokens > 0).length;
+      const withCost = kinds.filter((kind) => details[kind].cost > 0).length;
+      await expect(section.locator('.np-flow-bar')).toHaveCount(withTokens + withCost);
+      // Pointing at a type in the chart lights up its row, and the other way round.
+      await section.locator('.np-flow-bar.np-t-cacheRead').first().hover();
+      await expect(table.locator('tr.np-active')).toHaveAttribute('data-key', 'cacheRead');
+      await expect(section.locator('.np-tooltip')).toContainText(strings.tokenDetails.cacheRead);
+      await table.locator('tr[data-key="output"]').hover();
+      await expect(section.locator('.np-flow-bar.np-active.np-t-output')).toHaveCount(2);
+      await page.mouse.move(0, 0);
+      await expect(section.locator('svg.np-hovering')).toHaveCount(0);
       await section.screenshot({ path: `${SCREENS}/token-details-${theme}.png` });
 
       // Each session's tokens by type on pointing at them.
@@ -574,7 +593,9 @@ test.describe('tokens by effort level', () => {
 
       const column = (await page.locator('.np-bar.np-e-xhigh').last().boundingBox())!;
       await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
-      await expect(page.locator('.np-tooltip').getByText('xhigh', { exact: true })).toBeVisible();
+      await expect(
+        page.locator('.np-chart .np-tooltip').getByText('xhigh', { exact: true }),
+      ).toBeVisible();
       await page.screenshot({ path: `${SCREENS}/timeline-effort-${theme}.png` });
 
       await page.getByRole('button', { name: strings.showTable }).click();
@@ -646,7 +667,7 @@ test.describe('cost and token types', () => {
       // Output is a sliver next to the cache reads in tokens; the tooltip still lists it.
       const column = (await page.locator('.np-bar.np-t-cacheRead').last().boundingBox())!;
       await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
-      const tooltip = page.locator('.np-tooltip');
+      const tooltip = page.locator('.np-chart .np-tooltip');
       await expect(tooltip.getByText(strings.tokenTypes.output, { exact: true })).toBeVisible();
       await expect(tooltip.getByText(strings.cost, { exact: true })).toBeVisible();
       expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);

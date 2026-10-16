@@ -28,7 +28,7 @@ test('one working day zoomed in, with every value at a time', async ({ page }) =
   await panel.init(readmeTimeline('24h', { from: README_NOW - 11.5 * HOUR, to: README_NOW }));
   const box = (await page.locator('.np-hit').boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.62, box.y + 60);
-  await expect(page.locator('.np-tooltip')).toBeVisible();
+  await expect(page.locator('.np-chart .np-tooltip')).toBeVisible();
   await settle(page);
   await page.screenshot({ path: `${IMAGES}/zoom-dark.png` });
   expect(panel.problems).toEqual([]);
@@ -47,6 +47,8 @@ test('cost by token type, the tokens by type and the projects, in a light theme'
   await page.getByRole('button', { name: strings.byProject }).click();
   // Scrolled to the end, high enough to open with the title of the cost lane.
   await page.locator('.np-privacy').scrollIntoViewIfNeeded();
+  // Off the charts, so nothing is lit up.
+  await page.locator('.np-privacy').hover();
   await settle(page);
   await page.screenshot({ path: `${IMAGES}/types-light.png` });
   expect(panel.problems).toEqual([]);
