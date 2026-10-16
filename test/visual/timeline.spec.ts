@@ -202,15 +202,25 @@ test('zooms around the pointer with the scroll wheel and pans sideways', async (
   await panel.init(whole);
   const box = (await page.locator('.np-hit').boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.9, box.y + 60);
-  // Scrolling out with the whole range shown is the page's.
+  // Over the plot the wheel never scrolls the panel, even with nothing to zoom out to.
   const scrolledOut = await page.evaluate(() => {
     const event = new WheelEvent('wheel', { deltaY: 100, cancelable: true, bubbles: true });
     document.querySelector('.np-hit')!.dispatchEvent(event);
     return event.defaultPrevented;
   });
-  expect(scrolledOut).toBe(false);
+  expect(scrolledOut).toBe(true);
+  // The rest of a scroll goes where its first wheel event went: the redraw must keep that element.
+  await page.evaluate(() => {
+    (window as unknown as { firstHit: Element }).firstHit = document.querySelector('.np-hit')!;
+  });
   await page.mouse.wheel(0, -400);
   await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
+  expect(
+    await page.evaluate(() => {
+      const first = (window as unknown as { firstHit: Element }).firstHit;
+      return first.isConnected && first === document.querySelector('.np-hit');
+    }),
+  ).toBe(true);
   const [zoomed] = await zoomRequests(panel);
   const span = whole.to - whole.from;
   expect(zoomed.window!.to - zoomed.window!.from).toBeLessThan(span * 0.6);

@@ -53,6 +53,14 @@ export class TimelineChart {
   measure: TokenMeasure = 'cost';
   /** Where a drag to zoom started, as a client x coordinate. */
   private dragFrom: number | undefined;
+  /**
+   * Takes the pointer and the wheel over the plot. It outlives the redraws: Chromium sends the rest
+   * of a scroll to the element that took its first wheel event, and a replaced one would leave the
+   * scroll to the panel.
+   */
+  private readonly hit = svg('rect', { class: 'np-hit' });
+  private plotTop = 0;
+  private plotBottom = 0;
 
   constructor(
     private readonly strings: PanelStrings,
@@ -72,6 +80,29 @@ export class TimelineChart {
     this.element.append(this.tooltip, this.live);
     this.element.addEventListener('keydown', (event) => this.key(event));
     this.element.addEventListener('blur', () => this.hover(undefined));
+    this.listen(this.hit);
+  }
+
+  private listen(hit: SVGRectElement): void {
+    hit.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      hit.setPointerCapture(event.pointerId);
+      this.dragFrom = event.clientX;
+    });
+    hit.addEventListener('pointermove', (event) => {
+      if (this.dragFrom !== undefined && Math.abs(event.clientX - this.dragFrom) >= MIN_DRAG_PX) {
+        this.hover(undefined);
+        this.drawBrush(this.dragFrom, event.clientX);
+        return;
+      }
+      this.hover(this.bucketAt(this.timeAt(event.clientX)));
+    });
+    hit.addEventListener('pointerup', (event) => this.endDrag(event.clientX));
+    hit.addEventListener('pointercancel', () => this.endDrag(undefined));
+    hit.addEventListener('pointerleave', () => {
+      if (document.activeElement !== this.element) this.hover(undefined);
+    });
+    hit.addEventListener('wheel', (event) => this.wheel(event), { passive: false });
   }
 
   /** Draws the timeline, or the part of it within `window` while the host zooms. */
@@ -125,32 +156,13 @@ export class TimelineChart {
     this.drawSessions(root, data, sessions, x, plotRight);
     this.drawTokens(root, data, tokens, x, plotRight);
 
-    const hit = svg('rect', {
-      class: 'np-hit',
-      x: LEFT,
-      y: quota.top,
-      width: plotRight - LEFT,
-      height: tokens.top + tokens.height - quota.top,
-    });
-    hit.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
-      hit.setPointerCapture(event.pointerId);
-      this.dragFrom = event.clientX;
-    });
-    hit.addEventListener('pointermove', (event) => {
-      if (this.dragFrom !== undefined && Math.abs(event.clientX - this.dragFrom) >= MIN_DRAG_PX) {
-        this.hover(undefined);
-        this.drawBrush(root, this.dragFrom, event.clientX, quota.top, tokens.top + tokens.height);
-        return;
-      }
-      this.hover(this.bucketAt(this.timeAt(event.clientX)));
-    });
-    hit.addEventListener('pointerup', (event) => this.endDrag(event.clientX));
-    hit.addEventListener('pointercancel', () => this.endDrag(undefined));
-    hit.addEventListener('pointerleave', () => {
-      if (document.activeElement !== this.element) this.hover(undefined);
-    });
-    hit.addEventListener('wheel', (event) => this.wheel(event), { passive: false });
+    this.plotTop = quota.top;
+    this.plotBottom = tokens.top + tokens.height;
+    const hit = this.hit;
+    hit.setAttribute('x', String(LEFT));
+    hit.setAttribute('y', String(quota.top));
+    hit.setAttribute('width', String(plotRight - LEFT));
+    hit.setAttribute('height', String(tokens.top + tokens.height - quota.top));
     root.append(
       svg('line', {
         class: 'np-crosshair',
@@ -457,19 +469,18 @@ export class TimelineChart {
     return { from: this.data!.from, to: this.data!.to };
   }
 
-  private drawBrush(
-    root: SVGSVGElement,
-    from: number,
-    to: number,
-    top: number,
-    bottom: number,
-  ): void {
+  private drawBrush(from: number, to: number): void {
+    const root = this.svgRoot!;
     const box = root.getBoundingClientRect();
     const left = Math.max(Math.min(from, to) - box.left, LEFT);
     const right = Math.min(Math.max(from, to) - box.left, this.plotRight);
     let brush = root.querySelector('.np-brush');
     if (!brush) {
-      brush = svg('rect', { class: 'np-brush', y: top, height: bottom - top });
+      brush = svg('rect', {
+        class: 'np-brush',
+        y: this.plotTop,
+        height: this.plotBottom - this.plotTop,
+      });
       root.querySelector('.np-crosshair')!.before(brush);
     }
     brush.setAttribute('x', String(left));
@@ -488,25 +499,24 @@ export class TimelineChart {
 
   /**
    * Scrolling (a pinch on a touchpad) zooms around the pointer; sideways or Shift + scroll pans.
-   * Scrolling out with the whole range shown is left to the page, and so is a page scroll that
-   * started elsewhere and runs on under the pointer: it can no longer be cancelled.
+   * Over the plot the wheel never scrolls the panel. A panel scroll that started elsewhere and
+   * runs on under the pointer is left alone: it can no longer be cancelled.
    */
   private wheel(event: WheelEvent): void {
     const data = this.data;
     if (!data || !event.cancelable) return;
+    event.preventDefault();
     const whole = coversExtent(this.window, data.extent);
     const sideways = Math.abs(event.deltaX) > Math.abs(event.deltaY);
     if (sideways || (event.shiftKey && !event.ctrlKey)) {
       if (whole) return;
-      event.preventDefault();
       const pixels = sideways ? event.deltaX : event.deltaY;
       const perPixel = (data.to - data.from) / (this.plotRight - LEFT);
       this.onZoom(shiftWindow(this.window, pixels * perPixel));
       return;
     }
-    // A pinch always stays here: let through, it would zoom all of VS Code.
-    if (whole && event.deltaY > 0 && !event.ctrlKey) return;
-    event.preventDefault();
+    // Out from the whole range there is nowhere to go: no request to the host.
+    if (whole && event.deltaY > 0) return;
     const exponent = event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 0.05 : 0.002);
     const factor = Math.exp(Math.min(Math.max(exponent, -0.7), 0.7));
     this.onZoom(scaleWindow(this.window, factor, this.timeAt(event.clientX)));
