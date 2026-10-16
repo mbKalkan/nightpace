@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Scrolling over the timeline now zooms in and out around the pointer, without holding Ctrl.
   Shift + scroll moves along time. Over the chart the wheel no longer scrolls the panel.
+- Hold the mouse wheel down and drag to move the zoomed timeline along time.
 - The dates of the window shown sit above the chart, and **Whole range** stays in place, greyed out
   until you zoom: zooming no longer moves the chart down the page.
 

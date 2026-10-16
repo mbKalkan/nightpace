@@ -378,6 +378,10 @@ body {
   touch-action: pan-y;
 }
 
+.np-panning .np-hit {
+  cursor: grabbing;
+}
+
 .np-brush {
   fill: var(--vscode-focusBorder);
   fill-opacity: 0.15;

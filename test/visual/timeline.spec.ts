@@ -254,6 +254,41 @@ test('zooms around the pointer with the scroll wheel and pans sideways', async (
   expect(panel.problems).toEqual([]);
 });
 
+test('pans when dragged with the wheel held down', async ({ page }) => {
+  const panel = await openPanel(page, 'dark');
+  const whole = sampleTimeline('7d');
+  await panel.init(whole);
+  const box = (await page.locator('.np-hit').boundingBox())!;
+  const y = box.y + 60;
+  // With the whole range shown there is nowhere to go.
+  await page.mouse.move(box.x + box.width * 0.5, y);
+  await page.mouse.down({ button: 'middle' });
+  await page.mouse.move(box.x + box.width * 0.3, y, { steps: 5 });
+  await page.mouse.up({ button: 'middle' });
+  await page.waitForTimeout(300);
+  expect(await zoomRequests(panel)).toEqual([]);
+
+  const span = whole.to - whole.from;
+  const shown = sampleTimeline('7d', true, {
+    from: whole.from + span * 0.25,
+    to: whole.from + span * 0.5,
+  });
+  await panel.post({ type: 'timeline', data: shown });
+  await page.mouse.move(box.x + box.width * 0.5, y);
+  await page.mouse.down({ button: 'middle' });
+  await page.mouse.move(box.x + box.width * 0.25, y, { steps: 5 });
+  await expect(page.locator('.np-chart.np-panning')).toHaveCount(1);
+  await page.mouse.up({ button: 'middle' });
+  await expect(page.locator('.np-chart.np-panning')).toHaveCount(0);
+  await expect.poll(async () => (await zoomRequests(panel)).length).toBe(1);
+  const [panned] = await zoomRequests(panel);
+  // Dragged left by a quarter of the plot: a quarter of the window later, as long as it was.
+  const length = shown.to - shown.from;
+  expect(panned.window!.to - panned.window!.from).toBe(length);
+  expect((panned.window!.from - shown.from) / length).toBeCloseTo(0.25, 1);
+  expect(panel.problems).toEqual([]);
+});
+
 test('zooms with the plus and minus keys and the buttons', async ({ page }) => {
   const panel = await openPanel(page, 'light');
   const whole = sampleTimeline('24h');
