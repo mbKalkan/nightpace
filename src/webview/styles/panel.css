@@ -75,7 +75,7 @@ body {
 
 .np-main {
   box-sizing: border-box;
-  max-width: 1200px;
+  max-width: 1600px;
   padding: 16px 20px 24px;
 }
 
@@ -567,6 +567,53 @@ body {
   margin-top: 28px;
 }
 
+/* Where both fit, the timeline takes one half of the width and the tokens by type the other. */
+@media (min-width: 1100px) {
+  .np-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+
+  .np-columns > .np-details {
+    margin-top: 0;
+  }
+
+  /* Its own half is about as wide as the table: filling it lines it up with the panel's edge.
+     Closer cells, shorter bars and headings that may wrap keep it in the half. */
+  .np-columns .np-table.np-details-table {
+    width: 100%;
+  }
+
+  .np-columns .np-details-table th,
+  .np-columns .np-details-table td {
+    padding-inline: 6px;
+  }
+
+  .np-columns .np-details-table thead th {
+    white-space: normal;
+    vertical-align: bottom;
+  }
+
+  .np-columns .np-details-table .np-mini-track {
+    width: 48px;
+  }
+
+  .np-columns .np-details-table .np-token-cell {
+    gap: 6px;
+  }
+
+  .np-columns .np-details-table .np-token-cell > span:last-child {
+    min-width: 3em;
+  }
+
+  /* With no tokens in the period, the timeline has the whole width. */
+  .np-columns:has(> .np-details[hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .np-details-summary {
   margin: 6px 0 10px;
 }
@@ -574,72 +621,6 @@ body {
 /* Five columns read better close together than spread across a wide panel. */
 .np-table.np-details-table {
   width: auto;
-}
-
-.np-details-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px 40px;
-}
-
-.np-details-body > .np-table-scroll {
-  flex: 0 1 auto;
-  max-width: 100%;
-}
-
-.np-flow {
-  position: relative;
-  flex: 1 1 320px;
-  min-width: 280px;
-  max-width: 640px;
-}
-
-.np-flow svg {
-  display: block;
-  overflow: visible;
-}
-
-.np-flow-name {
-  fill: var(--vscode-descriptionForeground);
-  font-size: 12px;
-}
-
-.np-flow-share {
-  fill: var(--vscode-foreground);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.np-flow-ribbon {
-  fill-opacity: 0.22;
-  transition: fill-opacity 0.15s;
-}
-
-.np-flow-bar,
-.np-flow-ribbon,
-.np-flow-share {
-  transition: opacity 0.15s;
-}
-
-.np-flow svg.np-hovering [data-key]:not(.np-active) {
-  opacity: 0.3;
-}
-
-.np-flow svg.np-hovering .np-flow-ribbon.np-active {
-  fill-opacity: 0.4;
-}
-
-.np-details-table tbody tr.np-active {
-  background: var(--vscode-list-hoverBackground);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .np-flow-bar,
-  .np-flow-ribbon,
-  .np-flow-share {
-    transition: none;
-  }
 }
 
 .np-details-key {

@@ -40,6 +40,7 @@ class Panel {
   private readonly measureNote = document.createElement('p');
   private readonly spend: SpendTiles;
   private readonly details: TokenDetailsView;
+  private readonly columns = document.createElement('div');
   /** Below the header, not in it: a label that comes and goes there wraps the controls. */
   private readonly zoomLabel = document.createElement('p');
   private readonly zoomInButton = document.createElement('button');
@@ -99,17 +100,13 @@ class Panel {
         zoom: (span) => this.zoomTo(span),
       },
     );
-    main.append(
-      header,
-      this.spend.element,
-      this.zoomLabel,
-      this.body,
-      hint,
-      this.measureNote,
-      this.details.element,
-      this.breakdown.element,
-      privacy,
-    );
+    // The timeline and the tokens by type side by side, one under the other where there is no room.
+    const timeline = document.createElement('div');
+    timeline.className = 'np-timeline';
+    timeline.append(this.zoomLabel, this.body, hint, this.measureNote);
+    this.columns.className = 'np-columns';
+    this.columns.append(timeline, this.details.element);
+    main.append(header, this.spend.element, this.columns, this.breakdown.element, privacy);
     app.replaceChildren(main);
 
     new ResizeObserver(() => this.draw()).observe(this.body);
@@ -247,9 +244,10 @@ class Panel {
     for (const [range, button] of this.rangeButtons) {
       button.setAttribute('aria-pressed', String(range === data.range));
     }
+    // Before the chart: whether the details show sets how wide the chart is.
+    this.details.render(data.tokenDetails);
     this.draw();
     this.spend.render(data.spend);
-    this.details.render(data.tokenDetails);
     this.breakdown.render(data, this.measure);
   }
 
@@ -294,9 +292,11 @@ class Panel {
     this.zoomInButton.disabled = view.to - view.from <= MIN_WINDOW_MS;
     this.resetButton.disabled = !zoomed;
     if (this.table) {
-      this.body.replaceChildren(
-        timelineTable(data, this.strings, this.formats, this.split, this.measure),
-      );
+      // Half the width can be narrower than the table's columns.
+      const scroll = document.createElement('div');
+      scroll.className = 'np-table-scroll';
+      scroll.append(timelineTable(data, this.strings, this.formats, this.split, this.measure));
+      this.body.replaceChildren(scroll);
       return;
     }
     if (this.chart.element.parentElement !== this.body)

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { lowestTextContrast } from './contrast';
 import { openPanel, strings } from './harness';
 import { sampleTimeline } from './sampleTimeline';
@@ -6,6 +6,10 @@ import type { ThemeName } from './themes';
 import type { TimeWindow } from '../../src/shared/protocol';
 
 const SCREENS = 'test-results/screens';
+
+/** How wide the chart is drawn; a redraw swaps its picture, so 0 for a moment. */
+const drawnWidth = async (page: Page) =>
+  (await page.locator('.np-chart svg').boundingBox())?.width ?? 0;
 
 for (const theme of ['dark', 'light', 'hcDark', 'hcLight'] as ThemeName[]) {
   test.describe(`${theme} theme`, () => {
@@ -46,7 +50,7 @@ test('shows every value at a time on hover', async ({ page }) => {
   const hit = page.locator('.np-hit');
   const box = (await hit.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.97, box.y + 40);
-  const tooltip = page.locator('.np-chart .np-tooltip');
+  const tooltip = page.locator('.np-tooltip');
   await expect(tooltip).toBeVisible();
   for (const text of [
     strings.fiveHour,
@@ -72,13 +76,13 @@ test('moves through time with the keyboard and reads the values out', async ({ p
   const chart = page.getByRole('group', { name: strings.chartLabel });
   await chart.focus();
   await page.keyboard.press('End');
-  await expect(page.locator('.np-chart .np-tooltip')).toBeVisible();
+  await expect(page.locator('.np-tooltip')).toBeVisible();
   const last = await page.locator('.np-tooltip-title').textContent();
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.np-tooltip-title')).not.toHaveText(last!);
   await expect(page.locator('[aria-live="polite"]')).toContainText(strings.sessions);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.np-chart .np-tooltip')).toBeHidden();
+  await expect(page.locator('.np-tooltip')).toBeHidden();
   expect(panel.problems).toEqual([]);
 });
 
@@ -530,25 +534,6 @@ test.describe('tokens by type', () => {
       await expect(section.locator('.np-details-summary')).toBeVisible();
       await expect(section.locator('.np-details-summary')).toContainText('$');
       expect(await lowestTextContrast(page, '.np-details')).toBeGreaterThanOrEqual(4.5);
-
-      // Beside the table, a bar of the tokens and one of the cost, by type.
-      const flow = section.getByRole('img', { name: strings.flowLabel });
-      await expect(flow).toBeVisible();
-      const tableBox = (await table.boundingBox())!;
-      const flowBox = (await flow.boundingBox())!;
-      expect(flowBox.x).toBeGreaterThan(tableBox.x + tableBox.width);
-      const kinds = ['input', 'cacheWrite5m', 'cacheWrite1h', 'cacheRead', 'output'] as const;
-      const withTokens = kinds.filter((kind) => details[kind].tokens > 0).length;
-      const withCost = kinds.filter((kind) => details[kind].cost > 0).length;
-      await expect(section.locator('.np-flow-bar')).toHaveCount(withTokens + withCost);
-      // Pointing at a type in the chart lights up its row, and the other way round.
-      await section.locator('.np-flow-bar.np-t-cacheRead').first().hover();
-      await expect(table.locator('tr.np-active')).toHaveAttribute('data-key', 'cacheRead');
-      await expect(section.locator('.np-tooltip')).toContainText(strings.tokenDetails.cacheRead);
-      await table.locator('tr[data-key="output"]').hover();
-      await expect(section.locator('.np-flow-bar.np-active.np-t-output')).toHaveCount(2);
-      await page.mouse.move(0, 0);
-      await expect(section.locator('svg.np-hovering')).toHaveCount(0);
       await section.screenshot({ path: `${SCREENS}/token-details-${theme}.png` });
 
       // Each session's tokens by type on pointing at them.
@@ -571,6 +556,60 @@ test.describe('tokens by type', () => {
       sampleTimeline('24h', true, { from: data.extent.from, to: data.extent.from + 3_600_000 }),
     );
     await expect(page.getByRole('region', { name: strings.tokenDetailsTitle })).toBeHidden();
+    // The timeline has the whole width then.
+    const main = (await page.locator('main').boundingBox())!;
+    await expect.poll(() => drawnWidth(page)).toBeGreaterThan(main.width * 0.9);
+    expect(panel.problems).toEqual([]);
+  });
+
+  test('sits beside the timeline, each half the width, where both fit', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    const panel = await openPanel(page, 'dark');
+    await panel.init(sampleTimeline('7d'));
+    const section = page.getByRole('region', { name: strings.tokenDetailsTitle });
+    await expect(section).toBeVisible();
+    const main = (await page.locator('main').boundingBox())!;
+    const chart = (await page.locator('.np-body').boundingBox())!;
+    const details = (await section.boundingBox())!;
+    expect(details.x).toBeGreaterThan(chart.x + chart.width);
+    await expect.poll(() => drawnWidth(page)).toBeGreaterThan(main.width * 0.4);
+    expect(await drawnWidth(page)).toBeLessThan(main.width * 0.55);
+    expect(Math.abs(details.y - chart.y)).toBeLessThan(40);
+    const overflow = await page.evaluate(
+      () =>
+        document.getElementById('app')!.scrollWidth - document.getElementById('app')!.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: `${SCREENS}/timeline-wide-dark.png` });
+
+    // The table view keeps its columns in the half, scrolling sideways if it must.
+    await page.getByRole('button', { name: strings.showTable }).click();
+    await expect(page.locator('.np-body table')).toBeVisible();
+    expect((await section.boundingBox())!.x).toBeGreaterThan(main.x + main.width * 0.45);
+
+    await page.getByRole('button', { name: strings.showChart }).click();
+    await expect(page.locator('.np-chart svg')).toBeVisible();
+
+    // Measured against the chart's container: a resize redraws the chart in a new element.
+    const body = page.locator('.np-body');
+    const offset = async () => {
+      const [sectionBox, bodyBox] = [await section.boundingBox(), await body.boundingBox()];
+      return { x: sectionBox!.x - bodyBox!.x, y: sectionBox!.y - bodyBox!.y };
+    };
+
+    // At the narrowest width with two halves, the table still fits its half.
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await expect.poll(async () => (await offset()).x).toBeGreaterThan(400);
+    const tableOverflow = await section
+      .locator('.np-table-scroll')
+      .evaluate((element) => element.scrollWidth - element.clientWidth);
+    expect(tableOverflow).toBeLessThanOrEqual(0);
+    await section.screenshot({ path: `${SCREENS}/token-details-half-dark.png` });
+
+    // Narrower, the tokens by type go under the timeline.
+    await page.setViewportSize({ width: 1000, height: 900 });
+    await expect.poll(async () => (await offset()).y).toBeGreaterThan(300);
+    expect((await offset()).x).toBeLessThan(1);
     expect(panel.problems).toEqual([]);
   });
 });
@@ -593,9 +632,7 @@ test.describe('tokens by effort level', () => {
 
       const column = (await page.locator('.np-bar.np-e-xhigh').last().boundingBox())!;
       await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
-      await expect(
-        page.locator('.np-chart .np-tooltip').getByText('xhigh', { exact: true }),
-      ).toBeVisible();
+      await expect(page.locator('.np-tooltip').getByText('xhigh', { exact: true })).toBeVisible();
       await page.screenshot({ path: `${SCREENS}/timeline-effort-${theme}.png` });
 
       await page.getByRole('button', { name: strings.showTable }).click();
@@ -667,7 +704,7 @@ test.describe('cost and token types', () => {
       // Output is a sliver next to the cache reads in tokens; the tooltip still lists it.
       const column = (await page.locator('.np-bar.np-t-cacheRead').last().boundingBox())!;
       await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
-      const tooltip = page.locator('.np-chart .np-tooltip');
+      const tooltip = page.locator('.np-tooltip');
       await expect(tooltip.getByText(strings.tokenTypes.output, { exact: true })).toBeVisible();
       await expect(tooltip.getByText(strings.cost, { exact: true })).toBeVisible();
       expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);
