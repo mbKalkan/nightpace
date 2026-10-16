@@ -22,6 +22,30 @@ export type TokenMeasure = 'cost' | 'tokens';
 export const TOKEN_TYPES = ['input', 'cacheWrite', 'cacheRead', 'output'] as const;
 export type TokenType = (typeof TOKEN_TYPES)[number];
 
+/** Kinds of tokens as Claude Code counts them, in the order the token details list them. */
+export const TOKEN_DETAILS = [
+  'input',
+  'cacheWrite5m',
+  'cacheWrite1h',
+  'cacheRead',
+  'output',
+] as const;
+export type TokenDetailKey = (typeof TOKEN_DETAILS)[number];
+
+/** Tokens of one kind, and what they would have cost at API list prices, in dollars. */
+export interface TokenDetail {
+  tokens: number;
+  cost: number;
+}
+
+/** The tokens of the requests within the window shown, by kind. */
+export type TokenDetails = Record<TokenDetailKey, TokenDetail> & {
+  /** The thinking part of `output`, when Claude Code reports it. */
+  thinking: TokenDetail;
+  /** What the same requests would have cost with every cached token sent as plain input. */
+  uncachedCost: number;
+};
+
 /** An amount, in dollars or tokens, and how it splits. */
 export interface Amounts {
   total: number;
@@ -112,6 +136,7 @@ export interface TimelineData {
   efforts: string[];
   /** Every session that made a request within the window, most cost first. */
   sessionList: SessionSummary[];
+  tokenDetails: TokenDetails;
   /** Fixed periods up to now, whatever the range shown. */
   spend: Spend;
   /** When Nightpace recorded its first quota snapshot, if ever. */
@@ -185,6 +210,17 @@ export interface PanelStrings {
   zoomToSession: string;
   zoomToProject: string;
   zoomHint: string;
+  tokenDetailsTitle: string;
+  type: string;
+  tokenDetails: Record<TokenDetailKey, string>;
+  thinking: string;
+  total: string;
+  shareOfTokens: string;
+  shareOfCost: string;
+  /** `{0}`: the share read from the cache; `{1}`: what caching saved; `{2}`: the cost without it. */
+  cacheSummary: string;
+  /** The column of the share of prompt tokens read from the cache. */
+  fromCache: string;
 }
 
 export type HostToWebviewMessage =

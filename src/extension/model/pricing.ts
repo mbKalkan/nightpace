@@ -86,10 +86,15 @@ export interface PricedRequest {
 /** Cost by token type, in dollars; undefined when the model has no known price. */
 export interface RequestCost {
   input: number;
+  /** Both kinds of cache writes; the two after it apart. */
   cacheWrite: number;
+  cacheWrite5m: number;
+  cacheWrite1h: number;
   cacheRead: number;
   /** Output, with web searches, which come with the answer. */
   output: number;
+  /** The thinking part of `output`. */
+  thinking: number;
   total: number;
 }
 
@@ -106,11 +111,20 @@ export function requestCost({
   const rates = (fast && known.fast) || long || known;
   const scale = (usOnly ? US_ONLY : 1) / 1_000_000;
   const input = tokens.input * rates.input * scale;
-  const cacheWrite =
-    (tokens.cacheWrite5m * CACHE_WRITE_5M + tokens.cacheWrite1h * CACHE_WRITE_1H) *
-    rates.input *
-    scale;
+  const cacheWrite5m = tokens.cacheWrite5m * CACHE_WRITE_5M * rates.input * scale;
+  const cacheWrite1h = tokens.cacheWrite1h * CACHE_WRITE_1H * rates.input * scale;
+  const cacheWrite = cacheWrite5m + cacheWrite1h;
   const cacheRead = tokens.cacheRead * known.cacheRead * rates.input * scale;
   const output = tokens.output * rates.output * scale + (tokens.webSearches ?? 0) * PER_WEB_SEARCH;
-  return { input, cacheWrite, cacheRead, output, total: input + cacheWrite + cacheRead + output };
+  const thinking = tokens.thinking * rates.output * scale;
+  return {
+    input,
+    cacheWrite,
+    cacheWrite5m,
+    cacheWrite1h,
+    cacheRead,
+    output,
+    thinking,
+    total: input + cacheWrite + cacheRead + output,
+  };
 }

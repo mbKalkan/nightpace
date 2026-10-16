@@ -558,8 +558,58 @@ body {
   outline-offset: -1px;
 }
 
-.np-breakdown > div:last-child {
+.np-breakdown > div:last-child,
+.np-table-scroll {
   overflow-x: auto;
+}
+
+.np-details {
+  margin-top: 28px;
+}
+
+.np-details-summary {
+  margin: 6px 0 10px;
+}
+
+/* Five columns read better close together than spread across a wide panel. */
+.np-table.np-details-table {
+  width: auto;
+}
+
+.np-details-key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.np-details-part th,
+.np-details-part td {
+  color: var(--vscode-descriptionForeground);
+}
+
+.np-details-part th {
+  padding-left: 28px;
+}
+
+.np-details-total th,
+.np-details-total td {
+  font-weight: 600;
+  border-bottom: none;
+}
+
+.np-details-bar {
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* Thinking is a part of output: its color, lighter. */
+.np-details-bar-part {
+  background: var(--np-output);
+  opacity: 0.5;
 }
 
 .np-table .np-text-cell {

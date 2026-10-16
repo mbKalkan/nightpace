@@ -3,6 +3,7 @@
 import {
   MODEL_FAMILIES,
   NO_EFFORT,
+  TOKEN_TYPES,
   type Amounts,
   type ModelFamily,
   type PanelStrings,
@@ -47,6 +48,8 @@ interface Column {
   /** What the column sorts by; columns without one don't sort. */
   value?: (row: Row) => number | string;
   cell: (row: Row, context: CellContext) => Node | string;
+  /** Shown on pointing at the cell. */
+  title?: (row: Row) => string;
   /** Text columns are left-aligned and sort A to Z first. */
   text?: boolean;
 }
@@ -173,6 +176,7 @@ export class Breakdown {
       columns.forEach((column, index) => {
         const cell = document.createElement(index === 0 ? 'th' : 'td');
         if (column.text) cell.classList.add('np-text-cell');
+        if (column.title) cell.title = column.title(row);
         const content = column.cell(row, context);
         if (index === 0) {
           (cell as HTMLTableCellElement).scope = 'row';
@@ -269,6 +273,15 @@ export class Breakdown {
         heading: s.tokens,
         value: (row) => row.tokens.total,
         cell: (row, context) => this.amountCell(row, context, 'tokens'),
+        title: (row) =>
+          TOKEN_TYPES.filter((type) => row.tokens.byType[type])
+            .map((type) => `${s.tokenTypes[type]}: ${f.amount(row.tokens.byType[type]!)}`)
+            .join('\n'),
+      },
+      {
+        heading: s.fromCache,
+        value: (row) => cacheShare(row.tokens),
+        cell: (row) => f.share(cacheShare(row.tokens)),
       },
       {
         heading: s.share,
@@ -323,6 +336,13 @@ export class Breakdown {
     wrapper.append(track, amount);
     return wrapper;
   }
+}
+
+/** The share of the prompt tokens read from the cache rather than sent or written to it. */
+function cacheShare(tokens: Amounts): number {
+  const { input = 0, cacheWrite = 0, cacheRead = 0 } = tokens.byType;
+  const prompt = input + cacheWrite + cacheRead;
+  return prompt > 0 ? cacheRead / prompt : 0;
 }
 
 /** The keys holding at least `MENTION_SHARE` of `total`, largest first. */

@@ -420,6 +420,7 @@ test.describe('where the tokens went', () => {
         strings.requests,
         strings.cost,
         strings.tokens,
+        strings.fromCache,
         strings.share,
         strings.modelsColumn,
         strings.effort,
@@ -496,6 +497,61 @@ test.describe('where the tokens went', () => {
       'aria-pressed',
       'true',
     );
+    expect(panel.problems).toEqual([]);
+  });
+});
+
+test.describe('tokens by type', () => {
+  for (const theme of ['dark', 'light'] as ThemeName[]) {
+    test(`lists the tokens and cost of each kind, and what the cache saved (${theme})`, async ({
+      page,
+    }) => {
+      const panel = await openPanel(page, theme);
+      const data = sampleTimeline('7d');
+      await panel.init(data);
+      const section = page.getByRole('region', { name: strings.tokenDetailsTitle });
+      await expect(section).toBeVisible();
+      const table = section.getByRole('table');
+      await expect(table.getByRole('columnheader')).toHaveText([
+        strings.type,
+        strings.tokens,
+        strings.shareOfTokens,
+        strings.cost,
+        strings.shareOfCost,
+      ]);
+      const names = await table.locator('tbody th').allTextContents();
+      expect(names[0]).toBe(strings.tokenDetails.input);
+      expect(names).toContain(strings.tokenDetails.cacheRead);
+      expect(names).toContain(strings.tokenDetails.output);
+      expect(names.at(-1)).toBe(strings.total);
+      // The cache saved money on the sample, as it does in Claude Code.
+      const details = data.tokenDetails;
+      expect(details.cacheRead.tokens).toBeGreaterThan(0);
+      await expect(section.locator('.np-details-summary')).toBeVisible();
+      await expect(section.locator('.np-details-summary')).toContainText('$');
+      expect(await lowestTextContrast(page, '.np-details')).toBeGreaterThanOrEqual(4.5);
+      await section.screenshot({ path: `${SCREENS}/token-details-${theme}.png` });
+
+      // Each session's tokens by type on pointing at them.
+      const tokensCell = page
+        .getByRole('region', { name: strings.breakdownTitle })
+        .locator('tbody tr')
+        .first()
+        .locator('td')
+        .nth(4);
+      await expect(tokensCell).toHaveAttribute('title', new RegExp(strings.tokenTypes.cacheRead));
+      expect(panel.problems).toEqual([]);
+    });
+  }
+
+  test('is left out when the window has no requests', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    const data = sampleTimeline('24h');
+    // A window before any request in the sample.
+    await panel.init(
+      sampleTimeline('24h', true, { from: data.extent.from, to: data.extent.from + 3_600_000 }),
+    );
+    await expect(page.getByRole('region', { name: strings.tokenDetailsTitle })).toBeHidden();
     expect(panel.problems).toEqual([]);
   });
 });

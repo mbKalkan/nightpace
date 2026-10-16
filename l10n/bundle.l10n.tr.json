@@ -77,5 +77,13 @@
   "{0} in this period": "bu dönemde {0}",
   "Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom, Shift and the arrow keys to move the zoomed window, and zero for the whole range.": "Plan kotası, aynı anda çalışan oturumlar ve API maliyeti ya da token zaman çizelgesi. Zamanda gezinmek için ok tuşlarını, yakınlaşıp uzaklaşmak için artı ve eksiyi, yakınlaşmış pencereyi kaydırmak için Shift ve ok tuşlarını, tüm aralık için sıfırı kullanın.",
   "If you had used the API": "API kullanılsaydı",
-  "Cost: what the requests would have cost had you used the API instead of your plan, at each model's list price per token.": "Maliyet: planınız yerine API kullanılsaydı bu isteklerin tutarı, her modelin token başına liste fiyatıyla."
+  "Cost: what the requests would have cost had you used the API instead of your plan, at each model's list price per token.": "Maliyet: planınız yerine API kullanılsaydı bu isteklerin tutarı, her modelin token başına liste fiyatıyla.",
+  "Cache writes, 5 minutes": "Önbellek yazma, 5 dakika",
+  "Cache writes, 1 hour": "Önbellek yazma, 1 saat",
+  "of which thinking": "bunun düşünme kısmı",
+  "Total": "Toplam",
+  "Share of tokens": "Token payı",
+  "Share of cost": "Maliyet payı",
+  "{0} of prompt tokens were read from the cache. At API prices, caching saved {1}: without it, these requests would have cost {2}.": "İstem tokenlarının {0} kadarı önbellekten okundu. API fiyatlarıyla önbellek {1} tasarruf sağladı: önbellek olmasaydı bu istekler {2} tutardı.",
+  "From cache": "Önbellekten"
 }
