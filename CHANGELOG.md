@@ -14,14 +14,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window to zoom into is now a drag with the right button.
 - The dates of the window shown sit above the chart, and **Whole range** stays in place, greyed out
   until you zoom: zooming no longer moves the chart down the page.
+- A new layout in cards. The timeline takes one half of the panel, headed by the dates shown and
+  its own **Model | Effort | Type** and **Table** controls; the other half holds what it would
+  have cost at API prices and the tokens by type, and ends level with the timeline. The range,
+  zoom and **Cost | Tokens** controls stay at the top. In a narrow panel the cards go one under
+  the other.
+- The timeline's table view keeps the chart's height and scrolls inside it, so switching between
+  chart and table no longer moves the rest of the panel.
 
 ### Added
 
 - **Tokens by type**, beside the timeline: the input, cache writes (5-minute and 1-hour), cache
   reads and output of the period shown, with the thinking part of output, each with its tokens,
-  API cost and share of both. A line above it says how much of the prompt came from the cache and
-  what caching saved at API prices. The timeline and the tokens by type take half the panel each,
-  and go one under the other in a narrow panel.
+  API cost and share of both. Above them, how much of the prompt came from the cache, what
+  caching saved at API prices and what the requests would have cost without it.
 - **Where the tokens went** has a **From cache** column, and pointing at a row's tokens shows them
   by type.
 - Double-click the chart for the whole range again. Press Escape to let go of a window being

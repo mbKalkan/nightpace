@@ -217,8 +217,12 @@ export interface PanelStrings {
   total: string;
   shareOfTokens: string;
   shareOfCost: string;
-  /** `{0}`: the share read from the cache; `{1}`: what caching saved; `{2}`: the cost without it. */
-  cacheSummary: string;
+  /** The share of prompt tokens read from the cache. */
+  cacheReadShare: string;
+  /** What caching saved at API prices. */
+  cacheSaved: string;
+  /** What the requests would have cost at API prices without the cache. */
+  uncachedCost: string;
   /** The column of the share of prompt tokens read from the cache. */
   fromCache: string;
 }

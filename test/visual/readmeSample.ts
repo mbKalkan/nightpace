@@ -82,6 +82,11 @@ export function readmeRequests(): TimelineRequest[] {
               : roll < 0.94
                 ? 'claude-fable-5-1'
                 : 'claude-sonnet-5-5';
+          // Subagents write the cache for 5 minutes, the main conversation for an hour.
+          const sidechain = next() < 0.08;
+          const cacheWrite = Math.round((800 + next() * 4000) * scale);
+          const cacheRead = Math.round((40_000 + next() * 120_000) * scale);
+          const output = Math.round((100 + next() * 900) * scale);
           requests.push({
             sessionId,
             time,
@@ -89,14 +94,14 @@ export function readmeRequests(): TimelineRequest[] {
             model,
             effort,
             project,
-            sidechain: next() < 0.08,
+            sidechain,
             tokens: {
               input: 3,
-              cacheWrite5m: 0,
-              cacheWrite1h: Math.round((800 + next() * 4000) * scale),
-              cacheRead: Math.round((40_000 + next() * 120_000) * scale),
-              output: Math.round((100 + next() * 900) * scale),
-              thinking: 0,
+              cacheWrite5m: sidechain ? cacheWrite : 0,
+              cacheWrite1h: sidechain ? 0 : cacheWrite,
+              cacheRead,
+              output,
+              thinking: Math.round(output * 0.4),
             },
           });
           time += (10 + next() * 45) * 1000;

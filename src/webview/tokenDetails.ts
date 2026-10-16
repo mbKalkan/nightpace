@@ -32,23 +32,27 @@ interface Row {
 
 export class TokenDetailsView {
   readonly element = document.createElement('section');
-  private readonly summary = document.createElement('p');
+  /** What the cache did: the share it served, what it saved and the cost without it. */
+  private readonly summary = document.createElement('dl');
   private readonly content = document.createElement('div');
 
   constructor(
     private readonly strings: PanelStrings,
     private readonly formats: Formats,
   ) {
-    this.element.className = 'np-details';
+    this.element.className = 'np-card np-details';
     this.element.setAttribute('aria-labelledby', 'np-details-title');
     this.element.hidden = true;
     const title = document.createElement('h2');
     title.id = 'np-details-title';
-    title.className = 'np-subtitle';
+    title.className = 'np-card-title';
     title.textContent = strings.tokenDetailsTitle;
-    this.summary.className = 'np-details-summary';
+    const header = document.createElement('div');
+    header.className = 'np-card-header';
+    header.append(title);
+    this.summary.className = 'np-figures np-details-summary';
     this.content.className = 'np-table-scroll';
-    this.element.append(title, this.summary, this.content);
+    this.element.append(header, this.summary, this.content);
   }
 
   render(details: TokenDetails): void {
@@ -109,10 +113,24 @@ export class TokenDetailsView {
       details.cacheRead.tokens;
     const saved = details.uncachedCost - total.cost;
     this.summary.hidden = details.cacheRead.tokens === 0 || saved <= 0;
-    this.summary.textContent = s.cacheSummary
-      .replace('{0}', this.formats.share(details.cacheRead.tokens / prompt))
-      .replace('{1}', this.formats.money(saved))
-      .replace('{2}', this.formats.money(details.uncachedCost));
+    this.summary.replaceChildren(
+      ...(
+        [
+          [s.cacheReadShare, this.formats.share(details.cacheRead.tokens / prompt)],
+          [s.cacheSaved, this.formats.money(saved)],
+          [s.uncachedCost, this.formats.money(details.uncachedCost)],
+        ] as const
+      ).map(([label, value]) => {
+        const figure = document.createElement('div');
+        figure.className = 'np-figure';
+        const term = document.createElement('dt');
+        term.textContent = label;
+        const amount = document.createElement('dd');
+        amount.textContent = value;
+        figure.append(term, amount);
+        return figure;
+      }),
+    );
   }
 
   private row(row: Row, total: TokenDetail): HTMLTableRowElement {

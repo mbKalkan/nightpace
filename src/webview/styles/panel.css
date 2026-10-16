@@ -23,6 +23,9 @@ body {
   --np-output: #6250d6;
   --np-grid: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
   --np-baseline: color-mix(in srgb, var(--vscode-foreground) 30%, transparent);
+  /* A card is a step off the editor, in the theme's own colors, so it holds in any theme. */
+  --np-surface: color-mix(in srgb, var(--vscode-foreground) 3%, var(--vscode-editor-background));
+  --np-card-border: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
 }
 
 body.vscode-dark,
@@ -49,6 +52,8 @@ body.vscode-high-contrast:not(.vscode-high-contrast-light) {
 body.vscode-high-contrast {
   --np-grid: color-mix(in srgb, var(--vscode-contrastBorder, currentColor) 45%, transparent);
   --np-baseline: var(--vscode-contrastBorder, currentColor);
+  --np-surface: var(--vscode-editor-background);
+  --np-card-border: var(--vscode-contrastBorder, currentColor);
 }
 
 html,
@@ -85,7 +90,80 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
+  margin-bottom: 16px;
+}
+
+/* Every section is a card of the same make: a header row of the same height (a title, and its
+   own controls on the right), then the content. */
+.np-card {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 12px 16px 16px;
+  border: 1px solid var(--np-card-border);
+  border-radius: 6px;
+  background: var(--np-surface);
+}
+
+.np-card[hidden] {
+  display: none;
+}
+
+.np-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 28px;
   margin-bottom: 12px;
+}
+
+.np-card-title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+/* Numbers that stand on their own: a label over a large value. */
+.np-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9em, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+}
+
+.np-figures[hidden] {
+  display: none;
+}
+
+/* Four in a row, or two by two where four don't fit. */
+.np-spend-tiles {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 600px) {
+  .np-spend-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.np-figure dt {
+  color: var(--vscode-descriptionForeground);
+}
+
+.np-figure dd {
+  margin: 2px 0 0;
+  font-size: 1.6em;
+  font-weight: 600;
+}
+
+.np-card-notes {
+  margin-top: 4px;
+  font-size: 0.92em;
+}
+
+.np-card-notes .np-note-text {
+  margin-top: 6px;
 }
 
 .np-title {
@@ -101,10 +179,16 @@ body {
   gap: 8px 12px;
 }
 
+/* Heads the timeline: it changes length as the window does, so it gives way to the controls
+   rather than pushing them to another line. */
 .np-zoom-label {
-  min-height: 1.4em;
-  margin: 0 0 4px;
-  color: var(--vscode-descriptionForeground);
+  flex: 1 1 14em;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
 }
 
@@ -328,55 +412,9 @@ body {
   background: var(--np-output);
 }
 
-/* What the usage would cost at API prices: four figures in a row, two on a narrow panel. */
-.np-spend {
-  margin-bottom: 16px;
-}
-
-.np-spend[hidden] {
-  display: none;
-}
-
-.np-spend-title {
-  margin: 0 0 6px;
-  font-size: 1em;
-  font-weight: normal;
-  color: var(--vscode-descriptionForeground);
-}
-
-.np-spend-tiles {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-}
-
-.np-spend-tile {
-  padding: 8px 12px;
-  border: 1px solid var(--vscode-widget-border, var(--vscode-contrastBorder, transparent));
-  border-radius: 4px;
-  background: var(--vscode-sideBar-background, transparent);
-}
-
-.np-spend-tile dt {
-  color: var(--vscode-descriptionForeground);
-}
-
-.np-spend-tile dd {
-  margin: 2px 0 0;
-  font-size: 1.6em;
-  font-weight: 600;
-}
-
-@media (max-width: 600px) {
-  .np-spend-tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 /* After the series colors, so the ring in the surface color wins over the series stroke. */
 .np-chart .np-dot {
-  stroke: var(--vscode-editor-background);
+  stroke: var(--np-surface);
   stroke-width: 2;
 }
 
@@ -495,7 +533,7 @@ body {
   font-weight: 600;
   position: sticky;
   top: 0;
-  background: var(--vscode-editor-background);
+  background: var(--np-surface);
 }
 
 .np-table th:first-child {
@@ -519,25 +557,10 @@ body {
 }
 
 .np-breakdown {
-  margin-top: 28px;
+  margin-top: 16px;
 }
 
-.np-breakdown-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin-bottom: 8px;
-}
-
-.np-subtitle {
-  margin: 0;
-  font-size: 1.15em;
-  font-weight: 600;
-}
-
-.np-breakdown-header button,
+.np-card-header .np-segmented button,
 .np-link-button {
   font: inherit;
   color: var(--vscode-foreground);
@@ -547,11 +570,11 @@ body {
   cursor: pointer;
 }
 
-.np-breakdown-header button:hover {
+.np-card-header .np-segmented button:hover {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
-.np-breakdown-header button[aria-pressed='true'] {
+.np-card-header .np-segmented button[aria-pressed='true'] {
   background: var(--vscode-inputOption-activeBackground);
   color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
   outline: 1px solid var(--vscode-inputOption-activeBorder, transparent);
@@ -563,64 +586,82 @@ body {
   overflow-x: auto;
 }
 
-.np-details {
-  margin-top: 28px;
+/* The timeline in one half; the cost and the tokens by type stacked in the other, the last
+   stretched so both halves end together. One under the other where they don't fit. */
+.np-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'spend' 'timeline' 'details';
+  gap: 16px;
 }
 
-/* Where both fit, the timeline takes one half of the width and the tokens by type the other. */
+.np-spend {
+  grid-area: spend;
+}
+
+.np-timeline {
+  grid-area: timeline;
+}
+
+.np-details {
+  grid-area: details;
+}
+
 @media (min-width: 1100px) {
   .np-columns {
-    display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 32px;
-    align-items: start;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'timeline spend'
+      'timeline details';
   }
 
-  .np-columns > .np-details {
-    margin-top: 0;
+  /* Two by two: the half is tall beside the timeline, and narrow. */
+  .np-spend-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  /* Its own half is about as wide as the table: filling it lines it up with the panel's edge.
-     Closer cells, shorter bars and headings that may wrap keep it in the half. */
-  .np-columns .np-table.np-details-table {
-    width: 100%;
-  }
+/* Closer cells, shorter bars and headings that may wrap keep the table in a narrow card. */
+.np-details {
+  container-type: inline-size;
+}
 
-  .np-columns .np-details-table th,
-  .np-columns .np-details-table td {
+@container (max-width: 820px) {
+  .np-details-table th,
+  .np-details-table td {
     padding-inline: 6px;
   }
 
-  .np-columns .np-details-table thead th {
+  .np-details-table thead th {
     white-space: normal;
     vertical-align: bottom;
   }
 
-  .np-columns .np-details-table .np-mini-track {
+  .np-details-table .np-mini-track {
     width: 48px;
   }
 
-  .np-columns .np-details-table .np-token-cell {
+  .np-details-table .np-token-cell {
     gap: 6px;
   }
 
-  .np-columns .np-details-table .np-token-cell > span:last-child {
+  .np-details-table .np-token-cell > span:last-child {
     min-width: 3em;
-  }
-
-  /* With no tokens in the period, the timeline has the whole width. */
-  .np-columns:has(> .np-details[hidden]) {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 .np-details-summary {
-  margin: 6px 0 10px;
+  margin-bottom: 16px;
 }
 
-/* Five columns read better close together than spread across a wide panel. */
-.np-table.np-details-table {
-  width: auto;
+.np-details-summary dd {
+  font-size: 1.3em;
+}
+
+.np-details-table th,
+.np-details-table td {
+  padding-block: 7px;
 }
 
 .np-details-key {
@@ -756,4 +797,20 @@ body {
 .np-breakdown button:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: 2px;
+}
+
+/* Text after a column of numbers, which ends at its right edge: room to tell them apart. */
+.np-breakdown-table td.np-text-cell,
+.np-breakdown-table thead th.np-text-cell:not(:first-child) {
+  padding-left: 24px;
+}
+
+@media (max-width: 600px) {
+  .np-main {
+    padding-inline: 12px;
+  }
+
+  .np-card {
+    padding: 10px 12px 12px;
+  }
 }
