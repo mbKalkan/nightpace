@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { lowestTextContrast } from './contrast';
 import { openPanel, strings } from './harness';
 import { sampleTimeline } from './sampleTimeline';
@@ -6,6 +6,10 @@ import type { ThemeName } from './themes';
 import type { TimeWindow } from '../../src/shared/protocol';
 
 const SCREENS = 'test-results/screens';
+
+/** How wide the chart is drawn; a redraw swaps its picture, so 0 for a moment. */
+const drawnWidth = async (page: Page) =>
+  (await page.locator('.np-chart svg').boundingBox())?.width ?? 0;
 
 for (const theme of ['dark', 'light', 'hcDark', 'hcLight'] as ThemeName[]) {
   test.describe(`${theme} theme`, () => {
@@ -554,8 +558,7 @@ test.describe('tokens by type', () => {
     await expect(page.getByRole('region', { name: strings.tokenDetailsTitle })).toBeHidden();
     // The timeline has the whole width then.
     const main = (await page.locator('main').boundingBox())!;
-    const chart = (await page.locator('.np-chart svg').boundingBox())!;
-    expect(chart.width).toBeGreaterThan(main.width * 0.9);
+    await expect.poll(() => drawnWidth(page)).toBeGreaterThan(main.width * 0.9);
     expect(panel.problems).toEqual([]);
   });
 
@@ -566,11 +569,11 @@ test.describe('tokens by type', () => {
     const section = page.getByRole('region', { name: strings.tokenDetailsTitle });
     await expect(section).toBeVisible();
     const main = (await page.locator('main').boundingBox())!;
-    const chart = (await page.locator('.np-chart svg').boundingBox())!;
+    const chart = (await page.locator('.np-body').boundingBox())!;
     const details = (await section.boundingBox())!;
     expect(details.x).toBeGreaterThan(chart.x + chart.width);
-    expect(chart.width).toBeGreaterThan(main.width * 0.4);
-    expect(chart.width).toBeLessThan(main.width * 0.55);
+    await expect.poll(() => drawnWidth(page)).toBeGreaterThan(main.width * 0.4);
+    expect(await drawnWidth(page)).toBeLessThan(main.width * 0.55);
     expect(Math.abs(details.y - chart.y)).toBeLessThan(40);
     const overflow = await page.evaluate(
       () =>
@@ -587,11 +590,16 @@ test.describe('tokens by type', () => {
     await page.getByRole('button', { name: strings.showChart }).click();
     await expect(page.locator('.np-chart svg')).toBeVisible();
 
+    // Measured against the chart's container: a resize redraws the chart in a new element.
+    const body = page.locator('.np-body');
+    const offset = async () => {
+      const [sectionBox, bodyBox] = [await section.boundingBox(), await body.boundingBox()];
+      return { x: sectionBox!.x - bodyBox!.x, y: sectionBox!.y - bodyBox!.y };
+    };
+
     // At the narrowest width with two halves, the table still fits its half.
     await page.setViewportSize({ width: 1100, height: 900 });
-    await expect
-      .poll(async () => (await section.boundingBox())!.x)
-      .toBeGreaterThan((await page.locator('.np-chart svg').boundingBox())!.x + 400);
+    await expect.poll(async () => (await offset()).x).toBeGreaterThan(400);
     const tableOverflow = await section
       .locator('.np-table-scroll')
       .evaluate((element) => element.scrollWidth - element.clientWidth);
@@ -600,9 +608,8 @@ test.describe('tokens by type', () => {
 
     // Narrower, the tokens by type go under the timeline.
     await page.setViewportSize({ width: 1000, height: 900 });
-    await expect
-      .poll(async () => (await section.boundingBox())!.y)
-      .toBeGreaterThan((await page.locator('.np-chart svg').boundingBox())!.y + 300);
+    await expect.poll(async () => (await offset()).y).toBeGreaterThan(300);
+    expect((await offset()).x).toBeLessThan(1);
     expect(panel.problems).toEqual([]);
   });
 });
