@@ -34,8 +34,10 @@ test('one working day zoomed in, with every value at a time', async ({ page }) =
   expect(panel.problems).toEqual([]);
 });
 
-test('cost by token type and the projects that spent it, in a light theme', async ({ page }) => {
-  await page.setViewportSize({ width: 1200, height: 800 });
+test('cost by token type, the tokens by type and the projects, in a light theme', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 712 });
   const panel = await openPanel(page, 'light');
   await panel.init(readmeTimeline('7d'));
   await page
@@ -43,6 +45,8 @@ test('cost by token type and the projects that spent it, in a light theme', asyn
     .getByRole('button', { name: strings.splitByType })
     .click();
   await page.getByRole('button', { name: strings.byProject }).click();
+  // Scrolled to the end, high enough to open with the title of the cost lane.
+  await page.locator('.np-privacy').scrollIntoViewIfNeeded();
   await settle(page);
   await page.screenshot({ path: `${IMAGES}/types-light.png` });
   expect(panel.problems).toEqual([]);

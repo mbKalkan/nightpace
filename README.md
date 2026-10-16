@@ -65,14 +65,23 @@ one quota week.
 Above the timeline, what Claude Code's requests would have cost had you paid per token instead
 of through your plan: today, the last 7 days, the last 30 days and per active day.
 
+### Tokens by type
+
+The tokens of the period shown by kind: input, cache writes (5-minute and 1-hour), cache reads
+and output, with the thinking part of output when Claude Code reports it. Each kind's tokens,
+API cost and share of both, side by side: cache reads are most of the tokens and a fraction of
+the cost. A line above says how much of the prompt came from the cache and what caching saved
+at API prices.
+
 ### Where the tokens went
 
-Below the timeline, the sessions or projects of the period shown: when each session started,
-how long it worked, its requests, API cost, tokens and share, and the models and effort levels
-it used. Sort by any column. Point at a row to see its time on the chart, and click it to zoom
-the chart to that session or project.
+Below, the sessions or projects of the period shown: when each session started, how long it
+worked, its requests, API cost, tokens, how much of its prompt came from the cache, its share,
+and the models and effort levels it used. Point at a row's tokens for them by kind. Sort by any
+column. Point at a row to see its time on the chart, and click it to zoom the chart to that
+session or project.
 
-![The timeline in a light theme with the cost columns split by token type, cache writes and cache reads costing the most, and the projects that spent the week's cost](docs/images/types-light.png)
+![The cost columns of a week split by token type in a light theme; below them, the week's tokens by type, cache reads 97% of the tokens and a third of the cost, caching saving most of what the requests would have cost; and the projects, each with 97% of its prompt from the cache](docs/images/types-light.png)
 
 ### Status bar
 

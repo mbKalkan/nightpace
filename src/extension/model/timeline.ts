@@ -17,6 +17,7 @@ import { clampWindow } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
 import { requestCost } from './pricing';
+import { tokenDetails } from './tokenDetails';
 import {
   concurrency,
   sessionIntervals,
@@ -235,6 +236,7 @@ export function buildTimeline({
     models: MODEL_FAMILIES.filter((family) => used.has(family)),
     efforts: effortOrder(efforts),
     sessionList: summarizeSessions(all, intervals, from, to),
+    tokenDetails: tokenDetails(all, from, to),
     spend: spendOf(all, now, startOfToday),
     recordingSince: snapshots.find((snapshot) => snapshot.available)?.time,
   };

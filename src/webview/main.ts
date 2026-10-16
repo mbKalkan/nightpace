@@ -14,6 +14,7 @@ import { TimelineChart } from './chart/timelineChart';
 import { Formats } from './format';
 import { Breakdown, type Grouping } from './breakdown';
 import { SpendTiles } from './spend';
+import { TokenDetailsView } from './tokenDetails';
 import { timelineTable } from './table';
 import { vscode } from './vscodeApi';
 
@@ -38,6 +39,7 @@ class Panel {
   private readonly measureButtons = new Map<TokenMeasure, HTMLButtonElement>();
   private readonly measureNote = document.createElement('p');
   private readonly spend: SpendTiles;
+  private readonly details: TokenDetailsView;
   /** Below the header, not in it: a label that comes and goes there wraps the controls. */
   private readonly zoomLabel = document.createElement('p');
   private readonly zoomInButton = document.createElement('button');
@@ -81,6 +83,7 @@ class Panel {
     hint.textContent = strings.zoomHint;
     this.measureNote.className = 'np-note-text';
     this.spend = new SpendTiles(strings, this.formats);
+    this.details = new TokenDetailsView(strings, this.formats);
     const privacy = document.createElement('p');
     privacy.className = 'np-privacy';
     privacy.textContent = strings.privacy;
@@ -103,6 +106,7 @@ class Panel {
       this.body,
       hint,
       this.measureNote,
+      this.details.element,
       this.breakdown.element,
       privacy,
     );
@@ -245,6 +249,7 @@ class Panel {
     }
     this.draw();
     this.spend.render(data.spend);
+    this.details.render(data.tokenDetails);
     this.breakdown.render(data, this.measure);
   }
 
