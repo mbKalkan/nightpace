@@ -157,6 +157,40 @@ describe('buildTimeline', () => {
     expect(data.sessions[0]).toEqual({ time: data.from, count: 0 });
   });
 
+  it('starts the daily columns at local midnight, not at midnight UTC', () => {
+    // Three hours ahead of UTC, as in Istanbul: noon UTC is 15:00 there.
+    const utcOffset = 3 * HOUR;
+    const data = buildTimeline({ range: '30d', now, utcOffset, requests: [], snapshots: [] });
+    expect(data.bucketMs).toBe(24 * HOUR);
+    // Local midnight of September 15th.
+    expect(data.from).toBe(Date.UTC(2026, 8, 14, 21));
+    expect(data.buckets.every((bucket) => (bucket.start + utcOffset) % (24 * HOUR) === 0)).toBe(
+      true,
+    );
+    // Today's column, from local midnight to now.
+    expect(data.buckets.at(-1)!.start).toBe(Date.UTC(2026, 9, 14, 21));
+  });
+
+  it('starts columns on local hours where the offset is not a whole number of them', () => {
+    // Five and a half hours ahead of UTC, as in India.
+    const utcOffset = 5.5 * HOUR;
+    const data = buildTimeline({ range: '7d', now, utcOffset, requests: [], snapshots: [] });
+    expect(data.bucketMs).toBe(3 * HOUR);
+    expect(data.buckets.every((bucket) => (bucket.start + utcOffset) % (3 * HOUR) === 0)).toBe(
+      true,
+    );
+    const zoomed = buildTimeline({
+      range: '7d',
+      now,
+      utcOffset,
+      zoom: { from: now - 2 * 24 * HOUR - 7 * MIN, to: now - HOUR },
+      requests: [],
+      snapshots: [],
+    });
+    expect(zoomed.bucketMs).toBe(HOUR);
+    expect((zoomed.from + utcOffset) % HOUR).toBe(0);
+  });
+
   it('keeps a zoom within the range and no shorter than half an hour', () => {
     const data = buildTimeline({
       range: '24h',

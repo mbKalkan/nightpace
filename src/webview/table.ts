@@ -45,7 +45,7 @@ export function timelineTable(
     const quota = quotaAt(data.quota, end);
     const recent = quota && end - quota.time <= data.bucketMs ? quota : undefined;
     const cells = [
-      `${data.range === '24h' ? formats.clock(bucket.start) : formats.dayClock(bucket.start)}`,
+      formats.columnStart(bucket.start, data.bucketMs, data.to - data.from),
       recent?.fiveHour === undefined ? '—' : formats.percent(recent.fiveHour),
       recent?.weekly === undefined ? '—' : formats.percent(recent.weekly),
       String(bucket.maxSessions),

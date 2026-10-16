@@ -61,6 +61,23 @@ export class Formats {
     return this.dateTime.format(time);
   }
 
+  /** `Oct 15` */
+  calendarDay(time: number): string {
+    return this.date.format(time);
+  }
+
+  /**
+   * When a column starts, as much as tells it apart within the window: the date for a day's
+   * column, the hour within a day, the weekday within a week, and the date beyond.
+   */
+  columnStart(time: number, bucketMs: number, windowMs: number): string {
+    const DAY = 86_400_000;
+    if (bucketMs >= DAY) return this.calendarDay(time);
+    // A day's range starts at the column before, so it spans a little more than a day.
+    if (windowMs <= 26 * 3_600_000) return this.clock(time);
+    return windowMs <= 7.5 * DAY ? this.dayClock(time) : this.dateClock(time);
+  }
+
   /** `Oct 15, 08:30 – 20:40`, with the second date only when it differs. */
   window(from: number, to: number): string {
     const sameDay = new Date(from).toDateString() === new Date(to).toDateString();

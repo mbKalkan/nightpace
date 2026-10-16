@@ -101,6 +101,14 @@ test('shows the same values as a table', async ({ page }) => {
   ]);
   expect(await table.getByRole('row').count()).toBe(sampleTimeline('24h').buckets.length + 1);
   await page.screenshot({ path: `${SCREENS}/timeline-table-light.png` });
+  // A month's rows are days, named by their date: weekdays repeat within it.
+  const month = sampleTimeline('30d');
+  await panel.post({ type: 'timeline', data: month });
+  const newest = month.buckets.at(-1)!.start;
+  expect(new Date(newest).getHours()).toBe(0);
+  await expect(table.locator('tbody tr').first().locator('th')).toHaveText(
+    new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(newest),
+  );
   await page.getByRole('button', { name: strings.showChart }).click();
   await expect(page.locator('.np-chart svg')).toBeVisible();
   expect(panel.problems).toEqual([]);
