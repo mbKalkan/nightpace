@@ -77,13 +77,13 @@ export class Breakdown {
     private readonly onGrouping: (grouping: Grouping) => void,
     private readonly actions: RowActions,
   ) {
-    this.element.className = 'np-breakdown';
+    this.element.className = 'np-card np-breakdown';
     this.element.setAttribute('aria-labelledby', 'np-breakdown-title');
     const header = document.createElement('div');
-    header.className = 'np-breakdown-header';
+    header.className = 'np-card-header';
     const title = document.createElement('h2');
     title.id = 'np-breakdown-title';
-    title.className = 'np-subtitle';
+    title.className = 'np-card-title';
     title.textContent = strings.breakdownTitle;
     const toggle = document.createElement('div');
     toggle.className = 'np-segmented';

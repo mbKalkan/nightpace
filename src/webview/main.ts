@@ -10,7 +10,7 @@ import {
   type TokenSplit,
 } from '../shared/protocol';
 import { clampWindow, coversExtent, MIN_WINDOW_MS, scaleWindow } from '../shared/window';
-import { TimelineChart } from './chart/timelineChart';
+import { CHART_HEIGHT, TimelineChart } from './chart/timelineChart';
 import { Formats } from './format';
 import { Breakdown, type Grouping } from './breakdown';
 import { SpendTiles } from './spend';
@@ -100,13 +100,20 @@ class Panel {
         zoom: (span) => this.zoomTo(span),
       },
     );
-    // The timeline and the tokens by type side by side, one under the other where there is no room.
+    // The timeline in one half, the cost and the tokens by type in the other; one under the other
+    // where there is no room. The window shown heads the timeline, with the chart's own controls.
     const timeline = document.createElement('div');
-    timeline.className = 'np-timeline';
-    timeline.append(this.zoomLabel, this.body, hint, this.measureNote);
+    timeline.className = 'np-card np-timeline';
+    const timelineHeader = document.createElement('div');
+    timelineHeader.className = 'np-card-header';
+    timelineHeader.append(this.zoomLabel, this.chartControls());
+    const notes = document.createElement('div');
+    notes.className = 'np-card-notes';
+    notes.append(hint, this.measureNote);
+    timeline.append(timelineHeader, this.body, notes);
     this.columns.className = 'np-columns';
-    this.columns.append(timeline, this.details.element);
-    main.append(header, this.spend.element, this.columns, this.breakdown.element, privacy);
+    this.columns.append(this.spend.element, timeline, this.details.element);
+    main.append(header, this.columns, this.breakdown.element, privacy);
     app.replaceChildren(main);
 
     new ResizeObserver(() => this.draw()).observe(this.body);
@@ -159,12 +166,31 @@ class Panel {
     this.resetButton.textContent = this.strings.resetZoom;
     this.resetButton.disabled = true;
     this.resetButton.addEventListener('click', () => this.zoom(undefined, 0));
-    this.viewButton.type = 'button';
-    this.viewButton.className = 'np-view-toggle';
-    this.viewButton.addEventListener('click', () => {
-      this.remember({ table: !this.table });
-      this.draw();
-    });
+    const measure = document.createElement('div');
+    measure.className = 'np-segmented';
+    measure.setAttribute('role', 'group');
+    measure.setAttribute('aria-label', this.strings.measureLabel);
+    measure.title = this.strings.measureLabel;
+    for (const value of ['cost', 'tokens'] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = this.strings.measures[value];
+      button.addEventListener('click', () => {
+        this.remember({ measure: value });
+        this.draw();
+        if (this.data) this.breakdown.render(this.data, this.measure);
+      });
+      this.measureButtons.set(value, button);
+      measure.append(button);
+    }
+    row.append(ranges, zoom, this.resetButton, measure);
+    return row;
+  }
+
+  /** What only the timeline answers to: how its columns split, and chart or table. */
+  private chartControls(): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'np-controls';
     const split = document.createElement('div');
     split.className = 'np-segmented';
     split.setAttribute('role', 'group');
@@ -185,24 +211,13 @@ class Panel {
       this.splitButtons.set(value, button);
       split.append(button);
     }
-    const measure = document.createElement('div');
-    measure.className = 'np-segmented';
-    measure.setAttribute('role', 'group');
-    measure.setAttribute('aria-label', this.strings.measureLabel);
-    measure.title = this.strings.measureLabel;
-    for (const value of ['cost', 'tokens'] as const) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = this.strings.measures[value];
-      button.addEventListener('click', () => {
-        this.remember({ measure: value });
-        this.draw();
-        if (this.data) this.breakdown.render(this.data, this.measure);
-      });
-      this.measureButtons.set(value, button);
-      measure.append(button);
-    }
-    row.append(ranges, zoom, this.resetButton, measure, split, this.viewButton);
+    this.viewButton.type = 'button';
+    this.viewButton.className = 'np-view-toggle';
+    this.viewButton.addEventListener('click', () => {
+      this.remember({ table: !this.table });
+      this.draw();
+    });
+    row.append(split, this.viewButton);
     return row;
   }
 
@@ -292,9 +307,11 @@ class Panel {
     this.zoomInButton.disabled = view.to - view.from <= MIN_WINDOW_MS;
     this.resetButton.disabled = !zoomed;
     if (this.table) {
-      // Half the width can be narrower than the table's columns.
+      // Half the width can be narrower than the table's columns; and as tall as the chart, so
+      // the panel doesn't jump between the two.
       const scroll = document.createElement('div');
       scroll.className = 'np-table-scroll';
+      scroll.style.maxHeight = `${CHART_HEIGHT}px`;
       scroll.append(timelineTable(data, this.strings, this.formats, this.split, this.measure));
       this.body.replaceChildren(scroll);
       return;

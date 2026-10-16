@@ -12,16 +12,19 @@ export class SpendTiles {
     private readonly strings: PanelStrings,
     private readonly formats: Formats,
   ) {
-    this.element.className = 'np-spend';
+    this.element.className = 'np-card np-spend';
     this.element.setAttribute('aria-labelledby', 'np-spend-title');
     this.element.hidden = true;
     const title = document.createElement('h2');
     title.id = 'np-spend-title';
-    title.className = 'np-spend-title';
+    title.className = 'np-card-title';
     title.textContent = strings.spendTitle;
-    this.tiles.className = 'np-spend-tiles';
+    this.tiles.className = 'np-figures np-spend-tiles';
     this.note.className = 'np-note-text';
-    this.element.append(title, this.tiles, this.note);
+    const header = document.createElement('div');
+    header.className = 'np-card-header';
+    header.append(title);
+    this.element.append(header, this.tiles, this.note);
   }
 
   render(spend: Spend): void {
@@ -35,7 +38,7 @@ export class SpendTiles {
     this.tiles.replaceChildren(
       ...tiles.map(([label, value]) => {
         const tile = document.createElement('div');
-        tile.className = 'np-spend-tile';
+        tile.className = 'np-figure';
         const term = document.createElement('dt');
         term.textContent = label;
         const amount = document.createElement('dd');

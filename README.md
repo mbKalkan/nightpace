@@ -19,7 +19,7 @@ where you stand without opening anything.
 > Forecasts from your own history (_"three xhigh sessions run out on Thursday; two last until
 > Sunday"_) are next.
 
-![A week of Claude Code usage in Nightpace: what it would cost at API prices today, over 7 and 30 days and per active day; the 5-hour and weekly quota lines rise with the cost columns and the sessions lane shows up to four sessions at once; beside the timeline, the week's tokens by type, and below, the sessions that cost the most](docs/images/timeline-dark.png)
+![A week of Claude Code usage in Nightpace: the 5-hour and weekly quota lines rise with the cost columns and the sessions lane shows up to four sessions at once; beside the timeline, what it would cost at API prices today, over 7 and 30 days and per active day, and the week's tokens by type; below, the sessions that cost the most](docs/images/timeline-dark.png)
 
 ## Why Nightpace
 
@@ -62,16 +62,17 @@ one quota week.
 
 ### If you had used the API
 
-Above the timeline, what Claude Code's requests would have cost had you paid per token instead
+Beside the timeline, what Claude Code's requests would have cost had you paid per token instead
 of through your plan: today, the last 7 days, the last 30 days and per active day.
 
 ### Tokens by type
 
-Beside the timeline, the tokens of the period shown by kind: input, cache writes (5-minute and
-1-hour), cache reads and output, with the thinking part of output when Claude Code reports it.
-Each kind's tokens, API cost and share of both: cache reads are most of the tokens and a
-fraction of the cost. A line above says how much of the prompt came from the cache and what
-caching saved at API prices. In a narrow panel it moves under the timeline.
+Beside the timeline, under the cost, the tokens of the period shown by kind: input, cache writes
+(5-minute and 1-hour), cache reads and output, with the thinking part of output when Claude Code
+reports it. Each kind's tokens, API cost and share of both: cache reads are most of the tokens
+and a fraction of the cost. Above them, how much of the prompt came from the cache, what caching
+saved at API prices and what the requests would have cost without it. In a narrow panel it
+moves under the timeline.
 
 ### Where the tokens went
 

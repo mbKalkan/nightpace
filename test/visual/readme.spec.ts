@@ -37,7 +37,6 @@ test('one working day zoomed in, with every value at a time', async ({ page }) =
 test('cost by token type, the tokens by type and the projects, in a light theme', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1200, height: 836 });
   const panel = await openPanel(page, 'light');
   await panel.init(readmeTimeline('7d'));
   await page
@@ -45,14 +44,19 @@ test('cost by token type, the tokens by type and the projects, in a light theme'
     .getByRole('button', { name: strings.splitByType })
     .click();
   await page.getByRole('button', { name: strings.byProject }).click();
-  // From the window shown above the chart down to the end of the projects.
-  await page.locator('.np-zoom-label').evaluate((label: HTMLElement) => {
-    label.style.scrollMarginTop = '8px';
-    label.scrollIntoView({ block: 'start' });
-  });
+  // The whole panel in view, to picture it from the timeline down to the end of the projects.
+  const height = await page.locator('main').evaluate((main) => main.scrollHeight);
+  await page.setViewportSize({ width: 1200, height });
   // Away from the rows, which would mark their time on the chart.
   await page.locator('.np-privacy').hover();
   await settle(page);
-  await page.screenshot({ path: `${IMAGES}/types-light.png` });
+  const top = (await page.locator('.np-timeline').boundingBox())!.y - 12;
+  const projects = (await page
+    .getByRole('region', { name: strings.breakdownTitle })
+    .boundingBox())!;
+  await page.screenshot({
+    path: `${IMAGES}/types-light.png`,
+    clip: { x: 0, y: top, width: 1200, height: projects.y + projects.height + 12 - top },
+  });
   expect(panel.problems).toEqual([]);
 });

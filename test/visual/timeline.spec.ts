@@ -531,8 +531,14 @@ test.describe('tokens by type', () => {
       // The cache saved money on the sample, as it does in Claude Code.
       const details = data.tokenDetails;
       expect(details.cacheRead.tokens).toBeGreaterThan(0);
-      await expect(section.locator('.np-details-summary')).toBeVisible();
-      await expect(section.locator('.np-details-summary')).toContainText('$');
+      const figures = section.locator('.np-details-summary');
+      await expect(figures.locator('dt')).toHaveText([
+        strings.cacheReadShare,
+        strings.cacheSaved,
+        strings.uncachedCost,
+      ]);
+      await expect(figures.locator('dd').first()).toHaveText(/^\d+%$/);
+      await expect(figures.locator('dd').nth(1)).toHaveText(/^\$[\d,]+(\.\d\d)?$/);
       expect(await lowestTextContrast(page, '.np-details')).toBeGreaterThanOrEqual(4.5);
       await section.screenshot({ path: `${SCREENS}/token-details-${theme}.png` });
 
@@ -556,9 +562,11 @@ test.describe('tokens by type', () => {
       sampleTimeline('24h', true, { from: data.extent.from, to: data.extent.from + 3_600_000 }),
     );
     await expect(page.getByRole('region', { name: strings.tokenDetailsTitle })).toBeHidden();
-    // The timeline has the whole width then.
+    // The timeline keeps its half beside the cost, so zooming in and out doesn't resize it.
     const main = (await page.locator('main').boundingBox())!;
-    await expect.poll(() => drawnWidth(page)).toBeGreaterThan(main.width * 0.9);
+    await expect.poll(() => drawnWidth(page)).toBeGreaterThan(main.width * 0.4);
+    expect(await drawnWidth(page)).toBeLessThan(main.width * 0.55);
+    await expect(page.getByRole('region', { name: strings.spendTitle })).toBeVisible();
     expect(panel.problems).toEqual([]);
   });
 
@@ -574,7 +582,12 @@ test.describe('tokens by type', () => {
     expect(details.x).toBeGreaterThan(chart.x + chart.width);
     await expect.poll(() => drawnWidth(page)).toBeGreaterThan(main.width * 0.4);
     expect(await drawnWidth(page)).toBeLessThan(main.width * 0.55);
-    expect(Math.abs(details.y - chart.y)).toBeLessThan(40);
+    // The cost above the tokens by type; the two halves start and end together.
+    const timeline = (await page.locator('.np-timeline').boundingBox())!;
+    const spend = (await page.getByRole('region', { name: strings.spendTitle }).boundingBox())!;
+    expect(Math.abs(spend.y - timeline.y)).toBeLessThan(1);
+    expect(details.y).toBeGreaterThan(spend.y + spend.height);
+    expect(Math.abs(details.y + details.height - (timeline.y + timeline.height))).toBeLessThan(1);
     const overflow = await page.evaluate(
       () =>
         document.getElementById('app')!.scrollWidth - document.getElementById('app')!.clientWidth,

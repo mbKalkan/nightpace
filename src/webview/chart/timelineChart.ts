@@ -24,6 +24,9 @@ const TITLE = 26;
 const LANE_GAP = 18;
 const AXIS = 24;
 const HEIGHTS = { quota: 140, sessions: 64, tokens: 120 };
+/** The whole chart, three lanes under their titles and the time axis. */
+export const CHART_HEIGHT =
+  3 * TITLE + HEIGHTS.quota + HEIGHTS.sessions + HEIGHTS.tokens + 2 * LANE_GAP + AXIS;
 /** A drag shorter than this is a click, not a zoom. */
 const MIN_DRAG_PX = 6;
 /** Polling is hourly when idle: a longer silence means Nightpace wasn't running. */
