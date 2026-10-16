@@ -52,8 +52,9 @@ days on one time axis:
   Claude Code logged.
 
 Hover or use the arrow keys for every value at a time, or switch to a table. Scroll or pinch over
-the chart to zoom in and out around the pointer, or drag across part of the range; Shift + scroll,
-or dragging with the wheel held down, moves along time. Columns get finer as you zoom in, down to a minute.
+the chart to zoom in and out around the pointer, or drag across part of the range with the right
+button. Drag the chart with the left button, or Shift + scroll, to move along time. Columns get
+finer as you zoom in, down to a minute.
 
 ![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, cost by model, tokens and requests of a quarter of an hour](docs/images/zoom-dark.png)
 
