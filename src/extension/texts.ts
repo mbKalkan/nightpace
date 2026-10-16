@@ -76,7 +76,7 @@ export function panelStrings(t: Translate): PanelStrings {
     ),
     quotaSince: t('Quota recorded since {0}', '{0}'),
     chartLabel: t(
-      'Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom.',
+      'Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom, Shift and the arrow keys to move the zoomed window, and zero for the whole range.',
     ),
     breakdownTitle: t('Where the tokens went'),
     bySession: t('By session'),
@@ -93,8 +93,10 @@ export function panelStrings(t: Translate): PanelStrings {
     zoomIn: t('Zoom in'),
     zoomOut: t('Zoom out'),
     resetZoom: t('Whole range'),
+    zoomToSession: t('Click to zoom the chart to this session'),
+    zoomToProject: t('Click to zoom the chart to this project'),
     zoomHint: t(
-      'Scroll or pinch over the chart to zoom in and out, or drag across it with the right button. Drag it with the left button, or Shift + scroll, to move along time.',
+      'Scroll or pinch over the chart to zoom in and out, or drag across it with the right button. Drag it with the left button, or Shift + scroll, to move along time. Double-click for the whole range; click a row below to zoom to it.',
     ),
   };
 }

@@ -50,7 +50,9 @@
   "Zoom in": "Yakınlaştır",
   "Zoom out": "Uzaklaştır",
   "Whole range": "Tüm aralık",
-  "Scroll or pinch over the chart to zoom in and out, or drag across it with the right button. Drag it with the left button, or Shift + scroll, to move along time.": "Yakınlaşıp uzaklaşmak için grafiğin üzerinde kaydırın ya da iki parmak hareketi yapın; bir aralığa yakınlaşmak için sağ tuşla sürükleyin. Zamanda ilerlemek için sol tuşla sürükleyin ya da Shift + kaydırın.",
+  "Click to zoom the chart to this session": "Grafiği bu oturuma yakınlaştırmak için tıklayın",
+  "Click to zoom the chart to this project": "Grafiği bu projeye yakınlaştırmak için tıklayın",
+  "Scroll or pinch over the chart to zoom in and out, or drag across it with the right button. Drag it with the left button, or Shift + scroll, to move along time. Double-click for the whole range; click a row below to zoom to it.": "Yakınlaşıp uzaklaşmak için grafiğin üzerinde kaydırın ya da iki parmak hareketi yapın; bir aralığa yakınlaşmak için sağ tuşla sürükleyin. Zamanda ilerlemek için sol tuşla sürükleyin ya da Shift + kaydırın. Tüm aralık için çift tıklayın; aşağıdaki bir satıra tıklamak grafiği ona yakınlaştırır.",
   "Reading Claude Code's logs…": "Claude Code kayıtları okunuyor…",
   "API cost by model": "Modele göre API maliyeti",
   "API cost by effort level": "Effort seviyesine göre API maliyeti",
@@ -72,7 +74,7 @@
   "{0} requests of models without a known price are not counted.": "Fiyatı bilinmeyen modellerin {0} isteği sayılmadı.",
   "API cost": "API maliyeti",
   "{0} in this period": "bu dönemde {0}",
-  "Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom.": "Plan kotası, aynı anda çalışan oturumlar ve API maliyeti ya da token zaman çizelgesi. Zamanda gezinmek için ok tuşlarını, yakınlaşıp uzaklaşmak için artı ve eksiyi kullanın.",
+  "Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom, Shift and the arrow keys to move the zoomed window, and zero for the whole range.": "Plan kotası, aynı anda çalışan oturumlar ve API maliyeti ya da token zaman çizelgesi. Zamanda gezinmek için ok tuşlarını, yakınlaşıp uzaklaşmak için artı ve eksiyi, yakınlaşmış pencereyi kaydırmak için Shift ve ok tuşlarını, tüm aralık için sıfırı kullanın.",
   "If you had used the API": "API kullanılsaydı",
   "Cost: what the requests would have cost had you used the API instead of your plan, at each model's list price per token.": "Maliyet: planınız yerine API kullanılsaydı bu isteklerin tutarı, her modelin token başına liste fiyatıyla."
 }

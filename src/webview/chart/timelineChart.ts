@@ -1,9 +1,9 @@
 // The timeline: three lanes on one time axis. Plan quota (5-hour and weekly, as observed), the
 // sessions working at once, and API cost or tokens by model, effort level or token type. Each lane has its own value axis;
 // no lane ever carries two (no dual axes). Colors come from CSS, so a theme change restyles it.
-// Dragging across it with the right button, scrolling (or a pinch) and the plus and minus keys
-// ask to zoom, and dragging it with the left button pans; the panel decides what that means for
-// the range.
+// Dragging across it with the right button, scrolling (or a pinch), double-clicking and the plus,
+// minus and zero keys ask to zoom; dragging it with the left button or Shift and the arrow keys
+// pan. The panel decides what that means for the range.
 import type {
   PanelStrings,
   QuotaPoint,
@@ -64,6 +64,8 @@ export class TimelineChart {
   private readonly hit = svg('rect', { class: 'np-hit' });
   private plotTop = 0;
   private plotBottom = 0;
+  /** A stretch of time to mark, such as the session under the pointer in the table. */
+  private marked: TimeWindow | undefined;
 
   constructor(
     private readonly strings: PanelStrings,
@@ -110,6 +112,35 @@ export class TimelineChart {
       if (document.activeElement !== this.element) this.hover(undefined);
     });
     hit.addEventListener('wheel', (event) => this.wheel(event), { passive: false });
+    hit.addEventListener('dblclick', () => {
+      if (this.data && !coversExtent(this.window, this.data.extent)) this.onZoom(undefined);
+    });
+  }
+
+  /** Marks a stretch of time across the lanes, or clears the mark. */
+  mark(span: TimeWindow | undefined): void {
+    this.marked = span;
+    if (this.svgRoot) this.drawMark(this.svgRoot);
+  }
+
+  private drawMark(root: SVGSVGElement): void {
+    root.querySelector('.np-mark')?.remove();
+    const span = this.marked;
+    const data = this.data;
+    if (!span || !data || span.to < data.from || span.from > data.to) return;
+    const left = Math.max(this.x(span.from), LEFT);
+    // A single request still shows as a sliver.
+    const right = Math.max(Math.min(this.x(span.to), this.plotRight), left + 2);
+    // Behind everything else.
+    root.querySelector('defs')!.after(
+      svg('rect', {
+        class: 'np-mark',
+        x: left,
+        y: this.plotTop,
+        width: right - left,
+        height: this.plotBottom - this.plotTop,
+      }),
+    );
   }
 
   /**
@@ -154,6 +185,7 @@ export class TimelineChart {
     this.data = window ? viewOf(data, window) : data;
     this.width = Math.max(width, 320);
     this.svgRoot = this.draw(this.data, this.width);
+    this.element.classList.toggle('np-zoomed', !coversExtent(this.window, this.data.extent));
     if (hovered !== undefined) this.hover(this.bucketAt(hovered));
   }
 
@@ -189,13 +221,14 @@ export class TimelineChart {
     this.svgRoot?.remove();
     this.element.prepend(root);
 
+    this.plotTop = quota.top;
+    this.plotBottom = tokens.top + tokens.height;
     this.drawTimeGrid(root, data, x, quota.top, tokens.top + tokens.height);
     this.drawQuota(root, data, quota, x, plotRight);
     this.drawSessions(root, data, sessions, x, plotRight);
     this.drawTokens(root, data, tokens, x, plotRight);
+    this.drawMark(root);
 
-    this.plotTop = quota.top;
-    this.plotBottom = tokens.top + tokens.height;
     const hit = this.hit;
     hit.setAttribute('x', String(LEFT));
     hit.setAttribute('y', String(quota.top));
@@ -525,6 +558,14 @@ export class TimelineChart {
     brush.setAttribute('width', String(Math.max(right - left, 0)));
   }
 
+  /** Escape lets go of a window being selected without zooming into it. */
+  private cancelDrag(): boolean {
+    if (this.dragFrom === undefined) return false;
+    this.dragFrom = undefined;
+    this.svgRoot?.querySelector('.np-brush')?.remove();
+    return true;
+  }
+
   private endDrag(clientX: number | undefined): void {
     const from = this.dragFrom;
     this.dragFrom = undefined;
@@ -579,6 +620,15 @@ export class TimelineChart {
     if (!data || data.buckets.length === 0) return;
     if (this.zoomKey(event.key)) {
       event.preventDefault();
+      return;
+    }
+    if (event.key === 'Escape' && this.cancelDrag()) return;
+    // Shift and an arrow move the zoomed window by a quarter of its length.
+    if (event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      event.preventDefault();
+      if (coversExtent(this.window, data.extent)) return;
+      const quarter = (data.to - data.from) / 4;
+      this.onZoom(shiftWindow(this.window, event.key === 'ArrowLeft' ? -quarter : quarter));
       return;
     }
     const last = data.buckets.length - 1;

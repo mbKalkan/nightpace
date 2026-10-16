@@ -173,6 +173,9 @@ export interface PanelStrings {
   zoomIn: string;
   zoomOut: string;
   resetZoom: string;
+  /** On a row of the table, which zooms the chart to its time. */
+  zoomToSession: string;
+  zoomToProject: string;
   zoomHint: string;
 }
 

@@ -89,6 +89,12 @@ class Panel {
       this.formats,
       this.state.grouping === 'project' ? 'project' : 'session',
       (grouping) => this.remember({ grouping }),
+      {
+        mark: (span) => {
+          if (!this.table) this.chart.mark(span);
+        },
+        zoom: (span) => this.zoomTo(span),
+      },
     );
     main.append(
       header,
@@ -204,6 +210,15 @@ class Panel {
     return this.pending ?? (this.data && { from: this.data.from, to: this.data.to });
   }
 
+  /** Zooms to a session or project from the table, with a margin, and brings the chart into view. */
+  private zoomTo(span: TimeWindow): void {
+    this.chart.mark(undefined);
+    const center = (span.from + span.to) / 2;
+    const half = Math.max((span.to - span.from) * 0.55, MIN_WINDOW_MS / 2);
+    this.zoom({ from: center - half, to: center + half }, 0);
+    if (this.zoomLabel.getBoundingClientRect().top < 0) this.zoomLabel.scrollIntoView();
+  }
+
   /** Shows `window` (or the whole range) at once and asks the host for it when it settles. */
   private zoom(window: TimeWindow | undefined, delay: number): void {
     const data = this.data;
@@ -265,8 +280,11 @@ class Panel {
     if (!data) return;
     const view = this.view!;
     const zoomed = !coversExtent(view, data.extent);
-    // The window shown, zoomed or not, so the line keeps its place.
-    this.zoomLabel.textContent = this.formats.window(view.from, view.to);
+    // The window shown, zoomed or not, so the line keeps its place; how long it is when zoomed.
+    const shown = this.formats.window(view.from, view.to);
+    this.zoomLabel.textContent = zoomed
+      ? `${shown} · ${this.formats.duration(view.to - view.from)}`
+      : shown;
     this.zoomOutButton.disabled = !zoomed;
     this.zoomInButton.disabled = view.to - view.from <= MIN_WINDOW_MS;
     this.resetButton.disabled = !zoomed;

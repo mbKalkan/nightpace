@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The dates of the window shown sit above the chart, and **Whole range** stays in place, greyed out
   until you zoom: zooming no longer moves the chart down the page.
 
+### Added
+
+- Double-click the chart for the whole range again. Press Escape to let go of a window being
+  selected, and Shift and the arrow keys to move a zoomed window along time.
+- Point at a session or project in **Where the tokens went** to see its time marked on the chart,
+  and click it, or press Enter, to zoom the chart to it.
+- The dates above a zoomed chart say how long the window is.
+
 ## [0.1.0] - 2026-10-15
 
 First preview release.
