@@ -6,7 +6,7 @@ import { QuotaRecorder, type RecorderDeps } from '../../src/extension/quota/reco
 import {
   ACTIVE_INTERVAL_MS,
   IDLE_INTERVAL_MS,
-  RETRY_INTERVAL_MS,
+  RETRY_INTERVALS_MS,
   shouldPoll,
 } from '../../src/extension/quota/schedule';
 import type { QuotaSnapshot } from '../../src/extension/quota/snapshot';
@@ -46,14 +46,15 @@ describe('shouldPoll', () => {
     expect(shouldPoll({ now, lastPoll: now - IDLE_INTERVAL_MS })).toBe(true);
   });
 
-  it('waits a while after a failure', () => {
+  it('waits longer after each failure in a row, up to a quarter of an hour', () => {
     const lastActivity = now;
-    expect(shouldPoll({ now, lastPoll: now - 10 * MIN, lastFailed: true, lastActivity })).toBe(
-      false,
-    );
-    expect(
-      shouldPoll({ now, lastPoll: now - RETRY_INTERVAL_MS, lastFailed: true, lastActivity }),
-    ).toBe(true);
+    const after = (minutes: number, failures?: number) =>
+      shouldPoll({ now, lastPoll: now - minutes * MIN, lastFailed: true, failures, lastActivity });
+    expect([after(1, 1), after(2, 1)]).toEqual([false, true]);
+    expect([after(4, 2), after(5, 2)]).toEqual([false, true]);
+    expect([after(10, 3), after(15, 3), after(15, 7)]).toEqual([false, true, true]);
+    // Recorded before failures were counted.
+    expect([after(10), after(15)]).toEqual([false, true]);
   });
 });
 
@@ -116,12 +117,20 @@ describe('QuotaRecorder', () => {
     });
     expect(await r.recorder.tick()).toBeUndefined();
     expect(r.logs).toEqual([expect.stringMatching(/not installed/)]);
-    r.advance(ACTIVE_INTERVAL_MS);
+    r.advance(MIN);
     await r.recorder.tick();
     expect(r.queries()).toBe(1);
-    r.advance(RETRY_INTERVAL_MS);
+    r.advance(RETRY_INTERVALS_MS[0] - MIN);
     await r.recorder.tick();
     expect(r.queries()).toBe(2);
+    expect(await store.lastPoll()).toMatchObject({ failed: true, failures: 2 });
+    // The second failure in a row waits longer.
+    r.advance(RETRY_INTERVALS_MS[0]);
+    await r.recorder.tick();
+    expect(r.queries()).toBe(2);
+    r.advance(RETRY_INTERVALS_MS[1] - RETRY_INTERVALS_MS[0]);
+    await r.recorder.tick();
+    expect(r.queries()).toBe(3);
     expect(await store.snapshots()).toEqual([]);
   });
 

@@ -9,6 +9,8 @@ const POLL = 'poll.json';
 export interface PollRecord {
   time: number;
   failed?: boolean;
+  /** Tries that failed in a row, this one included. */
+  failures?: number;
   snapshot?: QuotaSnapshot;
 }
 
