@@ -237,7 +237,7 @@ export function buildTimeline({
     sessionList: summarizeSessions(all, intervals, from, to),
     tokenDetails: tokenDetails(all, from, to),
     spend: spendOf(all, now, startOfToday),
-    pace: paceOf(all, snapshots, now),
+    pace: paceOf(all, snapshots, now, utcOffset),
     recordingSince: snapshots.find((snapshot) => snapshot.available)?.time,
   };
 }

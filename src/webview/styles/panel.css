@@ -848,10 +848,58 @@ body {
   margin-top: 6px;
 }
 
+/* The trend sits at the foot of its card, so the two cards' trends line up. */
 .np-pace-card .np-pace-foot {
   margin-top: auto;
-  padding-top: 12px;
-  font-size: 0.92em;
+  padding-top: 14px;
+}
+
+.np-trend-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin-bottom: 4px;
+}
+
+.np-trend-header .np-note-text {
+  margin: 0;
+}
+
+.np-trend-title {
+  font-weight: 600;
+  cursor: help;
+}
+
+.np-trend {
+  display: block;
+  overflow: visible;
+}
+
+.np-trend .np-axis-label {
+  fill: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.np-trend .np-end-label {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.np-trend .np-dot {
+  stroke: var(--np-surface);
+  stroke-width: 2;
+}
+
+.np-trend-hit {
+  fill: transparent;
+  cursor: help;
+}
+
+.np-trend-point:hover .np-dot {
+  stroke: var(--vscode-foreground);
 }
 
 .np-badge {

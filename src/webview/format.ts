@@ -15,9 +15,13 @@ export class Formats {
   private readonly compactDollars: Intl.NumberFormat;
   private readonly hours: Intl.NumberFormat;
   private readonly minutes: Intl.NumberFormat;
+  private readonly oneDecimal: Intl.NumberFormat;
+  private readonly whole: Intl.NumberFormat;
 
   constructor(locale: string) {
     this.time = new Intl.DateTimeFormat(locale, clock);
+    this.oneDecimal = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+    this.whole = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
     this.dayTime = new Intl.DateTimeFormat(locale, { weekday: 'short', ...clock });
     this.dateTime = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', ...clock });
     this.day = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' });
@@ -130,5 +134,10 @@ export class Formats {
 
   percent(value: number): string {
     return `${Math.round(value)}%`;
+  }
+
+  /** A percent with a decimal while it is small: `1.9%`, `11%`. */
+  fine(value: number): string {
+    return `${(value < 10 ? this.oneDecimal : this.whole).format(value)}%`;
   }
 }

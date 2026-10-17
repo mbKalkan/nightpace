@@ -134,7 +134,6 @@ export function readmeSnapshots(requests: TimelineRequest[]): QuotaSnapshot[] {
     0,
   );
   const weeklyLimit = weekTotal / 0.62;
-  const weeklyBeforeReset = 30;
 
   const snapshots: QuotaSnapshot[] = [];
   let index = 0;
@@ -158,9 +157,7 @@ export function readmeSnapshots(requests: TimelineRequest[]): QuotaSnapshot[] {
     const window = windows[windowIndex];
     const open = window !== undefined && time < window.start + 5 * HOUR;
     const weekly =
-      time < WEEKLY_RESET
-        ? weeklyBeforeReset + (usedBeforeReset / weeklyLimit) * 100
-        : (weekUsed / weeklyLimit) * 100;
+      time < WEEKLY_RESET ? (usedBeforeReset / weeklyLimit) * 100 : (weekUsed / weeklyLimit) * 100;
     snapshots.push({
       time,
       available: true,

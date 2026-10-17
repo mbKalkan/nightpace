@@ -3,6 +3,7 @@ import {
   costIndex,
   measure,
   paceOf,
+  rateHistory,
   sessionRates,
   weekForecast,
   windowForecast,
@@ -213,6 +214,52 @@ describe('windowForecast', () => {
   });
 });
 
+describe('rateHistory', () => {
+  it('measures each 5-hour window on its own, to see the limit change', () => {
+    // $1 every 10 minutes in both: 0.4% a dollar in the first window and 0.5% in the second.
+    const first = Array.from({ length: 30 }, (_, i) => request(595 - i * 10, 1));
+    const second = Array.from({ length: 24 }, (_, i) => request(235 - i * 10, 1));
+    const readings = [
+      reading(450, 6, now - 5 * HOUR, 1, now + DAY),
+      reading(302, 12, now - 5 * HOUR, 2, now + DAY),
+      reading(3, 12, now + HOUR, 3, now + DAY),
+    ];
+    const points = rateHistory(
+      readings,
+      (s) => s.fiveHour,
+      5 * HOUR,
+      costIndex([...first, ...second]),
+      () => 0,
+    );
+    expect(points).toHaveLength(2);
+    expect(points[0]).toMatchObject({ from: now - 10 * HOUR, to: now - 302 * MIN });
+    expect(points[0].perDollar).toBeCloseTo(0.4);
+    expect(points[1]).toMatchObject({ from: now - 4 * HOUR, to: now - 3 * MIN });
+    expect(points[1].perDollar).toBeCloseTo(0.5);
+  });
+
+  it('takes the week a day at a time, once a stretch has used 10%', () => {
+    const requests = [3.5, 2.5, 1.5, 1.2].map((days) => request(days * 24 * 60, 10));
+    const resets = now + 3 * DAY;
+    const readings = [3, 2, 1.3, 1.1].map((days, i) =>
+      reading(days * 24 * 60, 0, now + HOUR, [4, 12, 16, 22][i], resets),
+    );
+    const points = rateHistory(
+      readings,
+      (s) => s.weekly,
+      7 * DAY,
+      costIndex(requests),
+      (time) => Math.floor(time / DAY),
+    );
+    // 4% on the first day is too little; the last two readings fall on one day.
+    expect(points).toHaveLength(2);
+    expect(points[0]).toMatchObject({ from: now - 4 * DAY, to: now - 2 * DAY });
+    expect(points[0].perDollar).toBeCloseTo(12 / 20);
+    expect(points[1]).toMatchObject({ from: now - 2 * DAY, to: now - 1.1 * DAY });
+    expect(points[1].perDollar).toBeCloseTo(10 / 20);
+  });
+});
+
 describe('paceOf', () => {
   it('needs a reading with both limits', () => {
     expect(paceOf([request(10, 1)], [], now)).toBeUndefined();
@@ -238,5 +285,19 @@ describe('paceOf', () => {
     expect(pace.weeklyPerDollar).toBeCloseTo(0.1);
     expect(pace.learning).toBe(true);
     expect(pace.now).toBe(now);
+  });
+
+  it('leaves out of the history a window that opened before the first request', () => {
+    // The week opened 5 days ago, before any request it could be measured by; the 5-hour window
+    // opened after the first one, made in an earlier window.
+    const requests = Array.from({ length: 28 }, (_, i) => request(285 - i * 10, 1));
+    const spent = (ago: number) => requests.filter((r) => r.time <= now - ago * MIN).length;
+    const readings = [200, 100, 5].map((ago) =>
+      reading(ago, spent(ago) * 0.4, now + 10 * MIN, 40 + spent(ago) * 0.1, now + 2 * DAY),
+    );
+    const pace = paceOf([request(400, 1), ...requests], readings, now, 0)!;
+    expect(pace.history.weekly).toEqual([]);
+    expect(pace.history.fiveHour).toHaveLength(1);
+    expect(pace.history.fiveHour[0].perDollar).toBeCloseTo(0.4);
   });
 });

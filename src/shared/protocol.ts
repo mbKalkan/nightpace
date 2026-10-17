@@ -120,6 +120,13 @@ export interface SessionRate {
   hours: number;
 }
 
+/** A stretch of a limit's window with the percent a dollar used over it. */
+export interface RatePoint {
+  from: number;
+  to: number;
+  perDollar: number;
+}
+
 /** The weekly limit ahead, at the pace of the last 7 days. */
 export interface WeekForecast {
   /** Percent used now: the last reading and the cost of the requests since. */
@@ -163,6 +170,8 @@ export interface Pace {
   weeklyPerDollar: number;
   /** The kinds of session worked most in the last 14 days, most hours first. */
   rates: SessionRate[];
+  /** The percent a dollar used, stretch by stretch over the last 28 days, oldest first. */
+  history: { weekly: RatePoint[]; fiveHour: RatePoint[] };
   week: WeekForecast;
   window: WindowForecast;
 }
@@ -314,9 +323,18 @@ export interface PanelStrings {
   lasts: string;
   /** `{0}`: cost an hour; `{1}`: hours measured; `{2}` and `{3}`: percent of the window and week an hour. */
   rateHint: string;
+  /** `{0}`: a kind of session, like `Opus xhigh`. */
+  trendTitle: string;
   /** `{0}`: dollars that use 1% of the limit. */
-  weekCalibration: string;
-  windowCalibration: string;
+  trendEstimate: string;
+  trendHint: string;
+  /** `{0}`: when; `{1}`: a kind of session; `{2}`: percent of the limit an hour; `{3}`: 1% in dollars. */
+  trendPoint: string;
+  trendEmpty: string;
+  /** Without a kind of session to measure an hour of: what 1% of the limit is, over time. */
+  trendCostTitle: string;
+  /** `{0}`: when; `{1}`: 1% in dollars. */
+  trendCostPoint: string;
 }
 
 export type HostToWebviewMessage =
