@@ -5,8 +5,11 @@
 // which takes the time axis past now.
 // Dragging across it with the right button, scrolling (or a pinch), double-clicking and the plus,
 // minus and zero keys ask to zoom; dragging it with the left button or Shift and the arrow keys
-// pan. The panel decides what that means for the range.
+// pan. The panel decides what that means for the range. The crosshair takes a column, or over the
+// quota and sessions lanes the nearest point of their lines, which can fall between two columns'
+// ends.
 import type {
+  LimitHit,
   PanelStrings,
   QuotaPoint,
   TimelineData,
@@ -31,6 +34,10 @@ export const CHART_HEIGHT =
   3 * TITLE + HEIGHTS.quota + HEIGHTS.sessions + HEIGHTS.tokens + 2 * LANE_GAP + AXIS;
 /** A drag shorter than this is a click, not a zoom. */
 const MIN_DRAG_PX = 6;
+/** Over the quota and sessions lanes, the crosshair takes a point of their lines this close. */
+const SNAP_PX = 16;
+/** Readings this close to the pointer on either side are told apart by its height. */
+const PICK_PX = 2;
 /** Polling is hourly when idle: a longer silence means Nightpace wasn't running. */
 const QUOTA_GAP_MS = 75 * 60_000;
 const DAY = 86_400_000;
@@ -52,8 +59,16 @@ export class TimelineChart {
   private width = 0;
   private svgRoot: SVGSVGElement | undefined;
   private index: number | undefined;
+  /** The points of the lanes' lines, and the one under the crosshair when it is not on a column. */
+  private moments: Record<LineLane, Moment[]> = { quota: [], sessions: [] };
+  private pointed: { lane: LineLane; moment: Moment } | undefined;
   private x: (time: number) => number = () => 0;
+  private percentY: (value: number) => number = () => 0;
+  private sessionsY: (count: number) => number = () => 0;
   private plotRight = 0;
+  /** Where the quota and sessions lanes end, halfway to the next lane. */
+  private quotaBottom = 0;
+  private sessionsBottom = 0;
   /** What the token lane's columns are split by; the panel sets it before rendering. */
   split: TokenSplit = 'model';
   /** What the token lane measures; the panel sets it before rendering. */
@@ -110,7 +125,17 @@ export class TimelineChart {
         this.drawBrush(this.dragFrom, event.clientX);
         return;
       }
-      this.hover(this.bucketAt(this.timeAt(event.clientX)));
+      const time = this.timeAt(event.clientX);
+      // Over a lane of lines, a point between two columns' ends can be pointed at too.
+      const y = event.clientY - this.svgRoot!.getBoundingClientRect().top;
+      const lane: LineLane | undefined =
+        y <= this.quotaBottom ? 'quota' : y <= this.sessionsBottom ? 'sessions' : undefined;
+      const moment = lane && this.nearest(lane, time, y);
+      if (lane && moment && Math.abs(this.x(moment.time) - this.x(time)) <= SNAP_PX) {
+        this.hoverMoment(lane, moment);
+      } else {
+        this.hover(this.bucketAt(time));
+      }
     });
     hit.addEventListener('pointerup', (event) => this.endDrag(event.clientX));
     hit.addEventListener('pointercancel', () => this.endDrag(undefined));
@@ -182,17 +207,20 @@ export class TimelineChart {
 
   /** Draws the timeline, or the part of it within `window` while the host zooms. */
   render(data: TimelineData, width: number, window?: TimeWindow): void {
-    // The crosshair stays at the same time, not at the same column.
+    // The crosshair stays at the same time, not at the same column or point.
     const previous = this.data;
     const hovered =
       previous && this.index !== undefined
         ? previous.buckets[this.index].start + previous.bucketMs / 2
         : undefined;
+    const pointed = this.pointed;
     this.data = window ? viewOf(data, window) : data;
     this.width = Math.max(width, 320);
     this.svgRoot = this.draw(this.data, this.width);
     this.element.classList.toggle('np-zoomed', !coversExtent(this.window, this.data.extent));
-    if (hovered !== undefined) this.hover(this.bucketAt(hovered));
+    const moment = pointed && this.nearest(pointed.lane, pointed.moment.time);
+    if (pointed && moment) this.hoverMoment(pointed.lane, moment);
+    else if (hovered !== undefined) this.hover(this.bucketAt(hovered));
   }
 
   private draw(data: TimelineData, width: number): SVGSVGElement {
@@ -232,6 +260,9 @@ export class TimelineChart {
 
     this.plotTop = quota.top;
     this.plotBottom = tokens.top + tokens.height;
+    this.quotaBottom = quota.top + quota.height + LANE_GAP / 2;
+    this.sessionsBottom = sessions.top + sessions.height + LANE_GAP / 2;
+    this.moments = chartMoments(data);
     this.drawTimeGrid(root, data, x, quota.top, tokens.top + tokens.height, end, plotRight);
     this.drawQuota(root, data, quota, x, plotRight, forecast);
     this.drawSessions(root, data, sessions, x, plotRight);
@@ -416,6 +447,7 @@ export class TimelineChart {
     const hits = data.limitHits.filter((hit) => hit.time >= data.from && hit.time <= data.to);
     // The same scale as the lane's value axis, drawn after the legend.
     const percentY = (value: number) => lane.top + lane.height - (value / 100) * lane.height;
+    this.percentY = percentY;
     const paths = QUOTA_SERIES.map((series) => ({
       series,
       ...quotaPath(data.quota, series.key, series.reset, series.span, x, percentY),
@@ -568,6 +600,7 @@ export class TimelineChart {
     const ticks =
       max <= 4 ? Array.from({ length: max + 1 }, (_, i) => i) : valueTicks(max, 2).map(Math.round);
     const y = this.valueAxis(root, lane, ticks, String, plotRight);
+    this.sessionsY = y;
     let line = '';
     data.sessions.forEach((step, i) => {
       const x1 = x(step.time);
@@ -732,9 +765,10 @@ export class TimelineChart {
   private zoomKey(key: string): boolean {
     const data = this.data!;
     const center =
-      this.index !== undefined
+      this.pointed?.moment.time ??
+      (this.index !== undefined
         ? data.buckets[this.index].start + data.bucketMs / 2
-        : (data.from + data.to) / 2;
+        : (data.from + data.to) / 2);
     if (key === '+' || key === '=') this.onZoom(scaleWindow(this.window, 0.5, center));
     else if (key === '-' || key === '_') this.onZoom(scaleWindow(this.window, 2, center));
     else if (key === '0') this.onZoom(undefined);
@@ -758,54 +792,129 @@ export class TimelineChart {
       this.onZoom(shiftWindow(this.window, event.key === 'ArrowLeft' ? -quarter : quarter));
       return;
     }
-    const last = data.buckets.length - 1;
-    const current = this.index ?? last;
-    const next =
-      event.key === 'ArrowLeft'
-        ? Math.max(current - (this.index === undefined ? 0 : 1), 0)
-        : event.key === 'ArrowRight'
-          ? Math.min(current + (this.index === undefined ? 0 : 1), last)
-          : event.key === 'Home'
-            ? 0
-            : event.key === 'End'
-              ? last
-              : undefined;
     if (event.key === 'Escape') {
       this.hover(undefined);
       return;
     }
+    // From a point of a lane's lines, the keys go on along them.
+    if (this.pointed) {
+      const { lane, moment } = this.pointed;
+      const moments = this.moments[lane];
+      const step = stepTo(event.key, moments.indexOf(moment), moments.length - 1);
+      if (step === undefined) return;
+      event.preventDefault();
+      this.hoverMoment(lane, moments[step]);
+      this.live.textContent = this.describeMoment(moments[step]).join(', ');
+      return;
+    }
+    const next = stepTo(event.key, this.index, data.buckets.length - 1);
     if (next === undefined) return;
     event.preventDefault();
     this.hover(next);
     this.live.textContent = this.describe(next).join(', ');
   }
 
+  /** Points at a column, or at nothing. */
   private hover(index: number | undefined): void {
     this.index = index;
-    const root = this.svgRoot;
+    this.pointed = undefined;
     const data = this.data;
-    if (!root || !data) return;
-    root.classList.toggle('np-hovering', index !== undefined);
-    for (const column of root.querySelectorAll('.np-col')) {
-      column.classList.toggle('np-active', Number(column.getAttribute('data-index')) === index);
+    if (!data) return;
+    const center =
+      index === undefined
+        ? undefined
+        : this.x(Math.min(data.buckets[index].start + data.bucketMs / 2, data.to));
+    this.place(center, () => this.fillTooltip(this.heading(index!), this.rows(index!)));
+  }
+
+  /** Points at a point of a lane's lines, with a dot on each of them. */
+  private hoverMoment(lane: LineLane, moment: Moment): void {
+    this.index = undefined;
+    this.pointed = { lane, moment };
+    const center = this.x(moment.time);
+    this.place(center, () => this.fillTooltip(this.momentHeading(moment), this.momentRows(moment)));
+    const crosshair = this.svgRoot!.querySelector('.np-crosshair')!;
+    for (const [y, className] of this.dots(lane, moment)) {
+      crosshair.after(
+        svg('circle', { cx: center, cy: y, r: 4, class: `np-dot np-hover-dot ${className}` }),
+      );
     }
+  }
+
+  /** Where a point sits on each of its lane's lines, as [y, series class]. */
+  private dots(lane: LineLane, moment: Moment): Array<[number, string]> {
+    if (lane === 'sessions') return [[this.sessionsY(moment.sessions), 'np-s-sessions']];
+    return QUOTA_SERIES.flatMap((series) => {
+      const value = moment[series.key];
+      return value === undefined
+        ? []
+        : [[this.percentY(value), series.className] as [number, string]];
+    });
+  }
+
+  /** Moves the crosshair and the tooltip to `center`, or hides them. */
+  private place(center: number | undefined, fill: () => void): void {
+    const root = this.svgRoot;
+    if (!root) return;
+    root.classList.toggle('np-hovering', this.index !== undefined);
+    for (const column of root.querySelectorAll('.np-col')) {
+      column.classList.toggle(
+        'np-active',
+        Number(column.getAttribute('data-index')) === this.index,
+      );
+    }
+    for (const dot of root.querySelectorAll('.np-hover-dot')) dot.remove();
     const crosshair = root.querySelector('.np-crosshair');
-    if (index === undefined) {
+    if (center === undefined) {
       this.tooltip.hidden = true;
       crosshair?.setAttribute('visibility', 'hidden');
       return;
     }
-    const bucket = data.buckets[index];
-    const center = this.x(Math.min(bucket.start + data.bucketMs / 2, data.to));
     crosshair?.setAttribute('x1', String(center));
     crosshair?.setAttribute('x2', String(center));
     crosshair?.setAttribute('visibility', 'visible');
-    this.fillTooltip(index);
+    fill();
     this.tooltip.hidden = false;
     const width = this.tooltip.offsetWidth;
     const left = center + 14 + width > this.width ? center - 14 - width : center + 14;
     this.tooltip.style.left = `${Math.max(0, left)}px`;
     this.tooltip.style.top = `${TITLE}px`;
+  }
+
+  /**
+   * The point of a lane's lines closest in time, within the window shown. Zoomed out, several
+   * share a pixel: given the pointer's height, the one nearest to it of those within `PICK_PX`, so
+   * the top of a peak and the drop after it can both be taken.
+   */
+  private nearest(lane: LineLane, time: number, y?: number): Moment | undefined {
+    const moments = this.moments[lane];
+    if (moments.length === 0) return undefined;
+    let low = 0;
+    let high = moments.length - 1;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (moments[middle].time < time) low = middle + 1;
+      else high = middle;
+    }
+    const before = moments[Math.max(low - 1, 0)];
+    const closest = time - before.time <= moments[low].time - time ? before : moments[low];
+    if (y === undefined) return closest;
+    const reach = PICK_PX / (this.x(1) - this.x(0));
+    let best = closest;
+    let distance = Infinity;
+    const consider = (moment: Moment) => {
+      for (const [height] of this.dots(lane, moment)) {
+        const away = Math.abs(height - y);
+        // Along a flat line, the point closest in time.
+        const sooner = Math.abs(moment.time - time) < Math.abs(best.time - time);
+        if (away < distance || (away === distance && sooner)) [best, distance] = [moment, away];
+      }
+    };
+    for (let i = low - 1; i >= 0 && time - moments[i].time <= reach; i--) consider(moments[i]);
+    for (let i = low; i < moments.length && moments[i].time - time <= reach; i++) {
+      consider(moments[i]);
+    }
+    return best;
   }
 
   /** The values at a bucket, as rows of [value, label, series class]. */
@@ -869,13 +978,50 @@ export class TimelineChart {
     return [this.heading(index), ...this.rows(index).map(([value, label]) => `${label} ${value}`)];
   }
 
-  private fillTooltip(index: number): void {
+  private momentHeading(moment: Moment): string {
+    const data = this.data!;
+    // Within about a day the hour says enough, as for a column.
+    return data.to - data.from > 26 * 3_600_000
+      ? this.formats.dayClock(moment.time)
+      : this.formats.clock(moment.time);
+  }
+
+  /** The quota and the sessions working at a point of the lines. */
+  private momentRows(moment: Moment): Array<[string, string, string]> {
+    const s = this.strings;
+    const name = (label: string) =>
+      moment.estimated ? s.estimatedLabel.replace('{0}', label) : label;
+    const rows: Array<[string, string, string]> = [];
+    if (moment.fiveHour !== undefined)
+      rows.push([this.formats.percent(moment.fiveHour), name(s.fiveHour), 'np-s-five']);
+    if (moment.weekly !== undefined)
+      rows.push([this.formats.percent(moment.weekly), name(s.weekly), 'np-s-week']);
+    for (const limit of moment.limits) {
+      const five = limit === 'fiveHour';
+      rows.push([
+        this.formats.clock(moment.time),
+        s.limitReachedAt.replace('{0}', five ? s.fiveHour : s.weekly),
+        five ? 'np-s-five' : 'np-s-week',
+      ]);
+    }
+    rows.push([String(moment.sessions), s.sessions, 'np-s-sessions']);
+    return rows;
+  }
+
+  private describeMoment(moment: Moment): string[] {
+    return [
+      this.momentHeading(moment),
+      ...this.momentRows(moment).map(([value, label]) => `${label} ${value}`),
+    ];
+  }
+
+  private fillTooltip(heading: string, rows: Array<[string, string, string]>): void {
     const title = document.createElement('div');
     title.className = 'np-tooltip-title';
-    title.textContent = this.heading(index);
+    title.textContent = heading;
     const list = document.createElement('div');
     list.className = 'np-tooltip-rows';
-    for (const [value, label, className] of this.rows(index)) {
+    for (const [value, label, className] of rows) {
       const key = document.createElement('span');
       key.className = `np-tooltip-key ${className}`;
       const strong = document.createElement('strong');
@@ -887,6 +1033,103 @@ export class TimelineChart {
     }
     this.tooltip.replaceChildren(title, list);
   }
+}
+
+/** Where an arrow, Home or End key moves from `at` among `0…last`; from nowhere, to the latest. */
+function stepTo(key: string, at: number | undefined, last: number): number | undefined {
+  if (key === 'Home') return 0;
+  if (key === 'End') return last;
+  const move = key === 'ArrowLeft' ? -1 : key === 'ArrowRight' ? 1 : 0;
+  if (move === 0) return undefined;
+  return at === undefined ? last : Math.min(Math.max(at + move, 0), last);
+}
+
+/** The lanes drawn as lines, whose points the crosshair can take. */
+type LineLane = 'quota' | 'sessions';
+
+/** A point of the quota or sessions lines the crosshair can take, with what was so then. */
+export interface Moment {
+  time: number;
+  fiveHour?: number;
+  weekly?: number;
+  /** Whether the quota is estimated. */
+  estimated: boolean;
+  /** The limits Claude Code logged as run out then. */
+  limits: Array<LimitHit['limit']>;
+  /** The sessions working then. */
+  sessions: number;
+}
+
+/**
+ * The points of the lines within the window, oldest first. For the quota lane: each reading, each
+ * estimated point and each limit that ran out; where an estimate drops at a reset, the value it
+ * drops from. For the sessions lane: each change in the sessions working at once.
+ */
+export function chartMoments(data: TimelineData): Record<LineLane, Moment[]> {
+  const inside = (time: number) => time >= data.from && time <= data.to;
+  const sessionsAt = (time: number) => lastAt(data.sessions, time)?.count ?? 0;
+  const quota = new Map<number, Moment>();
+  const add = (point: QuotaPoint, estimated: boolean) =>
+    quota.set(point.time, {
+      time: point.time,
+      fiveHour: point.fiveHour,
+      weekly: point.weekly,
+      estimated,
+      limits: [],
+      sessions: sessionsAt(point.time),
+    });
+  for (const point of data.quotaEstimate ?? []) {
+    if (inside(point.time) && !quota.has(point.time)) add(point, true);
+  }
+  for (const point of data.quota) {
+    if (inside(point.time) && (point.fiveHour !== undefined || point.weekly !== undefined))
+      add(point, false);
+  }
+  // The quota at a time between points: the reading before it, or the estimate before them.
+  const quotaThen = (time: number) => {
+    const recorded = lastAt(data.quota, time);
+    const point = recorded ?? lastAt(data.quotaEstimate ?? [], time);
+    return {
+      fiveHour: point?.fiveHour,
+      weekly: point?.weekly,
+      estimated: !recorded && point !== undefined,
+    };
+  };
+  for (const hit of data.limitHits) {
+    if (!inside(hit.time)) continue;
+    let moment = quota.get(hit.time);
+    if (!moment) {
+      moment = {
+        time: hit.time,
+        ...quotaThen(hit.time),
+        limits: [],
+        sessions: sessionsAt(hit.time),
+      };
+      quota.set(hit.time, moment);
+    }
+    if (!moment.limits.includes(hit.limit)) moment.limits.push(hit.limit);
+  }
+  const sessions = data.sessions
+    .filter((step) => inside(step.time))
+    .map((step) => ({
+      time: step.time,
+      ...quotaThen(step.time),
+      limits: [],
+      sessions: step.count,
+    }));
+  return { quota: [...quota.values()].sort((a, b) => a.time - b.time), sessions };
+}
+
+/** The last of points sorted by time at or before `time`. */
+function lastAt<T extends { time: number }>(points: readonly T[], time: number): T | undefined {
+  let low = 0;
+  let high = points.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (points[middle].time <= time) low = middle + 1;
+    else high = middle;
+  }
+  return low > 0 ? points[low - 1] : undefined;
 }
 
 export interface WeeklyForecast {
