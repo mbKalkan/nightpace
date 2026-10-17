@@ -34,7 +34,8 @@ test('one working day zoomed in, with every value at a time', async ({ page }) =
     card.scrollIntoView({ block: 'start' });
   });
   const box = (await page.locator('.np-hit').boundingBox())!;
-  await page.mouse.move(box.x + box.width * 0.62, box.y + 60);
+  // Over a column: the quota lane would take a reading of its lines instead.
+  await page.mouse.move(box.x + box.width * 0.62, box.y + box.height - 40);
   await expect(page.locator('.np-tooltip')).toBeVisible();
   await settle(page);
   await page.screenshot({ path: `${IMAGES}/zoom-dark.png` });

@@ -5,6 +5,7 @@ import { README_NOW, readmeTimeline } from './readmeSample';
 import { sampleTimeline } from './sampleTimeline';
 import type { ThemeName } from './themes';
 import { PLANNED_SESSIONS, type TimeWindow } from '../../src/shared/protocol';
+import { weeklyForecast } from '../../src/webview/chart/timelineChart';
 
 const SCREENS = 'test-results/screens';
 
@@ -51,9 +52,11 @@ for (const theme of ['dark', 'light', 'hcDark', 'hcLight'] as ThemeName[]) {
 test('shows every value at a time on hover', async ({ page }) => {
   const panel = await openPanel(page, 'dark');
   await panel.init(sampleTimeline('24h'));
+  await page.locator('.np-chart').scrollIntoViewIfNeeded();
   const hit = page.locator('.np-hit');
   const box = (await hit.boundingBox())!;
-  await page.mouse.move(box.x + box.width * 0.97, box.y + 40);
+  // Over the columns: the quota lane points at its own lines.
+  await page.mouse.move(box.x + box.width * 0.97, box.y + box.height - 30);
   const tooltip = page.locator('.np-tooltip');
   await expect(tooltip).toBeVisible();
   for (const text of [
@@ -73,6 +76,60 @@ test('shows every value at a time on hover', async ({ page }) => {
   await expect(tooltip).toBeHidden();
   expect(panel.problems).toEqual([]);
 });
+
+for (const theme of ['dark', 'light'] as ThemeName[]) {
+  test(`points at each reading of the quota lines, between columns too (${theme})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    const panel = await openPanel(page, theme);
+    const data = readmeTimeline('7d');
+    await panel.init(data);
+    await page.locator('.np-chart').scrollIntoViewIfNeeded();
+    const chart = (await page.locator('.np-chart svg').boundingBox())!;
+    const hit = (await page.locator('.np-hit').boundingBox())!;
+    const end = weeklyForecast(data)?.end ?? data.to;
+    // The chart's own scale: 48 px on the left and 56 on the right are its axes.
+    const offset = (time: number) =>
+      48 + ((time - data.from) / (end - data.from)) * (chart.width - 48 - 56);
+    // The 5-hour peak is the reading just before its window resets, inside a column.
+    const readings = data.quota.filter((point) => point.time >= data.from && point.fiveHour);
+    const peak = readings.reduce((a, b) => (b.fiveHour! > a.fiveHour! ? b : a));
+    expect((peak.time - data.from) % data.bucketMs).not.toBe(0);
+    // The quota lane is 140 px high from the top of the plot.
+    const height = (percent: number) => hit.y + 140 - (percent / 100) * 140;
+    await page.mouse.move(chart.x + offset(peak.time), height(peak.fiveHour!));
+    const tooltip = page.locator('.np-tooltip');
+    await expect(tooltip).toContainText(`${Math.round(peak.fiveHour!)}%`);
+    await expect(tooltip).not.toContainText(strings.requests);
+    const crosshair = page.locator('.np-crosshair');
+    const x = Number(await crosshair.getAttribute('x1'));
+    expect(Math.abs(x - offset(peak.time))).toBeLessThan(0.5);
+    await expect(page.locator('.np-chart .np-hover-dot')).toHaveCount(2);
+    await expect(page.locator('.np-col.np-active')).toHaveCount(0);
+    await page.locator('.np-chart').screenshot({ path: `${SCREENS}/quota-point-${theme}.png` });
+    // Zoomed out, readings share a pixel: lower down, the drop after the peak.
+    const top = await page.locator('.np-tooltip-title').textContent();
+    await page.mouse.move(chart.x + offset(peak.time), height(0) - 2);
+    await expect(page.locator('.np-tooltip-title')).not.toHaveText(top!);
+    await expect(tooltip).not.toContainText(`${Math.round(peak.fiveHour!)}%`);
+    await page.mouse.move(chart.x + offset(peak.time), height(peak.fiveHour!));
+    await expect(page.locator('.np-tooltip-title')).toHaveText(top!);
+    // The keys go on along the lines, a reading at a time.
+    await page.locator('.np-chart').focus();
+    const title = await page.locator('.np-tooltip-title').textContent();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.np-tooltip-title')).not.toHaveText(title!);
+    const next = Number(await crosshair.getAttribute('x1'));
+    expect(next).toBeGreaterThan(x);
+    expect(next - x).toBeLessThan(offset(data.from + data.bucketMs) - offset(data.from));
+    // Over the columns, the column again.
+    await page.mouse.move(chart.x + offset(peak.time), hit.y + hit.height - 30);
+    await expect(tooltip).toContainText(strings.requests);
+    await expect(page.locator('.np-chart .np-hover-dot')).toHaveCount(0);
+    expect(panel.problems).toEqual([]);
+  });
+}
 
 test('moves through time with the keyboard and reads the values out', async ({ page }) => {
   const panel = await openPanel(page, 'dark');

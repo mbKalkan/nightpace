@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Limit reached** on the timeline: a mark hangs from 100% where Claude Code logged that the
   5-hour or weekly limit ran out, and the tooltip says when. Nightpace reads these from your
   Claude Code logs once, back to the start, then keeps up with new ones.
+- Over the quota lane, the crosshair takes each reading of the quota lines, not only the ends of
+  the columns, so a 5-hour peak inside a column can be pointed at. Where readings share a pixel,
+  the one nearest the pointer's height is taken; the arrow keys go on along the lines.
 
 ### Changed
 
