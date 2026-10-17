@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-17
+
+Nightpace is no longer a preview. Limits reset by hand and limits that ran out show on the
+timeline, and the crosshair takes every point of the quota and sessions lines.
+
 ### Added
 
 - **Limit reached** on the timeline: a mark hangs from 100% where Claude Code logged that the
@@ -128,7 +133,8 @@ First preview release.
   again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
-[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/mbKalkan/nightpace/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mbKalkan/nightpace/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mbKalkan/nightpace/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/mbKalkan/nightpace/releases/tag/v0.1.0

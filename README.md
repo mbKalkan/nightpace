@@ -18,9 +18,6 @@ would have cost at Anthropic's API prices, by model, effort level or token type,
 sessions and projects spent it. The quota is in the status bar too, so you know where you stand
 without opening anything.
 
-> **Preview.** The forecasts are new: they are estimated from your own quota readings and get
-> sharper as Nightpace records more.
-
 ![Nightpace: this week is 62% used and runs out on Sunday at this pace, with the hours a day that last until the Monday reset for one to five sessions at once; this 5-hour window is 20% used, and lasts with one Opus xhigh session but runs out in 2h 22m with three; below, a week of quota lines rising with the cost columns and the weekly line heading, dashed, to 100% by Sunday, the sessions working at once, what it would cost at API prices and the tokens by type](docs/images/timeline-dark.png)
 
 ## Why Nightpace
