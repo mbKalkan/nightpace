@@ -108,6 +108,65 @@ export interface Spend {
   unpriced: number;
 }
 
+/** The most sessions working at once the 5-hour plan looks at. */
+export const PLANNED_SESSIONS = 5;
+
+/** What a session of one model and effort level costs an hour of work, at API prices. */
+export interface SessionRate {
+  family: ModelFamily;
+  effort: string;
+  costPerHour: number;
+  /** The hours of work it was measured over. */
+  hours: number;
+}
+
+/** The weekly limit ahead, at the pace of the last 7 days. */
+export interface WeekForecast {
+  /** Percent used now: the last reading and the cost of the requests since. */
+  used: number;
+  resetsAt: number;
+  /** Percent a day at the pace of the last 7 days. */
+  pace: number;
+  /** When the limit runs out at that pace; none when it lasts to the reset. */
+  runsOut?: number;
+  /** The percent at the reset at that pace; over 100 when it runs out first. */
+  atReset: number;
+  /** Percent a day that lasts until the reset. */
+  budget: number;
+  /** For each session rate, the hours a day of one such session that the budget pays for. */
+  budgetHours: number[];
+}
+
+/** The 5-hour window ahead, with one to `PLANNED_SESSIONS` sessions working at once. */
+export interface WindowForecast {
+  used: number;
+  /** When the window resets; none while no window is open, as the next request opens one. */
+  resetsAt?: number;
+  /**
+   * For each session rate and each number of sessions at once, the milliseconds until a limit
+   * runs out (the 5-hour one, or the weekly one if it comes first); null when it lasts.
+   */
+  lasts: Array<Array<number | null>>;
+}
+
+/**
+ * How the plan's limits follow API cost, measured from this machine's own quota readings, and
+ * what that says about the week and the 5-hour window ahead. Every figure here is estimated.
+ */
+export interface Pace {
+  /** When the figures were worked out. */
+  now: number;
+  /** While there are too few readings to trust the measure: the figures are rough. */
+  learning: boolean;
+  /** Percent of each limit a dollar of API cost uses. */
+  fiveHourPerDollar: number;
+  weeklyPerDollar: number;
+  /** The kinds of session worked most in the last 14 days, most hours first. */
+  rates: SessionRate[];
+  week: WeekForecast;
+  window: WindowForecast;
+}
+
 export interface TimeWindow {
   from: number;
   to: number;
@@ -139,6 +198,8 @@ export interface TimelineData {
   tokenDetails: TokenDetails;
   /** Fixed periods up to now, whatever the range shown. */
   spend: Spend;
+  /** Where the plan's limits are heading; none until a reading with both limits is recorded. */
+  pace?: Pace;
   /** When Nightpace recorded its first quota snapshot, if ever. */
   recordingSince?: number;
 }
@@ -225,6 +286,37 @@ export interface PanelStrings {
   uncachedCost: string;
   /** The column of the share of prompt tokens read from the cache. */
   fromCache: string;
+  weekTitle: string;
+  windowTitle: string;
+  learning: string;
+  learningHint: string;
+  used: string;
+  resets: string;
+  timeLeft: string;
+  /** Instead of a reset time while no 5-hour window is open. */
+  windowClosed: string;
+  runsOutAtPace: string;
+  atResetAtPace: string;
+  /** `{0}`: percent a day. */
+  paceNote: string;
+  /** `{0}`: percent a day. */
+  budgetCaption: string;
+  /** In the week's last day: `{0}`: percent left. */
+  budgetLeftCaption: string;
+  /** In place of more than 24 hours a day. */
+  allDay: string;
+  /** `{0}`: a kind of session, like `Opus xhigh`; `{1}`: percent of the window an hour. */
+  rateNote: string;
+  /** The week runs out before the reset whatever you do. */
+  budgetSpent: string;
+  lastsCaption: string;
+  sessionsAtOnce: string;
+  lasts: string;
+  /** `{0}`: cost an hour; `{1}`: hours measured; `{2}` and `{3}`: percent of the window and week an hour. */
+  rateHint: string;
+  /** `{0}`: dollars that use 1% of the limit. */
+  weekCalibration: string;
+  windowCalibration: string;
 }
 
 export type HostToWebviewMessage =

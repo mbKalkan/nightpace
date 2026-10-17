@@ -11,7 +11,7 @@ const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 /** Thursday 15 October 2026, 17:40 UTC. */
 export const README_NOW = Date.UTC(2026, 9, 15, 17, 40);
-const WEEKLY_RESET = Date.UTC(2026, 9, 9, 9, 0);
+const WEEKLY_RESET = Date.UTC(2026, 9, 12, 9, 0);
 const PROJECTS = ['/work/atlas', '/work/beacon-api', '/work/website', '/home/dev/notes'];
 const EFFORTS = ['xhigh', 'xhigh', 'high', 'medium'] as const;
 
@@ -134,7 +134,7 @@ export function readmeSnapshots(requests: TimelineRequest[]): QuotaSnapshot[] {
     0,
   );
   const weeklyLimit = weekTotal / 0.62;
-  const weeklyBeforeReset = 71;
+  const weeklyBeforeReset = 30;
 
   const snapshots: QuotaSnapshot[] = [];
   let index = 0;

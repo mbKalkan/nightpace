@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { lowestTextContrast } from './contrast';
 import { openPanel, strings } from './harness';
+import { readmeTimeline } from './readmeSample';
 import { sampleTimeline } from './sampleTimeline';
 import type { ThemeName } from './themes';
-import type { TimeWindow } from '../../src/shared/protocol';
+import { PLANNED_SESSIONS, type TimeWindow } from '../../src/shared/protocol';
 
 const SCREENS = 'test-results/screens';
 
@@ -643,6 +644,8 @@ test.describe('tokens by effort level', () => {
       await expect(page.locator('.np-bar.np-e-xhigh').first()).toBeVisible();
       expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);
 
+      // Under the pace cards: in view before pointing at it.
+      await page.locator('.np-chart').scrollIntoViewIfNeeded();
       const column = (await page.locator('.np-bar.np-e-xhigh').last().boundingBox())!;
       await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
       await expect(page.locator('.np-tooltip').getByText('xhigh', { exact: true })).toBeVisible();
@@ -715,6 +718,8 @@ test.describe('cost and token types', () => {
         'descending',
       );
       // Output is a sliver next to the cache reads in tokens; the tooltip still lists it.
+      // Under the pace cards: in view before pointing at it.
+      await page.locator('.np-chart').scrollIntoViewIfNeeded();
       const column = (await page.locator('.np-bar.np-t-cacheRead').last().boundingBox())!;
       await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
       const tooltip = page.locator('.np-tooltip');
@@ -740,4 +745,72 @@ test('scrolls in one place, never the page around the panel', async ({ page }) =
   expect(overflow.page).toBeLessThanOrEqual(0);
   expect(overflow.app).toBeGreaterThan(0);
   expect(panel.problems).toEqual([]);
+});
+
+test.describe('pace', () => {
+  for (const theme of ['dark', 'light'] as ThemeName[]) {
+    test(`says when the week and the 5-hour window run out (${theme})`, async ({ page }) => {
+      await page.setViewportSize({ width: 1400, height: 900 });
+      const panel = await openPanel(page, theme);
+      const data = readmeTimeline('7d');
+      await panel.init(data);
+      const week = page.getByRole('region', { name: strings.weekTitle });
+      const window = page.getByRole('region', { name: strings.windowTitle });
+      await expect(week.locator('dt')).toHaveText([
+        strings.used,
+        strings.resets,
+        strings.runsOutAtPace,
+      ]);
+      await expect(week.locator('dd').first()).toHaveText(/^\d+%$/);
+      await expect(window.locator('dt')).toHaveText([
+        strings.used,
+        strings.resets,
+        strings.timeLeft,
+      ]);
+      // A row for each kind of session, a column for each number of sessions at once.
+      for (const card of [week, window]) {
+        const table = card.getByRole('table');
+        await expect(table.getByRole('columnheader')).toHaveCount(PLANNED_SESSIONS + 1);
+        await expect(table.locator('tbody tr')).toHaveCount(data.pace!.rates.length);
+        await expect(card.locator('.np-pace-foot')).toContainText('$');
+      }
+      await expect(window.getByRole('table').locator('tbody tr').first()).toContainText(
+        strings.lasts,
+      );
+      // Settled readings: no learning badge.
+      await expect(page.locator('.np-badge')).toHaveCount(0);
+      // Side by side, the same height.
+      const [weekBox, windowBox] = [(await week.boundingBox())!, (await window.boundingBox())!];
+      expect(Math.abs(weekBox.y - windowBox.y)).toBeLessThan(1);
+      expect(Math.abs(weekBox.height - windowBox.height)).toBeLessThan(1);
+      expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);
+      await page.screenshot({ path: `${SCREENS}/pace-${theme}.png` });
+      expect(panel.problems).toEqual([]);
+    });
+  }
+
+  test('says the figures are rough while it is learning, and fits a narrow panel', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 420, height: 900 });
+    const panel = await openPanel(page, 'dark');
+    const data = readmeTimeline('7d');
+    await panel.init({ ...data, pace: { ...data.pace!, learning: true } });
+    await expect(page.locator('.np-badge')).toHaveCount(2);
+    await expect(page.locator('.np-badge').first()).toHaveAttribute('title', strings.learningHint);
+    const overflow = await page.evaluate(
+      () =>
+        document.getElementById('app')!.scrollWidth - document.getElementById('app')!.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    expect(panel.problems).toEqual([]);
+  });
+
+  test('is left out without plan limits', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    await panel.init({ ...readmeTimeline('7d'), pace: undefined });
+    await expect(page.locator('.np-chart svg')).toBeVisible();
+    await expect(page.getByRole('region', { name: strings.weekTitle })).toBeHidden();
+    expect(panel.problems).toEqual([]);
+  });
 });

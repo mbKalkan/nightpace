@@ -13,8 +13,10 @@ const HOUR = 3_600_000;
 /** Lets transitions settle before the picture. */
 const settle = (page: Page) => page.waitForTimeout(400);
 
-test('a week of quota, sessions and tokens, with the sessions below', async ({ page }) => {
-  await page.setViewportSize({ width: 1200, height: 900 });
+test('the week and the 5-hour window ahead, over a week of quota, sessions and tokens', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 1040 });
   const panel = await openPanel(page, 'dark');
   await panel.init(readmeTimeline('7d'));
   await expect(page.locator('.np-chart svg')).toBeVisible();
@@ -26,6 +28,11 @@ test('a week of quota, sessions and tokens, with the sessions below', async ({ p
 test('one working day zoomed in, with every value at a time', async ({ page }) => {
   const panel = await openPanel(page, 'dark');
   await panel.init(readmeTimeline('24h', { from: README_NOW - 11.5 * HOUR, to: README_NOW }));
+  // The timeline at the top, under the cards of the week and the 5-hour window.
+  await page.locator('.np-timeline').evaluate((card: HTMLElement) => {
+    card.style.scrollMarginTop = '12px';
+    card.scrollIntoView({ block: 'start' });
+  });
   const box = (await page.locator('.np-hit').boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.62, box.y + 60);
   await expect(page.locator('.np-tooltip')).toBeVisible();

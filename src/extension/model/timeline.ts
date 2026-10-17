@@ -16,6 +16,8 @@ import { EFFORT_LEVELS, MODEL_FAMILIES, NO_EFFORT, TOKEN_TYPES } from '../../sha
 import { clampWindow } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
+import { modelFamily } from './family';
+import { paceOf } from './pace';
 import { requestCost } from './pricing';
 import { tokenDetails } from './tokenDetails';
 import {
@@ -68,10 +70,7 @@ export interface TimelineRequest extends TimedRequest {
   tokens: TokenCounts;
 }
 
-export function modelFamily(model: string): ModelFamily {
-  const id = model.toLowerCase();
-  return MODEL_FAMILIES.find((family) => family !== 'other' && id.includes(family)) ?? 'other';
-}
+export { modelFamily };
 
 /** A request's tokens by type; the thinking part of output is in `output`. */
 export function tokensByType(tokens: TokenCounts): Record<TokenType, number> {
@@ -238,6 +237,7 @@ export function buildTimeline({
     sessionList: summarizeSessions(all, intervals, from, to),
     tokenDetails: tokenDetails(all, from, to),
     spend: spendOf(all, now, startOfToday),
+    pace: paceOf(all, snapshots, now),
     recordingSince: snapshots.find((snapshot) => snapshot.available)?.time,
   };
 }

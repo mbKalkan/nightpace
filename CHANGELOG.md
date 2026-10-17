@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **This week** and **This 5-hour window**, at the top of the panel. When the week runs out at
+  the pace of the last 7 days, or where it will be at the reset, and the hours of work a day that
+  last until the reset with one to five sessions at once; how long this 5-hour window lasts with
+  one to five sessions at once. One row for each model and effort level you worked with in the
+  last 14 days.
+- The forecasts are estimated from your own quota readings: Nightpace measures what a dollar of
+  API cost is in your 5-hour and weekly limits, and says it under each card. Until it has recorded
+  a few days, the cards say **Learning**.
+
 ## [0.2.0] - 2026-10-16
 
 A new panel layout, the tokens of the period by type with what caching saved, and a timeline

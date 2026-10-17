@@ -814,3 +814,105 @@ body {
     padding: 10px 12px 12px;
   }
 }
+
+/* Where the limits are heading: the week and the 5-hour window, side by side above the rest, in
+   the same two columns. The notes at the foot of each line up across the two. */
+.np-pace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.np-pace[hidden] {
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  .np-pace {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.np-pace-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.np-pace-figures {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.np-pace-card .np-note-text {
+  margin-top: 6px;
+}
+
+.np-pace-card .np-pace-foot {
+  margin-top: auto;
+  padding-top: 12px;
+  font-size: 0.92em;
+}
+
+.np-badge {
+  padding: 1px 8px;
+  border: 1px solid var(--np-card-border);
+  border-radius: 10px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.92em;
+  cursor: help;
+}
+
+/* Used so far in the weekly color, and the rest of the way to the reset in a lighter step. */
+.np-meter {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--np-grid);
+}
+
+.np-meter {
+  margin-bottom: 2px;
+}
+
+.np-meter-used,
+.np-meter-ahead {
+  background: currentColor;
+}
+
+.np-meter.np-s-week {
+  color: var(--np-week);
+}
+
+.np-meter.np-s-five {
+  color: var(--np-five);
+}
+
+.np-meter-ahead {
+  opacity: 0.35;
+}
+
+.np-pace-table {
+  margin-top: 12px;
+}
+
+.np-pace-caption {
+  caption-side: top;
+  padding-bottom: 6px;
+  color: var(--vscode-descriptionForeground);
+  text-align: left;
+}
+
+.np-lasts-table td {
+  font-weight: 600;
+}
+
+.np-lasts-table td.np-lasts {
+  color: var(--vscode-descriptionForeground);
+  font-weight: normal;
+}
+
+.np-lasts-table tbody th {
+  cursor: help;
+}
