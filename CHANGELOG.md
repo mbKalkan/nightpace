@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-17
+
 ### Changed
 
 - The status bar says how long the week has left before its limit resets, like
@@ -139,7 +141,8 @@ First preview release.
   again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
-[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/mbKalkan/nightpace/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mbKalkan/nightpace/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mbKalkan/nightpace/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mbKalkan/nightpace/compare/v0.1.0...v0.2.0
