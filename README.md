@@ -7,22 +7,28 @@
 [![CI](https://github.com/mbKalkan/nightpace/actions/workflows/ci.yml/badge.svg)](https://github.com/mbKalkan/nightpace/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**See how fast your Claude Code quota burns, why, and what it would cost on the API.**
+**See how fast your Claude Code quota burns, why, when it runs out, and what it would cost on the
+API.**
 
-Nightpace puts your Claude Code usage on one timeline in VS Code: the 5-hour and weekly plan
-limits as Claude Code reports them, how many sessions were working at once, and what the
-requests would have cost at Anthropic's API prices, by model, effort level or token type. Below
-it, see which sessions and projects spent it. The quota is in the status bar too, so you know
-where you stand without opening anything.
+Nightpace measures, from your own history, how your Claude Code plan limits follow your usage,
+and tells you when this week and this 5-hour window run out at your pace, and how long they last
+with one to five sessions working at once. Below, one timeline in VS Code: the 5-hour and weekly
+limits as Claude Code reports them, how many sessions were working at once, and what the requests
+would have cost at Anthropic's API prices, by model, effort level or token type, and which
+sessions and projects spent it. The quota is in the status bar too, so you know where you stand
+without opening anything.
 
-> **Preview.** The timeline, the API cost, the session list and the status bar work today.
-> Forecasts from your own history (_"three xhigh sessions run out on Thursday; two last until
-> Sunday"_) are next.
+> **Preview.** The forecasts are new: they are estimated from your own quota readings and get
+> sharper as Nightpace records more.
 
-![A week of Claude Code usage in Nightpace: the 5-hour and weekly quota lines rise with the cost columns and the sessions lane shows up to four sessions at once; beside the timeline, what it would cost at API prices today, over 7 and 30 days and per active day, and the week's tokens by type; below, the sessions that cost the most](docs/images/timeline-dark.png)
+![Nightpace: this week is 62% used and runs out on Sunday at this pace, with the hours a day that last until the Monday reset for one to five sessions at once; this 5-hour window is 20% used, and lasts with one Opus xhigh session but runs out in 2h 21m with three; below, a week of quota lines rising with the cost columns, the sessions working at once, what it would cost at API prices and the tokens by type](docs/images/timeline-dark.png)
 
 ## Why Nightpace
 
+- **When it runs out, and how to make it last.** Nightpace measures what a dollar of API cost is
+  in your own 5-hour and weekly limits, and what each kind of session (model and effort) costs
+  an hour. It tells you when the week runs out at your pace, how many hours a day last until the
+  reset, and how long this 5-hour window lasts with one to five sessions at once.
 - **History, not just a number.** A status bar percentage tells you where you are. Nightpace
   records the quota every few minutes and shows how it got there, next to what you were doing.
 - **Parallel sessions in view.** See when two, three or four sessions were working at once and
@@ -36,6 +42,19 @@ where you stand without opening anything.
   tool output or code. No telemetry, and Nightpace itself makes no network requests.
 
 ## Features
+
+### This week and this 5-hour window
+
+At the top, two cards. **This week**: how much is used, when it resets, and when it runs out at
+the pace of the last 7 days (or where it will be at the reset), with how many hours of work a day
+last until the reset with one to five sessions at once, for each kind of session you use.
+**This 5-hour window**: how much is used, when it resets, and how long it lasts with one to five
+sessions at once.
+
+The figures are estimated. Nightpace measures how your quota readings follow the API cost of
+your requests, and says under each card what 1% of the limit is at API prices; and what a
+session of each model and effort level costs an hour, over the last 14 days. Until it has
+recorded a few days, the cards say **Learning**: the figures are rough.
 
 ### Timeline
 
@@ -126,9 +145,10 @@ is sent, no quota is used, and Nightpace never reads your credentials.
   Vertex there is no plan quota; tokens and sessions still show.
 - **The quota is per account, the logs are per machine.** Claude Code on another computer and
   Claude on the web use the same quota but don't appear in the token columns here.
-- **API cost is not quota.** Anthropic doesn't publish how usage counts against the plan limits;
-  the cost shows what the same requests would cost on the API. Measuring the link from your own
-  history is the next step.
+- **The forecasts are estimates.** Anthropic doesn't publish how usage counts against the plan
+  limits. Nightpace measures it from your own readings: they follow the API cost closely, but
+  Claude Code on another computer or Claude on the web uses the same quota without showing here,
+  so the week can run out sooner than the cards say.
 - **List prices, built in.** Prices are Anthropic's first-party API list prices of October 2026.
   Batch and Priority Tier discounts, and Bedrock, Vertex AI or Foundry pricing, are not applied.
   A model released after your Nightpace version has no price until Nightpace is updated; the

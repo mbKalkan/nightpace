@@ -13,6 +13,7 @@ import { clampWindow, coversExtent, MIN_WINDOW_MS, scaleWindow } from '../shared
 import { CHART_HEIGHT, TimelineChart } from './chart/timelineChart';
 import { Formats } from './format';
 import { Breakdown, type Grouping } from './breakdown';
+import { PaceCards } from './pace';
 import { SpendTiles } from './spend';
 import { TokenDetailsView } from './tokenDetails';
 import { timelineTable } from './table';
@@ -39,6 +40,7 @@ class Panel {
   private readonly measureButtons = new Map<TokenMeasure, HTMLButtonElement>();
   private readonly measureNote = document.createElement('p');
   private readonly spend: SpendTiles;
+  private readonly pace: PaceCards;
   private readonly details: TokenDetailsView;
   private readonly columns = document.createElement('div');
   /** Below the header, not in it: a label that comes and goes there wraps the controls. */
@@ -84,6 +86,7 @@ class Panel {
     hint.textContent = strings.zoomHint;
     this.measureNote.className = 'np-note-text';
     this.spend = new SpendTiles(strings, this.formats);
+    this.pace = new PaceCards(strings, this.formats);
     this.details = new TokenDetailsView(strings, this.formats);
     const privacy = document.createElement('p');
     privacy.className = 'np-privacy';
@@ -113,7 +116,7 @@ class Panel {
     timeline.append(timelineHeader, this.body, notes);
     this.columns.className = 'np-columns';
     this.columns.append(this.spend.element, timeline, this.details.element);
-    main.append(header, this.columns, this.breakdown.element, privacy);
+    main.append(header, this.pace.element, this.columns, this.breakdown.element, privacy);
     app.replaceChildren(main);
 
     new ResizeObserver(() => this.draw()).observe(this.body);
@@ -263,6 +266,7 @@ class Panel {
     this.details.render(data.tokenDetails);
     this.draw();
     this.spend.render(data.spend);
+    this.pace.render(data.pace);
     this.breakdown.render(data, this.measure);
   }
 
