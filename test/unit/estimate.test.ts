@@ -68,6 +68,46 @@ describe('estimateQuota', () => {
     expect(atReset.map((point) => point.weekly)).toEqual([5.5, 0]);
   });
 
+  it('reaches 100% where Claude Code logged that a limit ran out', () => {
+    const hit = morning + 53 * MIN;
+    const logged = estimateQuota({
+      requests,
+      weeklyReset: reset,
+      fiveHourPerDollar: 10,
+      weeklyPerDollar: 0.5,
+      from: weekOpened - 20 * HOUR,
+      to: reset + 4 * HOUR,
+      hits: [{ time: hit, limit: 'fiveHour' }],
+    });
+    // $6 by the hit: 60% at the measured rate, so the window is scaled to 100% there.
+    expect(quotaAt(logged, hit)!.fiveHour).toBe(100);
+    expect(quotaAt(logged, morning + 40 * MIN)!.fiveHour).toBeCloseTo(66.7, 1);
+    // The next window is measured as before.
+    expect(quotaAt(logged, morning + 6 * HOUR + 20 * MIN)!.fiveHour).toBe(10);
+  });
+
+  it('starts a week again from zero where it ran out and work went on: a reset by hand', () => {
+    // $10 an hour for 12 hours at 1% a dollar: 100% at the tenth hour, 120% by the twelfth.
+    const busy = Array.from({ length: 12 }, (_, i) => request(morning + (i + 1) * HOUR, 10));
+    const week = (extra: TimelineRequest[]) =>
+      estimateQuota({
+        requests: [request(weekOpened - DAY), ...extra],
+        weeklyReset: reset,
+        fiveHourPerDollar: 0.1,
+        weeklyPerDollar: 1,
+        from: weekOpened,
+        to: reset,
+      });
+    const out = morning + 10 * HOUR;
+    const points = week(busy);
+    expect(points.filter((p) => p.time === out).map((p) => p.weekly)).toEqual([100, 0]);
+    expect(quotaAt(points, morning + 12 * HOUR)!.weekly).toBe(20);
+    // A little past 100% is the estimate's own error: it stays at 100% until the reset.
+    const little = week([...busy.slice(0, 10), request(morning + 11 * HOUR, 5)]);
+    expect(quotaAt(little, morning + 12 * HOUR)!.weekly).toBe(100);
+    expect(little.filter((p) => p.time === out)).toHaveLength(1);
+  });
+
   it('estimates nothing without requests, or before the first full week', () => {
     const none = { weeklyReset: reset, fiveHourPerDollar: 2, weeklyPerDollar: 0.5 };
     expect(estimateQuota({ ...none, requests: [], from: 0, to: reset })).toEqual([]);

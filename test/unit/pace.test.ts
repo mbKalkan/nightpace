@@ -7,6 +7,7 @@ import {
   sessionRates,
   weekForecast,
   windowForecast,
+  windowReadings,
 } from '../../src/extension/model/pace';
 import type { TimelineRequest } from '../../src/extension/model/timeline';
 import type { QuotaSnapshot } from '../../src/extension/quota/snapshot';
@@ -65,6 +66,48 @@ describe('costIndex', () => {
   });
 });
 
+describe('windowReadings', () => {
+  const weekly = (s: QuotaSnapshot) => s.weekly;
+  const resets = now + 2 * DAY;
+
+  it('opens each window a span before its reset', () => {
+    const read = windowReadings([reading(60, 0, now, 10, resets)], weekly, 7 * DAY);
+    expect(read[0].opened).toBe(resets - 7 * DAY);
+  });
+
+  it('starts the window again where usage fell before its reset: a reset by hand', () => {
+    const read = windowReadings(
+      [
+        reading(120, 0, now, 98, resets),
+        reading(115, 0, now, 100, resets),
+        reading(110, 0, now, 1, resets),
+        reading(105, 0, now, 3, resets),
+        // The reset comes with a second's jitter.
+        reading(100, 0, now, 4, resets + 1_000),
+      ],
+      weekly,
+      7 * DAY,
+    );
+    expect(read.map((r) => r.opened)).toEqual([
+      resets - 7 * DAY,
+      resets - 7 * DAY,
+      now - 115 * MIN,
+      now - 115 * MIN,
+      now - 115 * MIN,
+    ]);
+  });
+
+  it('starts it again where a new reset came before the old one', () => {
+    // A week from the new reset, which is after the reading before.
+    const read = windowReadings(
+      [reading(20, 0, now, 100, resets), reading(10, 0, now, 0, now + 7 * DAY - 15 * MIN)],
+      weekly,
+      7 * DAY,
+    );
+    expect(read[1].opened).toBe(now - 15 * MIN);
+  });
+});
+
 describe('measure', () => {
   it('finds the percent a dollar uses from readings that follow the cost', () => {
     // A 5-hour window opened two hours ago: $1 every 10 minutes, and 0.4% a dollar.
@@ -92,6 +135,25 @@ describe('measure', () => {
     }
     const result = measure(readings, (s) => s.fiveHour, 5 * HOUR, costIndex(requests))!;
     expect(result.settled).toBe(true);
+  });
+
+  it('measures a week reset by hand from where it was reset', () => {
+    // At 0.5% a dollar: $40 two days ago, then $1 every 10 minutes for 3 hours, and the week
+    // reset by hand after the reading 150 minutes ago.
+    const requests = [
+      ...Array.from({ length: 40 }, (_, i) => request(2 * 24 * 60 + i, 1)),
+      ...Array.from({ length: 18 }, (_, i) => request(175 - i * 10, 1)),
+    ];
+    const spent = (from: number, to: number) =>
+      requests.filter((r) => r.time > now - from * MIN && r.time <= now - to * MIN).length;
+    const weekResets = now + 4 * DAY;
+    const readings = [
+      reading(150, 0, now + HOUR, spent(3 * 24 * 60, 150) * 0.5, weekResets),
+      reading(100, 0, now + HOUR, spent(150, 100) * 0.5, weekResets),
+      reading(5, 0, now + HOUR, spent(150, 5) * 0.5, weekResets),
+    ];
+    const result = measure(readings, (s) => s.weekly, 7 * DAY, costIndex(requests))!;
+    expect(result.perDollar).toBeCloseTo(0.5);
   });
 
   it('measures nothing without cost', () => {

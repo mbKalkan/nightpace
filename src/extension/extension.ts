@@ -6,6 +6,7 @@ import { QuotaError, requestUsage, sdkCommand } from './quota/claudeProcess';
 import { QuotaRecorder } from './quota/recorder';
 import { parseUsageResponse } from './quota/snapshot';
 import { QuotaStatusBar } from './statusBar';
+import { LimitStore } from './store/limitStore';
 import { QuotaStore } from './store/quotaStore';
 import { RequestStore } from './store/requestStore';
 import { TimelinePanel } from './timelinePanel';
@@ -24,6 +25,7 @@ export function activate(context: vscode.ExtensionContext): void {
     transcriptRoots,
     store,
     new RequestStore(context.globalStorageUri.fsPath),
+    new LimitStore(context.globalStorageUri.fsPath),
   );
   const sync = () =>
     source.sync().catch((error: unknown) => output.warn(`Requests: ${String(error)}`));

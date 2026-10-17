@@ -82,7 +82,11 @@ export function panelStrings(t: Translate): PanelStrings {
     estimateNote: t(
       "Dashed quota is estimated from API cost at today's rates: before Nightpace recorded it, and the week ahead at the pace of the last 7 days.",
     ),
-    estimateOverNote: t("Above 100% is more than today's limits allow."),
+    estimateResetNote: t(
+      'Where an estimated week reached 100% and work went on, it starts again from zero, as after a limit reset.',
+    ),
+    limitReached: t('Limit reached'),
+    limitReachedAt: t('{0} limit reached', '{0}'),
     chartLabel: t(
       'Timeline of plan quota, sessions working at once, and API cost or tokens. Use the arrow keys to move through time, plus and minus to zoom, Shift and the arrow keys to move the zoomed window, and zero for the whole range.',
     ),

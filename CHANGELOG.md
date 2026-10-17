@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Limit reached** on the timeline: a mark hangs from 100% where Claude Code logged that the
+  5-hour or weekly limit ran out, and the tooltip says when. Nightpace reads these from your
+  Claude Code logs once, back to the start, then keeps up with new ones.
+
+### Changed
+
+- A limit reset by hand is recognized: the forecasts and the chart of an hour over time measure
+  that window from the reset, not from the start of the week.
+- The quota estimated before Nightpace started recording reaches 100% where a limit ran out, and
+  a week that reached 100% and went on working starts again from zero, as after a limit reset.
+  The quota lane no longer goes above 100%.
+
 ## [0.3.0] - 2026-10-17
 
 ### Added
