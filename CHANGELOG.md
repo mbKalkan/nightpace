@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-17
+
 ### Added
 
 - **This week** and **This 5-hour window**, at the top of the panel. When the week runs out at
@@ -24,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Under each card, a chart of how much of the limit an hour of your main kind of session took,
   for each 5-hour window and each day of the week over the last 4 weeks: it shows when the limits
   change.
+
+### Fixed
+
+- In the 30-day view, the date at the start of a month no longer crowds the one before it.
 
 ## [0.2.0] - 2026-10-16
 
@@ -104,6 +110,7 @@ First preview release.
   again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
-[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/mbKalkan/nightpace/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mbKalkan/nightpace/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/mbKalkan/nightpace/releases/tag/v0.1.0
