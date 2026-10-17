@@ -120,8 +120,8 @@ session or project.
 
 ### Status bar
 
-Your plan's 5-hour and weekly usage and when the 5-hour window resets, like
-`5h 63% · Wk 41% · ↻14:02`, turning yellow at 80% and red at 95%. Hover for per-model weekly
+Your plan's 5-hour and weekly usage, with when the 5-hour window resets and how long the week
+has left, like `5h 63% ↻14:02 · Wk 41% ↻3d 4h`, turning yellow at 80% and red at 95%. Hover for per-model weekly
 limits. Click to open the timeline.
 
 ## Getting started

@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The status bar says how long the week has left before its limit resets, like
+  `Wk 41% ↻3d 4h`, and the 5-hour window's reset time now sits next to its own percentage:
+  `5h 63% ↻14:02 · Wk 41% ↻3d 4h`.
+
 ## [0.4.0] - 2026-10-17
 
 Nightpace is no longer a preview. Limits reset by hand and limits that ran out show on the

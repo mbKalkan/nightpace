@@ -5,7 +5,7 @@ import type { Translate } from './texts';
 export type Level = 'normal' | 'warning' | 'error';
 
 export interface QuotaText {
-  /** Status bar text, like `5h 63% · Wk 41% · ↻14:02`. */
+  /** Status bar text, like `5h 63% ↻14:02 · Wk 41% ↻3d 4h`. */
   text: string;
   /** Hover lines, Markdown. */
   tooltip: string[];
@@ -18,6 +18,15 @@ export const ERROR_PERCENT = 95;
 /** A window whose reset time has passed says nothing about now. */
 function current(window: QuotaWindow | undefined, now: number): QuotaWindow | undefined {
   return window && (window.resetsAt === undefined || window.resetsAt > now) ? window : undefined;
+}
+
+/** How long until `time`, as short as the status bar needs: `3d 4h`, `3d`, `9h`, `40m`. */
+function until(time: number, now: number, t: Translate): string {
+  const minutes = Math.max(0, Math.floor((time - now) / 60_000));
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  if (days > 0) return hours > 0 ? t('{0}d {1}h', days, hours) : t('{0}d', days);
+  return hours > 0 ? t('{0}h', hours) : t('{0}m', minutes);
 }
 
 export function quotaText(
@@ -35,11 +44,13 @@ export function quotaText(
   const day = new Intl.DateTimeFormat(locale, { weekday: 'short', ...clock });
   const percent = (window: QuotaWindow) => `${Math.round(window.percent)}%`;
 
+  // Each limit with its reset: the 5-hour window's time, and how long the week has left.
   const parts = [
     `5h ${fiveHour ? percent(fiveHour) : '—'}`,
     `${t('Wk')} ${weekly ? percent(weekly) : '—'}`,
   ];
-  if (fiveHour?.resetsAt) parts.push(`↻${time.format(fiveHour.resetsAt)}`);
+  if (fiveHour?.resetsAt) parts[0] += ` ↻${time.format(fiveHour.resetsAt)}`;
+  if (weekly?.resetsAt) parts[1] += ` ↻${until(weekly.resetsAt, now, t)}`;
 
   const tooltip: string[] = [];
   if (fiveHour) {
