@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The forecasts are estimated from your own quota readings: Nightpace measures what a dollar of
   API cost is in your 5-hour and weekly limits, and says it under each card. Until it has recorded
   a few days, the cards say **Learning**.
+- Under each card, a chart of how much of the limit an hour of your main kind of session took,
+  for each 5-hour window and each day of the week over the last 4 weeks: it shows when the limits
+  change.
 
 ## [0.2.0] - 2026-10-16
 

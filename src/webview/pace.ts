@@ -6,8 +6,10 @@ import {
   PLANNED_SESSIONS,
   type Pace,
   type PanelStrings,
+  type RatePoint,
   type SessionRate,
 } from '../shared/protocol';
+import { rateTrend } from './chart/rateTrend';
 import type { Formats } from './format';
 
 const HOUR = 3_600_000;
@@ -17,6 +19,10 @@ export class PaceCards {
   readonly element = document.createElement('div');
   private readonly week = document.createElement('section');
   private readonly window = document.createElement('section');
+  private pace: Pace | undefined;
+  /** Where each card's trend goes once the card is laid out and its width known. */
+  private trends: Array<{ place: HTMLElement; draw: (width: number) => SVGSVGElement }> = [];
+  private width = 0;
 
   constructor(
     private readonly strings: PanelStrings,
@@ -29,13 +35,28 @@ export class PaceCards {
     this.window.className = 'np-card np-pace-card';
     this.window.setAttribute('aria-labelledby', 'np-window-title');
     this.element.append(this.week, this.window);
+    // The trends are drawn to the width of their card.
+    new ResizeObserver(() => {
+      if (this.week.clientWidth !== this.width) this.drawTrends();
+    }).observe(this.week);
   }
 
   render(pace: Pace | undefined): void {
+    this.pace = pace;
     this.element.hidden = !pace;
     if (!pace) return;
+    this.trends = [];
     this.renderWeek(pace);
     this.renderWindow(pace);
+    this.drawTrends();
+  }
+
+  private drawTrends(): void {
+    this.width = this.week.clientWidth;
+    if (!this.pace) return;
+    for (const { place, draw } of this.trends) {
+      if (place.clientWidth > 0) place.replaceChildren(draw(place.clientWidth));
+    }
   }
 
   private header(id: string, title: string, learning: boolean): HTMLElement {
@@ -123,7 +144,7 @@ export class PaceCards {
         ),
       );
     }
-    children.push(this.foot(s.weekCalibration, pace.weeklyPerDollar));
+    children.push(this.trend(pace, pace.history.weekly, pace.weeklyPerDollar, 'np-s-week'));
     this.week.replaceChildren(...children);
   }
 
@@ -160,7 +181,7 @@ export class PaceCards {
         ),
       );
     }
-    children.push(this.foot(s.windowCalibration, pace.fiveHourPerDollar));
+    children.push(this.trend(pace, pace.history.fiveHour, pace.fiveHourPerDollar, 'np-s-five'));
     this.window.replaceChildren(...children);
   }
 
@@ -179,12 +200,54 @@ export class PaceCards {
     return track;
   }
 
-  /** What a dollar of API cost is in the limit, as measured: the ground for every figure above. */
-  private foot(text: string, perDollar: number): HTMLElement {
-    return this.note(
-      text.replace('{0}', this.formats.money(1 / perDollar)),
-      'np-note-text np-pace-foot',
-    );
+  /**
+   * At the foot of a card, the ground for every figure above it: what 1% of the limit is at API
+   * prices, measured, and how much of it an hour of the main kind of session took over time.
+   */
+  private trend(pace: Pace, points: RatePoint[], perDollar: number, series: string): HTMLElement {
+    const s = this.strings;
+    const f = this.formats;
+    const block = document.createElement('div');
+    block.className = 'np-pace-foot';
+    const header = document.createElement('div');
+    header.className = 'np-trend-header';
+    const [rate] = pace.rates;
+    const title = document.createElement('span');
+    title.className = 'np-trend-title';
+    title.textContent = rate ? s.trendTitle.replace('{0}', this.rateName(rate)) : '';
+    title.title = s.trendHint;
+    const estimate = document.createElement('span');
+    estimate.className = 'np-note-text';
+    estimate.textContent = s.trendEstimate.replace('{0}', f.money(1 / perDollar));
+    estimate.title = s.trendHint;
+    header.append(title, estimate);
+    block.append(header);
+    if (!rate) return block;
+    const place = document.createElement('div');
+    place.className = 'np-trend-place';
+    block.append(place);
+    const perHour = (point: RatePoint) => point.perDollar * rate.costPerHour;
+    this.trends.push({
+      place,
+      draw: (width) =>
+        rateTrend({
+          points,
+          now: pace.now,
+          width,
+          value: perHour,
+          format: (value) => f.fine(value),
+          describe: (point) =>
+            s.trendPoint
+              .replace('{0}', f.window(point.from, point.to))
+              .replace('{1}', this.rateName(rate))
+              .replace('{2}', f.fine(perHour(point)))
+              .replace('{3}', f.money(1 / point.perDollar)),
+          tick: (time, step) => f.tick(time, step),
+          series,
+          empty: s.trendEmpty,
+        }),
+    });
+    return block;
   }
 
   /**

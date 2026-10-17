@@ -29,8 +29,8 @@ for (const theme of ['dark', 'light', 'hcDark', 'hcLight'] as ThemeName[]) {
       for (const text of [strings.fiveHour, strings.weekly, 'Opus', 'Fable', 'Sonnet']) {
         await expect(chart.getByText(text, { exact: true })).toBeVisible();
       }
-      await expect(page.locator('.np-line.np-s-five')).toHaveCount(1);
-      await expect(page.locator('.np-line.np-s-week')).toHaveCount(1);
+      await expect(page.locator('.np-chart .np-line.np-s-five')).toHaveCount(1);
+      await expect(page.locator('.np-chart .np-line.np-s-week')).toHaveCount(1);
       expect(await page.locator('.np-col').count()).toBeGreaterThan(10);
       await expect(page.getByRole('button', { name: strings.ranges['24h'] })).toHaveAttribute(
         'aria-pressed',
@@ -772,8 +772,15 @@ test.describe('pace', () => {
         const table = card.getByRole('table');
         await expect(table.getByRole('columnheader')).toHaveCount(PLANNED_SESSIONS + 1);
         await expect(table.locator('tbody tr')).toHaveCount(data.pace!.rates.length);
-        await expect(card.locator('.np-pace-foot')).toContainText('$');
+        await expect(card.locator('.np-trend-header')).toContainText('$');
       }
+      // A point for each stretch, telling what an hour took then.
+      const points = week.locator('.np-trend-point');
+      await expect(points).toHaveCount(data.pace!.history.weekly.length);
+      await expect(window.locator('.np-trend-point')).toHaveCount(
+        data.pace!.history.fiveHour.length,
+      );
+      await expect(points.last().locator('title')).toContainText('%');
       await expect(window.getByRole('table').locator('tbody tr').first()).toContainText(
         strings.lasts,
       );
@@ -795,8 +802,13 @@ test.describe('pace', () => {
     await page.setViewportSize({ width: 420, height: 900 });
     const panel = await openPanel(page, 'dark');
     const data = readmeTimeline('7d');
-    await panel.init({ ...data, pace: { ...data.pace!, learning: true } });
+    const history = { ...data.pace!.history, weekly: [] };
+    await panel.init({ ...data, pace: { ...data.pace!, learning: true, history } });
     await expect(page.locator('.np-badge')).toHaveCount(2);
+    // No stretch has used 10% yet: the trend says when points come.
+    await expect(
+      page.getByRole('region', { name: strings.weekTitle }).getByRole('img'),
+    ).toHaveAccessibleName(strings.trendEmpty);
     await expect(page.locator('.np-badge').first()).toHaveAttribute('title', strings.learningHint);
     const overflow = await page.evaluate(
       () =>

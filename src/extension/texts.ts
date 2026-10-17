@@ -140,14 +140,19 @@ export function panelStrings(t: Translate): PanelStrings {
       '{2}',
       '{3}',
     ),
-    weekCalibration: t(
-      'Estimated. 1% of your weekly limit is about {0} at API prices, measured from your own quota readings.',
-      '{0}',
+    trendTitle: t('An hour of {0}, over time', '{0}'),
+    trendEstimate: t('Estimated: 1% ≈ {0}', '{0}'),
+    trendHint: t(
+      'Estimated from your own quota readings at API prices. Each point is a stretch that used at least 10% of the limit. It moves when Anthropic changes the limits, or when Claude on the web or on another computer uses the same quota.',
     ),
-    windowCalibration: t(
-      'Estimated. 1% of your 5-hour limit is about {0} at API prices, measured from your own quota readings.',
+    trendPoint: t(
+      '{0}: an hour of {1} used {2} of the limit; 1% was {3} at API prices.',
       '{0}',
+      '{1}',
+      '{2}',
+      '{3}',
     ),
+    trendEmpty: t('Points appear once a stretch has used 10% of the limit.'),
     zoomToSession: t('Click to zoom the chart to this session'),
     zoomToProject: t('Click to zoom the chart to this project'),
     zoomHint: t(

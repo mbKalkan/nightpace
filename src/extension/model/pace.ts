@@ -7,6 +7,7 @@ import {
   NO_EFFORT,
   PLANNED_SESSIONS,
   type Pace,
+  type RatePoint,
   type SessionRate,
   type WeekForecast,
   type WindowForecast,
@@ -43,6 +44,7 @@ export function paceOf(
   requests: readonly TimelineRequest[],
   snapshots: readonly QuotaSnapshot[],
   now: number,
+  utcOffset = -new Date(now).getTimezoneOffset() * 60_000,
 ): Pace | undefined {
   const readings = snapshots.filter((snapshot) => snapshot.available && snapshot.time <= now);
   const latest = readings.at(-1);
@@ -58,12 +60,39 @@ export function paceOf(
 
   const rates = sessionRates(requests, now);
   const week = weekForecast(latest, latest.weekly, weekly.perDollar, rates, costBetween, now);
+  // Before the first request the cost is unknown rather than nothing: a stretch of a window that
+  // opened earlier would show far more percent for a dollar than it took.
+  const since = requests.reduce((first, request) => Math.min(first, request.time), Infinity);
+  const history = (
+    pick: (snapshot: QuotaSnapshot) => QuotaWindow | undefined,
+    span: number,
+    step: (time: number) => number,
+  ) =>
+    rateHistory(
+      recent.filter((snapshot) => (pick(snapshot)?.resetsAt ?? Infinity) - span >= since),
+      pick,
+      span,
+      costBetween,
+      step,
+    );
   return {
     now,
     learning: !fiveHour.settled || !weekly.settled,
     fiveHourPerDollar: fiveHour.perDollar,
     weeklyPerDollar: weekly.perDollar,
     rates,
+    history: {
+      weekly: history(
+        (s) => s.weekly,
+        WEEK,
+        (time) => Math.floor((time + utcOffset) / DAY),
+      ),
+      fiveHour: history(
+        (s) => s.fiveHour,
+        FIVE_HOURS,
+        () => 0,
+      ),
+    },
     week,
     window: windowForecast({
       latest,
@@ -76,6 +105,44 @@ export function paceOf(
       now,
     }),
   };
+}
+
+/**
+ * The percent a dollar used, stretch by stretch, to see it change: Anthropic can change the
+ * limits, and use elsewhere (Claude on the web, another computer) shows up as more percent for
+ * the same local cost. A stretch runs from the window's start, or the last stretch's end, to the
+ * last reading of a step (a day for the week, the whole window for 5 hours), once it has used at
+ * least 10%: readings are whole percents, so a shorter one would be mostly rounding.
+ */
+export function rateHistory(
+  readings: readonly QuotaSnapshot[],
+  pick: (snapshot: QuotaSnapshot) => QuotaWindow | undefined,
+  span: number,
+  costBetween: CostBetween,
+  step: (time: number) => number,
+): RatePoint[] {
+  const read = readings.flatMap((snapshot) => {
+    const window = pick(snapshot);
+    return window?.resetsAt === undefined
+      ? []
+      : [{ time: snapshot.time, percent: window.percent, reset: toMinute(window.resetsAt) }];
+  });
+  const points: RatePoint[] = [];
+  let anchor: { reset: number; time: number; percent: number } | undefined;
+  read.forEach((reading, i) => {
+    // A window starts from nothing used.
+    if (anchor?.reset !== reading.reset) {
+      anchor = { reset: reading.reset, time: reading.reset - span, percent: 0 };
+    }
+    const next = read[i + 1];
+    if (next && next.reset === reading.reset && step(next.time) === step(reading.time)) return;
+    const used = reading.percent - anchor.percent;
+    if (used < SETTLED_PERCENT) return;
+    const cost = costBetween(anchor.time, reading.time);
+    if (cost > 0) points.push({ from: anchor.time, to: reading.time, perDollar: used / cost });
+    anchor = { reset: reading.reset, time: reading.time, percent: reading.percent };
+  });
+  return points;
 }
 
 /** Prefix sums of cost over the requests in time order, for any stretch at once. */

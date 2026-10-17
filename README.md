@@ -56,6 +56,11 @@ your requests, and says under each card what 1% of the limit is at API prices; a
 session of each model and effort level costs an hour, over the last 14 days. Until it has
 recorded a few days, the cards say **Learning**: the figures are rough.
 
+At the foot of each card, a small chart follows how much of the limit an hour of your main kind
+of session took over the last 4 weeks: a point for each 5-hour window, and for each day of the
+week, once it has used at least 10%. When Anthropic changes the limits, the points move. They
+also rise when Claude on the web or on another computer uses the same quota.
+
 ### Timeline
 
 Run **Nightpace: Show Timeline** from the Command Palette for the last 24 hours, 7 days or 30
