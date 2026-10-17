@@ -120,5 +120,9 @@
   "Limit reached": "Limit doldu",
   "{0} limit reached": "{0} limit doldu",
   "Dashed quota is estimated from API cost at today's rates: before Nightpace recorded it, and the week ahead at the pace of the last 7 days.": "Kesikli kota, bugünkü oranlarla API maliyetinden tahmin edildi: Nightpace kaydetmeden önceki dönem ve son 7 günün temposuyla önümüzdeki hafta.",
-  "Where an estimated week reached 100% and work went on, it starts again from zero, as after a limit reset.": "Tahmini bir hafta %100'e varıp çalışma sürdüyse, limit sıfırlamasından sonraki gibi sıfırdan başlar."
+  "Where an estimated week reached 100% and work went on, it starts again from zero, as after a limit reset.": "Tahmini bir hafta %100'e varıp çalışma sürdüyse, limit sıfırlamasından sonraki gibi sıfırdan başlar.",
+  "{0}d {1}h": "{0}g {1}sa",
+  "{0}d": "{0}g",
+  "{0}h": "{0}sa",
+  "{0}m": "{0}dk"
 }

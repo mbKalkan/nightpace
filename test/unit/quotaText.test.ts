@@ -24,9 +24,9 @@ const snapshot = (overrides: Partial<QuotaSnapshot> = {}): QuotaSnapshot => ({
 });
 
 describe('quotaText', () => {
-  it('shows both limits and when the five-hour window resets', () => {
+  it('shows both limits, when the five-hour window resets and how long the week has left', () => {
     const text = quotaText(snapshot(), now, english, 'en')!;
-    expect(text.text).toBe(`5h 63% · Wk 41% · ↻${hm(now + 3 * 3600_000)}`);
+    expect(text.text).toBe(`5h 63% ↻${hm(now + 3 * 3600_000)} · Wk 41% ↻3d`);
     expect(text.level).toBe('normal');
     expect(text.tooltip[0]).toBe(`5-hour limit: 63% used, resets at ${hm(now + 3 * 3600_000)}`);
     expect(text.tooltip[1]).toMatch(/^Weekly limit: 41% used, resets /);
@@ -44,7 +44,7 @@ describe('quotaText', () => {
         english,
         locale,
       )!;
-      expect(text.text, locale).toMatch(/↻\d{2}:\d{2}$/);
+      expect(text.text, locale).toMatch(/^5h 5% ↻\d{2}:\d{2} · /);
       expect([text.text, ...text.tooltip].join(' '), locale).not.toMatch(/AM|PM|ÖÖ|ÖS/);
     }
   });
@@ -56,8 +56,27 @@ describe('quotaText', () => {
       english,
       'en',
     )!;
-    expect(text.text).toBe('5h — · Wk 41%');
+    expect(text.text).toBe('5h — · Wk 41% ↻3d');
     expect(text.level).toBe('normal');
+  });
+
+  it('counts the week down in days and hours, then hours, then minutes', () => {
+    const left = (ms: number) =>
+      quotaText(
+        snapshot({ weekly: { percent: 41, resetsAt: now + ms } }),
+        now,
+        english,
+        'en',
+      )!.text.split('Wk 41% ')[1];
+    const HOUR = 3600_000;
+    expect(left(4 * 24 * HOUR + 9 * HOUR + 59 * 60_000)).toBe('↻4d 9h');
+    expect(left(24 * HOUR)).toBe('↻1d');
+    expect(left(23 * HOUR + 30 * 60_000)).toBe('↻23h');
+    expect(left(40 * 60_000)).toBe('↻40m');
+    // Without a reset, nothing to count.
+    expect(quotaText(snapshot({ weekly: { percent: 41 } }), now, english, 'en')!.text).toMatch(
+      / · Wk 41%$/,
+    );
   });
 
   it('warns as a limit gets close, per-model limits included', () => {
