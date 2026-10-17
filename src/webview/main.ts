@@ -309,9 +309,17 @@ class Panel {
     // The chart draws the week ahead whenever it reaches the present; the table doesn't.
     const ahead = !this.table && data.pace !== undefined && view.to >= data.extent.to;
     this.estimateNote.hidden = estimate.length === 0 && !ahead;
-    const over = estimate.some((point) => (point.weekly ?? 0) > 100 || (point.fiveHour ?? 0) > 100);
-    this.estimateNote.textContent = over
-      ? `${this.strings.estimateNote} ${this.strings.estimateOverNote}`
+    // A drop to zero that is not the weekly reset: a week reset by hand.
+    const restarted = estimate.some(
+      (point, i) =>
+        i > 0 &&
+        point.weekly === 0 &&
+        (estimate[i - 1].weekly ?? 0) > 0 &&
+        estimate[i - 1].time === point.time &&
+        !data.weeklyResets.includes(point.time),
+    );
+    this.estimateNote.textContent = restarted
+      ? `${this.strings.estimateNote} ${this.strings.estimateResetNote}`
       : this.strings.estimateNote;
     const zoomed = !coversExtent(view, data.extent);
     // The window shown, zoomed or not, so the line keeps its place; how long it is when zoomed.

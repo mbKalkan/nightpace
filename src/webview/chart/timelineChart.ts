@@ -313,7 +313,7 @@ export class TimelineChart {
     root: SVGSVGElement,
     lane: Lane,
     title: string,
-    keys: Array<{ className: string; label: string; shape: 'line' | 'rect' }>,
+    keys: Array<{ className: string; label: string; shape: 'line' | 'rect' | 'mark' }>,
     note?: string,
   ): void {
     const y = lane.top - 9;
@@ -333,14 +333,19 @@ export class TimelineChart {
               y1: y - 4,
               y2: y - 4,
             })
-          : svg('rect', {
-              class: `np-key-rect ${key.className}`,
-              x: cursor,
-              y: y - 9,
-              width: 10,
-              height: 10,
-              rx: 2,
-            });
+          : key.shape === 'mark'
+            ? svg('path', {
+                class: key.className,
+                d: `M${cursor},${y - 8}L${cursor + 9},${y - 8}L${cursor + 4.5},${y - 1}Z`,
+              })
+            : svg('rect', {
+                class: `np-key-rect ${key.className}`,
+                x: cursor,
+                y: y - 9,
+                width: 10,
+                height: 10,
+                rx: 2,
+              });
       const label = svg(
         'text',
         { x: cursor + (key.shape === 'line' ? 19 : 15), y, class: 'np-legend-text' },
@@ -407,16 +412,10 @@ export class TimelineChart {
         : recording > data.from
           ? s.quotaSince.replace('{0}', this.formats.dayClock(recording))
           : undefined;
-    // An estimate at today's rates can pass 100%: the limits were not what they are now.
     const estimate = data.quotaEstimate ?? [];
-    const highest = Math.max(
-      100,
-      ...estimate.map((point) => Math.max(point.fiveHour ?? 0, point.weekly ?? 0)),
-    );
-    const ticks = Array.from({ length: Math.ceil(highest / 25) + 1 }, (_, i) => i * 25);
-    const top = ticks[ticks.length - 1];
+    const hits = data.limitHits.filter((hit) => hit.time >= data.from && hit.time <= data.to);
     // The same scale as the lane's value axis, drawn after the legend.
-    const percentY = (value: number) => lane.top + lane.height - (value / top) * lane.height;
+    const percentY = (value: number) => lane.top + lane.height - (value / 100) * lane.height;
     const paths = QUOTA_SERIES.map((series) => ({
       series,
       ...quotaPath(data.quota, series.key, series.reset, series.span, x, percentY),
@@ -437,12 +436,13 @@ export class TimelineChart {
         ...(estimate.length > 0 || forecast
           ? [{ className: 'np-estimated', label: s.estimated, shape: 'line' as const }]
           : []),
+        ...(hits.length > 0
+          ? [{ className: 'np-limit-key', label: s.limitReached, shape: 'mark' as const }]
+          : []),
       ],
       note,
     );
-    // On a taller scale, a label every 25% would crowd the lane: every 50% then.
-    const label = (v: number) => (ticks.length > 7 && v % 50 !== 0 ? '' : `${v}%`);
-    const y = this.valueAxis(root, lane, ticks, label, plotRight);
+    const y = this.valueAxis(root, lane, [0, 25, 50, 75, 100], (v) => `${v}%`, plotRight);
     if (data.quota.length === 0) {
       root.append(
         svg(
@@ -517,6 +517,17 @@ export class TimelineChart {
           });
         }
       }
+    }
+    // Where a limit ran out: a mark hanging from 100%, in its series' color.
+    for (const hit of hits) {
+      const cx = x(hit.time);
+      const top = y(100);
+      root.append(
+        svg('path', {
+          d: `M${cx - 4.5},${top}L${cx + 4.5},${top}L${cx},${top + 7}Z`,
+          class: `np-limit ${hit.limit === 'fiveHour' ? 'np-s-five' : 'np-s-week'}`,
+        }),
+      );
     }
     if (forecast) {
       const d = forecast.points
@@ -813,6 +824,15 @@ export class TimelineChart {
       rows.push([this.formats.percent(quota.fiveHour), name(s.fiveHour), 'np-s-five']);
     if (quota?.weekly !== undefined)
       rows.push([this.formats.percent(quota.weekly), name(s.weekly), 'np-s-week']);
+    for (const hit of data.limitHits) {
+      if (hit.time < bucket.start || hit.time >= bucket.start + data.bucketMs) continue;
+      const five = hit.limit === 'fiveHour';
+      rows.push([
+        this.formats.clock(hit.time),
+        s.limitReachedAt.replace('{0}', five ? s.fiveHour : s.weekly),
+        five ? 'np-s-five' : 'np-s-week',
+      ]);
+    }
     rows.push([String(bucket.maxSessions), s.sessions, 'np-s-sessions']);
     for (const { value, label, className } of tokenSeries(data, this.split, this.measure, s)) {
       const amount = value(bucket);

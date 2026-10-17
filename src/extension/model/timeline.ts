@@ -2,6 +2,7 @@
 // the requests read from Claude Code's transcripts.
 import type {
   Amounts,
+  LimitHit,
   ModelFamily,
   QuotaPoint,
   RangeKey,
@@ -117,6 +118,8 @@ export interface TimelineInput {
   zoom?: TimeWindow;
   requests: Iterable<TimelineRequest>;
   snapshots: readonly QuotaSnapshot[];
+  /** When limits ran out, as Claude Code logged it; none when left out. */
+  limits?: readonly LimitHit[];
   /** Local midnight today, for today's spend; the host's own when left out. */
   startOfToday?: number;
   /**
@@ -169,6 +172,7 @@ export function buildTimeline({
   zoom,
   requests,
   snapshots,
+  limits = [],
   startOfToday = new Date(now).setHours(0, 0, 0, 0),
   utcOffset = -new Date(now).getTimezoneOffset() * MIN,
 }: TimelineInput): TimelineData {
@@ -241,8 +245,10 @@ export function buildTimeline({
             weeklyPerDollar: pace.weeklyPerDollar,
             from,
             to: Math.min(to, recordingSince),
+            hits: limits,
           })
         : undefined,
+    limitHits: limits.filter((hit) => hit.time >= from && hit.time <= to),
     weeklyResets,
     sessions,
     buckets,

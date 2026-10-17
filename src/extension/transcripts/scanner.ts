@@ -13,13 +13,15 @@ export interface ScanResult {
 /**
  * Reads Claude Code transcripts (`*.jsonl` under each root, subagents included) from where the
  * last scan stopped. `offsets` maps each file to the bytes already read and is updated in place,
- * so a scan after the first reads only what was appended.
+ * so a scan after the first reads only what was appended. With `marker`, only lines that contain
+ * it are parsed: a quick pass for one kind of event.
  */
 export async function scanTranscripts(
   roots: readonly string[],
   offsets: Map<string, number>,
   onEvent: (event: TranscriptEvent) => void,
   options?: ReadOptions,
+  marker?: string,
 ): Promise<ScanResult> {
   const result: ScanResult = { filesRead: 0, bytesRead: 0, events: 0 };
   for (const root of roots) {
@@ -39,6 +41,7 @@ export async function scanTranscripts(
           path,
           offset,
           (line) => {
+            if (marker !== undefined && !line.includes(marker)) return;
             const event = parseTranscriptLine(line);
             if (event) {
               result.events++;

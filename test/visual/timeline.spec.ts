@@ -795,6 +795,53 @@ test.describe('estimated quota', () => {
     });
   }
 
+  test('says when an estimated week starts again before its reset', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    const data = readmeTimeline('7d', undefined, README_NOW - 2.5 * 86_400_000);
+    const note = page.locator('.np-note-text', { hasText: strings.estimateNote });
+    await panel.init(data);
+    await expect(note).not.toContainText(strings.estimateResetNote);
+    // The week reached 100% and went on: it drops to zero where no reset is due.
+    const estimate = data.quotaEstimate!;
+    const middle = Math.floor(estimate.length / 2);
+    const time = estimate[middle].time + 1;
+    await panel.init({
+      ...data,
+      quotaEstimate: [
+        ...estimate.slice(0, middle + 1),
+        { time, fiveHour: 0, weekly: 100 },
+        { time, fiveHour: 0, weekly: 0 },
+        ...estimate.slice(middle + 1),
+      ],
+    });
+    await expect(note).toContainText(strings.estimateResetNote);
+    expect(panel.problems).toEqual([]);
+  });
+
+  for (const theme of ['dark', 'light'] as ThemeName[]) {
+    test(`marks where a limit ran out (${theme})`, async ({ page }) => {
+      await page.setViewportSize({ width: 1400, height: 900 });
+      const panel = await openPanel(page, theme);
+      const data = readmeTimeline('7d');
+      // A busy column in the middle of the week, clear of the lane's edges.
+      const half = data.buckets.length / 2;
+      const index = data.buckets.findIndex((bucket, i) => i > half && bucket.requests > 50);
+      const time = data.buckets[index].start + data.bucketMs / 2;
+      await panel.init({ ...data, limitHits: [{ time, limit: 'fiveHour' }] });
+      const chart = page.locator('.np-chart svg');
+      await expect(chart.locator('.np-limit.np-s-five')).toHaveCount(1);
+      await expect(chart.getByText(strings.limitReached, { exact: true })).toBeVisible();
+      await page.locator('.np-chart').scrollIntoViewIfNeeded();
+      const column = (await page.locator(`.np-col[data-index="${index}"]`).boundingBox())!;
+      await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
+      await expect(page.locator('.np-tooltip')).toContainText(
+        strings.limitReachedAt.replace('{0}', strings.fiveHour),
+      );
+      await page.locator('.np-chart').screenshot({ path: `${SCREENS}/limit-${theme}.png` });
+      expect(panel.problems).toEqual([]);
+    });
+  }
+
   test('has no week ahead in a window of the past', async ({ page }) => {
     const panel = await openPanel(page, 'dark');
     const data = readmeTimeline('7d');

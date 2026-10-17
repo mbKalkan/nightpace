@@ -64,6 +64,12 @@ export interface QuotaPoint {
   weeklyReset?: number;
 }
 
+/** When Claude Code refused a request because a plan limit ran out. */
+export interface LimitHit {
+  time: number;
+  limit: 'fiveHour' | 'weekly';
+}
+
 /** From `time` on, `count` sessions were working, until the next step. */
 export interface SessionStep {
   time: number;
@@ -195,6 +201,8 @@ export interface TimelineData {
    * rates; none without a measure or before the first full week of requests.
    */
   quotaEstimate?: QuotaPoint[];
+  /** When a limit ran out within the window, as Claude Code logged it. */
+  limitHits: LimitHit[];
   /**
    * The weekly quota's resets within the window, a week apart from the last one Claude Code
    * reported; the columns are counted from them. Empty before any quota reading.
@@ -268,8 +276,12 @@ export interface PanelStrings {
   estimatedLabel: string;
   /** Under the chart, what the dashed quota is. */
   estimateNote: string;
-  /** After it, when an estimate passes 100%. */
-  estimateOverNote: string;
+  /** After it, when an estimated week starts again from zero before its reset. */
+  estimateResetNote: string;
+  /** Where Claude Code logged that a limit ran out. */
+  limitReached: string;
+  /** `{0}`: a series, like `Weekly`. */
+  limitReachedAt: string;
   /** `{0}`: when recording started. */
   quotaSince: string;
   chartLabel: string;

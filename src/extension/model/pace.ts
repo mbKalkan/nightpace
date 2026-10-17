@@ -36,6 +36,9 @@ const MAX_RATES = 4;
 const SETTLED_WINDOWS = 3;
 const SETTLED_PERCENT = 10;
 const SETTLED_WEEKLY_SPAN = 2 * DAY;
+/** Usage only falls when a window resets: a fall of this much before then is a reset by hand. */
+const RESET_BY_HAND_DROP = 2;
+const RESET_JITTER = 2 * 60_000;
 
 /** Cost of the requests made in (from, to], at API prices. */
 type CostBetween = (from: number, to: number) => number;
@@ -121,28 +124,63 @@ export function rateHistory(
   costBetween: CostBetween,
   step: (time: number) => number,
 ): RatePoint[] {
-  const read = readings.flatMap((snapshot) => {
-    const window = pick(snapshot);
-    return window?.resetsAt === undefined
-      ? []
-      : [{ time: snapshot.time, percent: window.percent, reset: toMinute(window.resetsAt) }];
-  });
+  const read = windowReadings(readings, pick, span);
   const points: RatePoint[] = [];
-  let anchor: { reset: number; time: number; percent: number } | undefined;
+  let anchor: { opened: number; time: number; percent: number } | undefined;
   read.forEach((reading, i) => {
     // A window starts from nothing used.
-    if (anchor?.reset !== reading.reset) {
-      anchor = { reset: reading.reset, time: reading.reset - span, percent: 0 };
+    if (anchor?.opened !== reading.opened) {
+      anchor = { opened: reading.opened, time: reading.opened, percent: 0 };
     }
     const next = read[i + 1];
-    if (next && next.reset === reading.reset && step(next.time) === step(reading.time)) return;
+    if (next && next.opened === reading.opened && step(next.time) === step(reading.time)) return;
     const used = reading.percent - anchor.percent;
     if (used < SETTLED_PERCENT) return;
     const cost = costBetween(anchor.time, reading.time);
     if (cost > 0) points.push({ from: anchor.time, to: reading.time, perDollar: used / cost });
-    anchor = { reset: reading.reset, time: reading.time, percent: reading.percent };
+    anchor = { opened: reading.opened, time: reading.time, percent: reading.percent };
   });
   return points;
+}
+
+/** A reading of one limit, with when its window opened. */
+export interface WindowReading {
+  time: number;
+  percent: number;
+  /** The reset Claude Code reported, to the minute. */
+  reset: number;
+  /** Its reset less the window's length, or the reading before a reset by hand. */
+  opened: number;
+}
+
+/**
+ * The readings of one limit, each with when its window opened. Claude offers to reset the weekly
+ * limit by hand once it runs out: usage then falls before the reset it was heading for, or a new
+ * reset comes before the old one, and the window starts again from the reading before.
+ */
+export function windowReadings(
+  readings: readonly QuotaSnapshot[],
+  pick: (snapshot: QuotaSnapshot) => QuotaWindow | undefined,
+  span: number,
+): WindowReading[] {
+  const read: WindowReading[] = [];
+  let previous: WindowReading | undefined;
+  for (const snapshot of readings) {
+    const window = pick(snapshot);
+    if (window?.resetsAt === undefined) continue;
+    const reset = toMinute(window.resetsAt);
+    let opened = reset - span;
+    // Only while the window before had yet to reset can this one have been reset by hand.
+    if (previous && previous.reset > snapshot.time) {
+      // The reported reset jitters by a second or so: a new one is minutes away.
+      if (Math.abs(reset - previous.reset) > RESET_JITTER) opened = Math.max(opened, previous.time);
+      else if (window.percent <= previous.percent - RESET_BY_HAND_DROP) opened = previous.time;
+      else opened = previous.opened;
+    }
+    previous = { time: snapshot.time, percent: window.percent, reset, opened };
+    read.push(previous);
+  }
+  return read;
 }
 
 /** Prefix sums of cost over the requests in time order, for any stretch at once. */
@@ -187,18 +225,17 @@ export function measure(
   const windowPeaks = new Map<number, number>();
   let first: number | undefined;
   let last = 0;
-  for (const snapshot of readings) {
-    const window = pick(snapshot);
-    if (window?.resetsAt === undefined) continue;
-    const cost = costBetween(window.resetsAt - span, snapshot.time);
+  for (const reading of windowReadings(readings, pick, span)) {
+    const cost = costBetween(reading.opened, reading.time);
     if (cost <= 0) continue;
-    xy += cost * window.percent;
+    xy += cost * reading.percent;
     xx += cost * cost;
-    // The reset comes with a second's jitter: windows are told apart to the minute.
-    const key = Math.round(window.resetsAt / 60_000);
-    windowPeaks.set(key, Math.max(windowPeaks.get(key) ?? 0, window.percent));
-    first ??= snapshot.time;
-    last = snapshot.time;
+    windowPeaks.set(
+      reading.opened,
+      Math.max(windowPeaks.get(reading.opened) ?? 0, reading.percent),
+    );
+    first ??= reading.time;
+    last = reading.time;
   }
   if (xx === 0 || xy === 0) return undefined;
   const peaks = [...windowPeaks.values()];

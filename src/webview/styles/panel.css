@@ -352,6 +352,14 @@ body {
   stroke: var(--vscode-descriptionForeground);
   stroke-dasharray: 4 3;
 }
+/* Where Claude Code logged that a limit ran out. */
+.np-limit {
+  stroke: var(--np-surface);
+  stroke-width: 1;
+}
+.np-limit-key {
+  fill: var(--vscode-descriptionForeground);
+}
 /* The time past now, which only the week ahead reaches into. */
 .np-future {
   fill: var(--vscode-foreground);
