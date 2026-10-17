@@ -344,6 +344,19 @@ body {
   stroke: var(--vscode-descriptionForeground);
   stroke-dasharray: 0.5 4;
 }
+/* Dashed where the quota is worked out from API cost: before the first reading, and ahead. */
+.np-line.np-estimated {
+  stroke-dasharray: 5 4;
+}
+.np-key.np-estimated {
+  stroke: var(--vscode-descriptionForeground);
+  stroke-dasharray: 4 3;
+}
+/* The time past now, which only the week ahead reaches into. */
+.np-future {
+  fill: var(--vscode-foreground);
+  opacity: 0.04;
+}
 .np-line.np-s-five,
 .np-line.np-s-week,
 .np-line.np-s-sessions {

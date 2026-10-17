@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The forecasts are estimated from your own quota readings: Nightpace measures what a dollar of
   API cost is in your 5-hour and weekly limits, and says it under each card. Until it has recorded
   a few days, the cards say **Learning**.
+- The timeline's quota lane runs on past now: the weekly line heads, dashed, to the reset at
+  the pace of the last 7 days.
+- Before Nightpace started recording, the timeline estimates the 5-hour and weekly quota from the
+  API cost in your Claude Code logs at your measured rates, dashed. In the tooltip and the table
+  these values say they are estimated.
 - Under each card, a chart of how much of the limit an hour of your main kind of session took,
   for each 5-hour window and each day of the week over the last 4 weeks: it shows when the limits
   change.

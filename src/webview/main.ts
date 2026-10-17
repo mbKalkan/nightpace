@@ -39,6 +39,8 @@ class Panel {
   private readonly splitButtons = new Map<TokenSplit, HTMLButtonElement>();
   private readonly measureButtons = new Map<TokenMeasure, HTMLButtonElement>();
   private readonly measureNote = document.createElement('p');
+  /** What the dashed quota is, while the chart shows some. */
+  private readonly estimateNote = document.createElement('p');
   private readonly spend: SpendTiles;
   private readonly pace: PaceCards;
   private readonly details: TokenDetailsView;
@@ -85,6 +87,8 @@ class Panel {
     hint.className = 'np-note-text';
     hint.textContent = strings.zoomHint;
     this.measureNote.className = 'np-note-text';
+    this.estimateNote.className = 'np-note-text';
+    this.estimateNote.hidden = true;
     this.spend = new SpendTiles(strings, this.formats);
     this.pace = new PaceCards(strings, this.formats);
     this.details = new TokenDetailsView(strings, this.formats);
@@ -112,7 +116,7 @@ class Panel {
     timelineHeader.append(this.zoomLabel, this.chartControls());
     const notes = document.createElement('div');
     notes.className = 'np-card-notes';
-    notes.append(hint, this.measureNote);
+    notes.append(hint, this.measureNote, this.estimateNote);
     timeline.append(timelineHeader, this.body, notes);
     this.columns.className = 'np-columns';
     this.columns.append(this.spend.element, timeline, this.details.element);
@@ -301,6 +305,14 @@ class Panel {
     this.measureNote.textContent = this.strings.measureNotes[this.measure];
     if (!data) return;
     const view = this.view!;
+    const estimate = data.quotaEstimate ?? [];
+    // The chart draws the week ahead whenever it reaches the present; the table doesn't.
+    const ahead = !this.table && data.pace !== undefined && view.to >= data.extent.to;
+    this.estimateNote.hidden = estimate.length === 0 && !ahead;
+    const over = estimate.some((point) => (point.weekly ?? 0) > 100 || (point.fiveHour ?? 0) > 100);
+    this.estimateNote.textContent = over
+      ? `${this.strings.estimateNote} ${this.strings.estimateOverNote}`
+      : this.strings.estimateNote;
     const zoomed = !coversExtent(view, data.extent);
     // The window shown, zoomed or not, so the line keeps its place; how long it is when zoomed.
     const shown = this.formats.window(view.from, view.to);

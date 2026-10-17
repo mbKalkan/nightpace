@@ -114,5 +114,9 @@
   "{0}: an hour of {1} used {2} of the limit; 1% was {3} at API prices.": "{0}: {1} ile bir saat limitin {2} kadarını kullandı; %1, API fiyatlarıyla {3} idi.",
   "Points appear once a stretch has used 10% of the limit.": "Bir dilim limitin %10'unu kullanınca noktalar görünür.",
   "1% of the limit at API prices, over time": "Limitin %1'i API fiyatlarıyla, zaman içinde",
-  "{0}: 1% of the limit was {1} at API prices.": "{0}: limitin %1'i API fiyatlarıyla {1} idi."
+  "{0}: 1% of the limit was {1} at API prices.": "{0}: limitin %1'i API fiyatlarıyla {1} idi.",
+  "Estimated": "Tahmini",
+  "{0}, estimated": "{0}, tahmini",
+  "Dashed quota is estimated from API cost at today's rates: before Nightpace recorded it, and the week ahead at the pace of the last 7 days.": "Kesikli kota, bugünkü oranlarla API maliyetinden tahmin edildi: Nightpace kaydetmeden önceki dönem ve son 7 günün temposuyla önümüzdeki hafta.",
+  "Above 100% is more than today's limits allow.": "%100'ün üstü, bugünkü limitlerin izin verdiğinden fazlası."
 }

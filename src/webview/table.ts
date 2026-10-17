@@ -44,10 +44,18 @@ export function timelineTable(
     const end = Math.min(bucket.start + data.bucketMs, data.to);
     const quota = quotaAt(data.quota, end);
     const recent = quota && end - quota.time <= data.bucketMs ? quota : undefined;
+    // Before the first reading, the estimate, marked as one.
+    const estimate = quota ? undefined : quotaAt(data.quotaEstimate ?? [], end);
+    const percent = (recorded?: number, estimated?: number) =>
+      recorded !== undefined
+        ? formats.percent(recorded)
+        : estimated !== undefined
+          ? `≈${formats.percent(estimated)}`
+          : '—';
     const cells = [
       formats.columnStart(bucket.start, data.bucketMs, data.to - data.from),
-      recent?.fiveHour === undefined ? '—' : formats.percent(recent.fiveHour),
-      recent?.weekly === undefined ? '—' : formats.percent(recent.weekly),
+      percent(recent?.fiveHour, estimate?.fiveHour),
+      percent(recent?.weekly, estimate?.weekly),
       String(bucket.maxSessions),
       ...series.map(({ value }) => amount(value(bucket))),
       amount(bucket[measure].total),
