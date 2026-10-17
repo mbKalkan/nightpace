@@ -58,8 +58,11 @@ recorded a few days, the cards say **Learning**: the figures are rough.
 
 At the foot of each card, a small chart follows how much of the limit an hour of your main kind
 of session took over the last 4 weeks: a point for each 5-hour window, and for each day of the
-week, once it has used at least 10%. When Anthropic changes the limits, the points move. They
-also rise when Claude on the web or on another computer uses the same quota.
+week, once it has used at least 10%. The kind is your own: the model and effort level you worked
+with most in the last 14 days, so a Sonnet user sees an hour of Sonnet. Until one kind has two
+hours of work, the chart follows what 1% of the limit is at API prices instead. When Anthropic
+changes the limits, the points move. They also rise when Claude on the web or on another
+computer uses the same quota.
 
 ### Timeline
 

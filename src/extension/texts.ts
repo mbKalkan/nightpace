@@ -153,6 +153,8 @@ export function panelStrings(t: Translate): PanelStrings {
       '{3}',
     ),
     trendEmpty: t('Points appear once a stretch has used 10% of the limit.'),
+    trendCostTitle: t('1% of the limit at API prices, over time'),
+    trendCostPoint: t('{0}: 1% of the limit was {1} at API prices.', '{0}', '{1}'),
     zoomToSession: t('Click to zoom the chart to this session'),
     zoomToProject: t('Click to zoom the chart to this project'),
     zoomHint: t(

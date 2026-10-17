@@ -818,6 +818,25 @@ test.describe('pace', () => {
     expect(panel.problems).toEqual([]);
   });
 
+  test("follows the user's own kind of session, or what 1% costs without one", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    const panel = await openPanel(page, 'dark');
+    const data = readmeTimeline('7d');
+    const sonnet = { family: 'sonnet' as const, effort: 'high', costPerHour: 3, hours: 20 };
+    await panel.init({ ...data, pace: { ...data.pace!, rates: [sonnet] } });
+    const week = page.getByRole('region', { name: strings.weekTitle });
+    await expect(week.locator('.np-trend-title')).toHaveText(
+      strings.trendTitle.replace('{0}', 'Sonnet high'),
+    );
+    // Too few hours of any kind: no hour to measure, so dollars for 1% instead.
+    await panel.init({ ...data, pace: { ...data.pace!, rates: [] } });
+    await expect(week.locator('.np-trend-title')).toHaveText(strings.trendCostTitle);
+    await expect(week.locator('.np-trend-point')).toHaveCount(data.pace!.history.weekly.length);
+    await expect(week.getByRole('img')).toHaveAccessibleName(/\$/);
+    await page.locator('.np-pace').screenshot({ path: `${SCREENS}/pace-no-rates.png` });
+    expect(panel.problems).toEqual([]);
+  });
+
   test('is left out without plan limits', async ({ page }) => {
     const panel = await openPanel(page, 'dark');
     await panel.init({ ...readmeTimeline('7d'), pace: undefined });

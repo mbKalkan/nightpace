@@ -112,5 +112,7 @@
   "Estimated: 1% ≈ {0}": "Tahmini: %1 ≈ {0}",
   "Estimated from your own quota readings at API prices. Each point is a stretch that used at least 10% of the limit. It moves when Anthropic changes the limits, or when Claude on the web or on another computer uses the same quota.": "Kendi kota okumalarınızdan API fiyatlarıyla tahmin edildi. Her nokta, limitin en az %10'unu kullanan bir dilim. Anthropic limitleri değiştirdiğinde ya da web'deki veya başka bir bilgisayardaki Claude aynı kotayı kullandığında oynar.",
   "{0}: an hour of {1} used {2} of the limit; 1% was {3} at API prices.": "{0}: {1} ile bir saat limitin {2} kadarını kullandı; %1, API fiyatlarıyla {3} idi.",
-  "Points appear once a stretch has used 10% of the limit.": "Bir dilim limitin %10'unu kullanınca noktalar görünür."
+  "Points appear once a stretch has used 10% of the limit.": "Bir dilim limitin %10'unu kullanınca noktalar görünür.",
+  "1% of the limit at API prices, over time": "Limitin %1'i API fiyatlarıyla, zaman içinde",
+  "{0}: 1% of the limit was {1} at API prices.": "{0}: limitin %1'i API fiyatlarıyla {1} idi."
 }

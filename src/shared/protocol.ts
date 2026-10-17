@@ -331,6 +331,10 @@ export interface PanelStrings {
   /** `{0}`: when; `{1}`: a kind of session; `{2}`: percent of the limit an hour; `{3}`: 1% in dollars. */
   trendPoint: string;
   trendEmpty: string;
+  /** Without a kind of session to measure an hour of: what 1% of the limit is, over time. */
+  trendCostTitle: string;
+  /** `{0}`: when; `{1}`: 1% in dollars. */
+  trendCostPoint: string;
 }
 
 export type HostToWebviewMessage =

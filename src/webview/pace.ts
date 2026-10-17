@@ -9,7 +9,7 @@ import {
   type RatePoint,
   type SessionRate,
 } from '../shared/protocol';
-import { rateTrend } from './chart/rateTrend';
+import { rateTrend, type RateTrendInput } from './chart/rateTrend';
 import type { Formats } from './format';
 
 const HOUR = 3_600_000;
@@ -212,9 +212,31 @@ export class PaceCards {
     const header = document.createElement('div');
     header.className = 'np-trend-header';
     const [rate] = pace.rates;
+    // Without a kind of session worked long enough to know what its hour costs, the chart follows
+    // what 1% of the limit is at API prices: the same measure, the other way up.
+    const shown: Pick<RateTrendInput, 'value' | 'format' | 'axis' | 'describe'> = rate
+      ? {
+          value: (point) => point.perDollar * rate.costPerHour,
+          format: (value) => f.fine(value),
+          describe: (point) =>
+            s.trendPoint
+              .replace('{0}', f.window(point.from, point.to))
+              .replace('{1}', this.rateName(rate))
+              .replace('{2}', f.fine(point.perDollar * rate.costPerHour))
+              .replace('{3}', f.money(1 / point.perDollar)),
+        }
+      : {
+          value: (point) => 1 / point.perDollar,
+          format: (value) => f.money(value),
+          axis: (top) => f.axisMoney(top),
+          describe: (point) =>
+            s.trendCostPoint
+              .replace('{0}', f.window(point.from, point.to))
+              .replace('{1}', f.money(1 / point.perDollar)),
+        };
     const title = document.createElement('span');
     title.className = 'np-trend-title';
-    title.textContent = rate ? s.trendTitle.replace('{0}', this.rateName(rate)) : '';
+    title.textContent = rate ? s.trendTitle.replace('{0}', this.rateName(rate)) : s.trendCostTitle;
     title.title = s.trendHint;
     const estimate = document.createElement('span');
     estimate.className = 'np-note-text';
@@ -222,26 +244,17 @@ export class PaceCards {
     estimate.title = s.trendHint;
     header.append(title, estimate);
     block.append(header);
-    if (!rate) return block;
     const place = document.createElement('div');
     place.className = 'np-trend-place';
     block.append(place);
-    const perHour = (point: RatePoint) => point.perDollar * rate.costPerHour;
     this.trends.push({
       place,
       draw: (width) =>
         rateTrend({
+          ...shown,
           points,
           now: pace.now,
           width,
-          value: perHour,
-          format: (value) => f.fine(value),
-          describe: (point) =>
-            s.trendPoint
-              .replace('{0}', f.window(point.from, point.to))
-              .replace('{1}', this.rateName(rate))
-              .replace('{2}', f.fine(perHour(point)))
-              .replace('{3}', f.money(1 / point.perDollar)),
           tick: (time, step) => f.tick(time, step),
           series,
           empty: s.trendEmpty,

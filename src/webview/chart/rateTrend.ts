@@ -22,6 +22,8 @@ export interface RateTrendInput {
   /** The value shown for a point, like the percent of the limit an hour of work took. */
   value: (point: RatePoint) => number;
   format: (value: number) => string;
+  /** The value axis's labels for a scale up to `top`, when they differ from `format`. */
+  axis?: (top: number) => (value: number) => string;
   /** What a point says when pointed at. */
   describe: (point: RatePoint) => string;
   tick: (time: number, step: number) => string;
@@ -32,7 +34,7 @@ export interface RateTrendInput {
 }
 
 export function rateTrend(input: RateTrendInput): SVGSVGElement {
-  const { points, now, width, value, format, describe, tick, series, empty } = input;
+  const { points, now, width, value, format, axis, describe, tick, series, empty } = input;
   const last = points.at(-1);
   const root = svg('svg', {
     width,
@@ -51,6 +53,7 @@ export function rateTrend(input: RateTrendInput): SVGSVGElement {
   const ticks = last ? valueTicks(Math.max(...values) * 1.15, 2) : [0, 1];
   const top = ticks[ticks.length - 1];
   const y = (v: number) => plotBottom - (v / top) * (plotBottom - TOP);
+  const label = axis?.(top) ?? format;
 
   for (const v of last ? ticks : [0]) {
     root.append(
@@ -58,7 +61,7 @@ export function rateTrend(input: RateTrendInput): SVGSVGElement {
       svg(
         'text',
         { class: 'np-axis-label', x: LEFT - 6, y: y(v) + 4, 'text-anchor': 'end' },
-        format(v),
+        label(v),
       ),
     );
   }
