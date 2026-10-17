@@ -86,9 +86,9 @@ days on one time axis:
   writes, fast mode, US-only inference and web searches included. **Tokens** shows the counts
   Claude Code logged.
 
-Hover or use the arrow keys for every value at a time, or switch to a table. Over the quota lane,
-the crosshair takes each reading of its lines, between columns too, and the arrow keys go on
-along them. Scroll or pinch over
+Hover or use the arrow keys for every value at a time, or switch to a table. Over the quota and
+sessions lanes, the crosshair takes each point of their lines, between columns too, and the
+arrow keys go on along them. Scroll or pinch over
 the chart to zoom in and out around the pointer, or drag across part of the range with the right
 button. Drag the chart with the left button, or Shift + scroll, to move along time, and
 double-click for the whole range again. Columns get finer as you zoom in, down to a minute, and

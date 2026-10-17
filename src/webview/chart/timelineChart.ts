@@ -6,7 +6,8 @@
 // Dragging across it with the right button, scrolling (or a pinch), double-clicking and the plus,
 // minus and zero keys ask to zoom; dragging it with the left button or Shift and the arrow keys
 // pan. The panel decides what that means for the range. The crosshair takes a column, or over the
-// quota lane the nearest point of its lines, which can fall between two columns' ends.
+// quota and sessions lanes the nearest point of their lines, which can fall between two columns'
+// ends.
 import type {
   LimitHit,
   PanelStrings,
@@ -33,7 +34,7 @@ export const CHART_HEIGHT =
   3 * TITLE + HEIGHTS.quota + HEIGHTS.sessions + HEIGHTS.tokens + 2 * LANE_GAP + AXIS;
 /** A drag shorter than this is a click, not a zoom. */
 const MIN_DRAG_PX = 6;
-/** Over the quota lane, the crosshair takes a point of its lines this close to the pointer. */
+/** Over the quota and sessions lanes, the crosshair takes a point of their lines this close. */
 const SNAP_PX = 16;
 /** Readings this close to the pointer on either side are told apart by its height. */
 const PICK_PX = 2;
@@ -58,13 +59,16 @@ export class TimelineChart {
   private width = 0;
   private svgRoot: SVGSVGElement | undefined;
   private index: number | undefined;
-  /** The quota lane's points, and the one under the crosshair when it is not on a column. */
-  private moments: QuotaMoment[] = [];
-  private moment: QuotaMoment | undefined;
+  /** The points of the lanes' lines, and the one under the crosshair when it is not on a column. */
+  private moments: Record<LineLane, Moment[]> = { quota: [], sessions: [] };
+  private pointed: { lane: LineLane; moment: Moment } | undefined;
   private x: (time: number) => number = () => 0;
   private percentY: (value: number) => number = () => 0;
+  private sessionsY: (count: number) => number = () => 0;
   private plotRight = 0;
+  /** Where the quota and sessions lanes end, halfway to the next lane. */
   private quotaBottom = 0;
+  private sessionsBottom = 0;
   /** What the token lane's columns are split by; the panel sets it before rendering. */
   split: TokenSplit = 'model';
   /** What the token lane measures; the panel sets it before rendering. */
@@ -122,11 +126,13 @@ export class TimelineChart {
         return;
       }
       const time = this.timeAt(event.clientX);
-      // Over the quota lane, a reading between two columns' ends can be pointed at too.
+      // Over a lane of lines, a point between two columns' ends can be pointed at too.
       const y = event.clientY - this.svgRoot!.getBoundingClientRect().top;
-      const moment = y <= this.quotaBottom ? this.nearest(time, y) : undefined;
-      if (moment && Math.abs(this.x(moment.time) - this.x(time)) <= SNAP_PX) {
-        this.hoverMoment(moment);
+      const lane: LineLane | undefined =
+        y <= this.quotaBottom ? 'quota' : y <= this.sessionsBottom ? 'sessions' : undefined;
+      const moment = lane && this.nearest(lane, time, y);
+      if (lane && moment && Math.abs(this.x(moment.time) - this.x(time)) <= SNAP_PX) {
+        this.hoverMoment(lane, moment);
       } else {
         this.hover(this.bucketAt(time));
       }
@@ -207,13 +213,13 @@ export class TimelineChart {
       previous && this.index !== undefined
         ? previous.buckets[this.index].start + previous.bucketMs / 2
         : undefined;
-    const pointed = this.moment?.time;
+    const pointed = this.pointed;
     this.data = window ? viewOf(data, window) : data;
     this.width = Math.max(width, 320);
     this.svgRoot = this.draw(this.data, this.width);
     this.element.classList.toggle('np-zoomed', !coversExtent(this.window, this.data.extent));
-    const moment = pointed === undefined ? undefined : this.nearest(pointed);
-    if (moment) this.hoverMoment(moment);
+    const moment = pointed && this.nearest(pointed.lane, pointed.moment.time);
+    if (pointed && moment) this.hoverMoment(pointed.lane, moment);
     else if (hovered !== undefined) this.hover(this.bucketAt(hovered));
   }
 
@@ -255,7 +261,8 @@ export class TimelineChart {
     this.plotTop = quota.top;
     this.plotBottom = tokens.top + tokens.height;
     this.quotaBottom = quota.top + quota.height + LANE_GAP / 2;
-    this.moments = quotaMoments(data);
+    this.sessionsBottom = sessions.top + sessions.height + LANE_GAP / 2;
+    this.moments = chartMoments(data);
     this.drawTimeGrid(root, data, x, quota.top, tokens.top + tokens.height, end, plotRight);
     this.drawQuota(root, data, quota, x, plotRight, forecast);
     this.drawSessions(root, data, sessions, x, plotRight);
@@ -593,6 +600,7 @@ export class TimelineChart {
     const ticks =
       max <= 4 ? Array.from({ length: max + 1 }, (_, i) => i) : valueTicks(max, 2).map(Math.round);
     const y = this.valueAxis(root, lane, ticks, String, plotRight);
+    this.sessionsY = y;
     let line = '';
     data.sessions.forEach((step, i) => {
       const x1 = x(step.time);
@@ -757,7 +765,7 @@ export class TimelineChart {
   private zoomKey(key: string): boolean {
     const data = this.data!;
     const center =
-      this.moment?.time ??
+      this.pointed?.moment.time ??
       (this.index !== undefined
         ? data.buckets[this.index].start + data.bucketMs / 2
         : (data.from + data.to) / 2);
@@ -788,14 +796,15 @@ export class TimelineChart {
       this.hover(undefined);
       return;
     }
-    // From a point of the quota lines, the keys go on along them.
-    if (this.moment) {
-      const at = this.moments.indexOf(this.moment);
-      const step = stepTo(event.key, at, this.moments.length - 1);
+    // From a point of a lane's lines, the keys go on along them.
+    if (this.pointed) {
+      const { lane, moment } = this.pointed;
+      const moments = this.moments[lane];
+      const step = stepTo(event.key, moments.indexOf(moment), moments.length - 1);
       if (step === undefined) return;
       event.preventDefault();
-      this.hoverMoment(this.moments[step]);
-      this.live.textContent = this.describeMoment(this.moments[step]).join(', ');
+      this.hoverMoment(lane, moments[step]);
+      this.live.textContent = this.describeMoment(moments[step]).join(', ');
       return;
     }
     const next = stepTo(event.key, this.index, data.buckets.length - 1);
@@ -808,7 +817,7 @@ export class TimelineChart {
   /** Points at a column, or at nothing. */
   private hover(index: number | undefined): void {
     this.index = index;
-    this.moment = undefined;
+    this.pointed = undefined;
     const data = this.data;
     if (!data) return;
     const center =
@@ -818,26 +827,29 @@ export class TimelineChart {
     this.place(center, () => this.fillTooltip(this.heading(index!), this.rows(index!)));
   }
 
-  /** Points at a point of the quota lines, with a dot on each. */
-  private hoverMoment(moment: QuotaMoment): void {
+  /** Points at a point of a lane's lines, with a dot on each of them. */
+  private hoverMoment(lane: LineLane, moment: Moment): void {
     this.index = undefined;
-    this.moment = moment;
+    this.pointed = { lane, moment };
     const center = this.x(moment.time);
     this.place(center, () => this.fillTooltip(this.momentHeading(moment), this.momentRows(moment)));
-    const root = this.svgRoot!;
-    const crosshair = root.querySelector('.np-crosshair')!;
-    for (const series of QUOTA_SERIES) {
-      const value = moment[series.key];
-      if (value === undefined) continue;
+    const crosshair = this.svgRoot!.querySelector('.np-crosshair')!;
+    for (const [y, className] of this.dots(lane, moment)) {
       crosshair.after(
-        svg('circle', {
-          cx: center,
-          cy: this.percentY(value),
-          r: 4,
-          class: `np-dot np-hover-dot ${series.className}`,
-        }),
+        svg('circle', { cx: center, cy: y, r: 4, class: `np-dot np-hover-dot ${className}` }),
       );
     }
+  }
+
+  /** Where a point sits on each of its lane's lines, as [y, series class]. */
+  private dots(lane: LineLane, moment: Moment): Array<[number, string]> {
+    if (lane === 'sessions') return [[this.sessionsY(moment.sessions), 'np-s-sessions']];
+    return QUOTA_SERIES.flatMap((series) => {
+      const value = moment[series.key];
+      return value === undefined
+        ? []
+        : [[this.percentY(value), series.className] as [number, string]];
+    });
   }
 
   /** Moves the crosshair and the tooltip to `center`, or hides them. */
@@ -870,12 +882,12 @@ export class TimelineChart {
   }
 
   /**
-   * The quota point closest in time, within the window shown. Zoomed out, several readings share
-   * a pixel: given the pointer's height, the one nearest to it of those within `PICK_PX`, so the
-   * top of a peak and the drop after it can both be taken.
+   * The point of a lane's lines closest in time, within the window shown. Zoomed out, several
+   * share a pixel: given the pointer's height, the one nearest to it of those within `PICK_PX`, so
+   * the top of a peak and the drop after it can both be taken.
    */
-  private nearest(time: number, y?: number): QuotaMoment | undefined {
-    const moments = this.moments;
+  private nearest(lane: LineLane, time: number, y?: number): Moment | undefined {
+    const moments = this.moments[lane];
     if (moments.length === 0) return undefined;
     let low = 0;
     let high = moments.length - 1;
@@ -890,12 +902,10 @@ export class TimelineChart {
     const reach = PICK_PX / (this.x(1) - this.x(0));
     let best = closest;
     let distance = Infinity;
-    const consider = (moment: QuotaMoment) => {
-      for (const series of QUOTA_SERIES) {
-        const value = moment[series.key];
-        if (value === undefined) continue;
-        const away = Math.abs(this.percentY(value) - y);
-        // Along a flat line, the reading closest in time.
+    const consider = (moment: Moment) => {
+      for (const [height] of this.dots(lane, moment)) {
+        const away = Math.abs(height - y);
+        // Along a flat line, the point closest in time.
         const sooner = Math.abs(moment.time - time) < Math.abs(best.time - time);
         if (away < distance || (away === distance && sooner)) [best, distance] = [moment, away];
       }
@@ -968,7 +978,7 @@ export class TimelineChart {
     return [this.heading(index), ...this.rows(index).map(([value, label]) => `${label} ${value}`)];
   }
 
-  private momentHeading(moment: QuotaMoment): string {
+  private momentHeading(moment: Moment): string {
     const data = this.data!;
     // Within about a day the hour says enough, as for a column.
     return data.to - data.from > 26 * 3_600_000
@@ -976,9 +986,8 @@ export class TimelineChart {
       : this.formats.clock(moment.time);
   }
 
-  /** The quota at a point of its lines, and the sessions working then. */
-  private momentRows(moment: QuotaMoment): Array<[string, string, string]> {
-    const data = this.data!;
+  /** The quota and the sessions working at a point of the lines. */
+  private momentRows(moment: Moment): Array<[string, string, string]> {
     const s = this.strings;
     const name = (label: string) =>
       moment.estimated ? s.estimatedLabel.replace('{0}', label) : label;
@@ -995,16 +1004,11 @@ export class TimelineChart {
         five ? 'np-s-five' : 'np-s-week',
       ]);
     }
-    let sessions = 0;
-    for (const step of data.sessions) {
-      if (step.time > moment.time) break;
-      sessions = step.count;
-    }
-    rows.push([String(sessions), s.sessions, 'np-s-sessions']);
+    rows.push([String(moment.sessions), s.sessions, 'np-s-sessions']);
     return rows;
   }
 
-  private describeMoment(moment: QuotaMoment): string[] {
+  private describeMoment(moment: Moment): string[] {
     return [
       this.momentHeading(moment),
       ...this.momentRows(moment).map(([value, label]) => `${label} ${value}`),
@@ -1040,56 +1044,92 @@ function stepTo(key: string, at: number | undefined, last: number): number | und
   return at === undefined ? last : Math.min(Math.max(at + move, 0), last);
 }
 
-/** A point of the quota lines the crosshair can take. */
-export interface QuotaMoment {
+/** The lanes drawn as lines, whose points the crosshair can take. */
+type LineLane = 'quota' | 'sessions';
+
+/** A point of the quota or sessions lines the crosshair can take, with what was so then. */
+export interface Moment {
   time: number;
   fiveHour?: number;
   weekly?: number;
+  /** Whether the quota is estimated. */
   estimated: boolean;
   /** The limits Claude Code logged as run out then. */
   limits: Array<LimitHit['limit']>;
+  /** The sessions working then. */
+  sessions: number;
 }
 
 /**
- * The points of the quota lines within the window, oldest first: each reading, each estimated
- * point and each limit that ran out. Where an estimate drops at a reset, the value it drops from.
+ * The points of the lines within the window, oldest first. For the quota lane: each reading, each
+ * estimated point and each limit that ran out; where an estimate drops at a reset, the value it
+ * drops from. For the sessions lane: each change in the sessions working at once.
  */
-export function quotaMoments(data: TimelineData): QuotaMoment[] {
+export function chartMoments(data: TimelineData): Record<LineLane, Moment[]> {
   const inside = (time: number) => time >= data.from && time <= data.to;
-  const moments = new Map<number, QuotaMoment>();
+  const sessionsAt = (time: number) => lastAt(data.sessions, time)?.count ?? 0;
+  const quota = new Map<number, Moment>();
   const add = (point: QuotaPoint, estimated: boolean) =>
-    moments.set(point.time, {
+    quota.set(point.time, {
       time: point.time,
       fiveHour: point.fiveHour,
       weekly: point.weekly,
       estimated,
       limits: [],
+      sessions: sessionsAt(point.time),
     });
   for (const point of data.quotaEstimate ?? []) {
-    if (inside(point.time) && !moments.has(point.time)) add(point, true);
+    if (inside(point.time) && !quota.has(point.time)) add(point, true);
   }
   for (const point of data.quota) {
     if (inside(point.time) && (point.fiveHour !== undefined || point.weekly !== undefined))
       add(point, false);
   }
+  // The quota at a time between points: the reading before it, or the estimate before them.
+  const quotaThen = (time: number) => {
+    const recorded = lastAt(data.quota, time);
+    const point = recorded ?? lastAt(data.quotaEstimate ?? [], time);
+    return {
+      fiveHour: point?.fiveHour,
+      weekly: point?.weekly,
+      estimated: !recorded && point !== undefined,
+    };
+  };
   for (const hit of data.limitHits) {
     if (!inside(hit.time)) continue;
-    let moment = moments.get(hit.time);
+    let moment = quota.get(hit.time);
     if (!moment) {
-      const recorded = quotaAt(data.quota, hit.time);
-      const point = recorded ?? quotaAt(data.quotaEstimate ?? [], hit.time);
       moment = {
         time: hit.time,
-        fiveHour: point?.fiveHour,
-        weekly: point?.weekly,
-        estimated: !recorded && point !== undefined,
+        ...quotaThen(hit.time),
         limits: [],
+        sessions: sessionsAt(hit.time),
       };
-      moments.set(hit.time, moment);
+      quota.set(hit.time, moment);
     }
     if (!moment.limits.includes(hit.limit)) moment.limits.push(hit.limit);
   }
-  return [...moments.values()].sort((a, b) => a.time - b.time);
+  const sessions = data.sessions
+    .filter((step) => inside(step.time))
+    .map((step) => ({
+      time: step.time,
+      ...quotaThen(step.time),
+      limits: [],
+      sessions: step.count,
+    }));
+  return { quota: [...quota.values()].sort((a, b) => a.time - b.time), sessions };
+}
+
+/** The last of points sorted by time at or before `time`. */
+function lastAt<T extends { time: number }>(points: readonly T[], time: number): T | undefined {
+  let low = 0;
+  let high = points.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (points[middle].time <= time) low = middle + 1;
+    else high = middle;
+  }
+  return low > 0 ? points[low - 1] : undefined;
 }
 
 export interface WeeklyForecast {

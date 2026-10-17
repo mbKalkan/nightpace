@@ -78,7 +78,7 @@ test('shows every value at a time on hover', async ({ page }) => {
 });
 
 for (const theme of ['dark', 'light'] as ThemeName[]) {
-  test(`points at each reading of the quota lines, between columns too (${theme})`, async ({
+  test(`points at each point of the quota and sessions lines, between columns too (${theme})`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
@@ -123,6 +123,21 @@ for (const theme of ['dark', 'light'] as ThemeName[]) {
     const next = Number(await crosshair.getAttribute('x1'));
     expect(next).toBeGreaterThan(x);
     expect(next - x).toBeLessThan(offset(data.from + data.bucketMs) - offset(data.from));
+    // The sessions lane takes the points of its line the same way: where the most came to work,
+    // at the top of the lane (under the quota lane, the gap between and its title).
+    const busiest = data.sessions
+      .filter((step) => step.time >= data.from)
+      .reduce((a, b) => (b.count > a.count ? b : a));
+    expect(busiest.count).toBeLessThanOrEqual(4);
+    await page.mouse.move(chart.x + offset(busiest.time), hit.y + 140 + 18 + 26);
+    await expect(tooltip).toContainText(`${busiest.count}${strings.sessions}`);
+    await expect(tooltip).not.toContainText(strings.requests);
+    expect(
+      Math.abs(Number(await crosshair.getAttribute('x1')) - offset(busiest.time)),
+    ).toBeLessThan(0.5);
+    await expect(page.locator('.np-chart .np-hover-dot.np-s-sessions')).toHaveCount(1);
+    await expect(page.locator('.np-chart .np-hover-dot')).toHaveCount(1);
+    await page.locator('.np-chart').screenshot({ path: `${SCREENS}/sessions-point-${theme}.png` });
     // Over the columns, the column again.
     await page.mouse.move(chart.x + offset(peak.time), hit.y + hit.height - 30);
     await expect(tooltip).toContainText(strings.requests);
