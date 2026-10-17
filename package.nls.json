@@ -1,6 +1,6 @@
 {
-  "displayName": "Nightpace — Claude Code Usage, Quota & API Cost",
-  "description": "See your Claude Code usage over time: 5-hour and weekly quota, parallel sessions, and what it would cost at API prices, by model, effort level and token type. Local, no telemetry.",
+  "displayName": "Nightpace — Claude Code Usage Limits, Quota & API Cost",
+  "description": "Claude Code usage limits forecast: when your 5-hour and weekly quota run out at your pace and with how many parallel sessions, the quota over time, and what it would cost at API prices by model, effort and token type. Local, no telemetry.",
   "category": "Nightpace",
   "command.showTimeline": "Show Timeline",
   "command.deleteData": "Delete Recorded Data",

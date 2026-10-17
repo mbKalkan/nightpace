@@ -1,6 +1,6 @@
 {
-  "displayName": "Nightpace — Claude Code Kullanım, Kota ve API Maliyeti",
-  "description": "Claude Code kullanımınızı zaman içinde görün: 5 saatlik ve haftalık kota, paralel oturumlar ve API kullanılsaydı model, effort ve token türüne göre maliyet. Yerel, telemetrisiz.",
+  "displayName": "Nightpace — Claude Code Kullanım Limitleri, Kota ve API Maliyeti",
+  "description": "Claude Code kullanım limiti öngörüsü: 5 saatlik ve haftalık kotanız bu tempoyla ve kaç paralel oturumla ne zaman biter, kotanın zaman içindeki seyri ve API fiyatlarıyla model, effort ve token türüne göre maliyet. Yerel, telemetrisiz.",
   "category": "Nightpace",
   "command.showTimeline": "Zaman Çizelgesini Göster",
   "command.deleteData": "Kaydedilen Verileri Sil",

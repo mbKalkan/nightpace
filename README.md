@@ -31,6 +31,10 @@ without opening anything.
   reset, and how long this 5-hour window lasts with one to five sessions at once.
 - **History, not just a number.** A status bar percentage tells you where you are. Nightpace
   records the quota every few minutes and shows how it got there, next to what you were doing.
+  For the weeks before you installed it, it estimates the quota from your Claude Code logs, and
+  it draws where this week is heading.
+- **See when the limits change.** Under each card, a small chart follows how much of the limit
+  an hour of your usual session takes. When Anthropic changes the limits, it moves.
 - **Parallel sessions in view.** See when two, three or four sessions were working at once and
   what that did to the 5-hour window.
 - **What your plan is worth.** See what today, the last 7 and 30 days and an average working day
@@ -158,7 +162,8 @@ is sent, no quota is used, and Nightpace never reads your credentials.
 - **The forecasts are estimates.** Anthropic doesn't publish how usage counts against the plan
   limits. Nightpace measures it from your own readings: they follow the API cost closely, but
   Claude Code on another computer or Claude on the web uses the same quota without showing here,
-  so the week can run out sooner than the cards say.
+  so the week can run out sooner than the cards say. The quota before Nightpace started recording
+  is estimated at today's rates: if the limits were different then, it can pass 100%.
 - **List prices, built in.** Prices are Anthropic's first-party API list prices of October 2026.
   Batch and Priority Tier discounts, and Bedrock, Vertex AI or Foundry pricing, are not applied.
   A model released after your Nightpace version has no price until Nightpace is updated; the
