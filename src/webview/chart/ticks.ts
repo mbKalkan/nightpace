@@ -39,7 +39,13 @@ export function timeTicks(
   }
   for (const time = new Date(start); time.getTime() <= to;) {
     const day = time.getDate();
-    if (time.getTime() >= from && (step < DAY || step === DAY || (day - 1) % (step / DAY) === 0)) {
+    // Days of the month in steps start again on the 1st: a tick too close to the last one goes.
+    const last = times[times.length - 1];
+    if (
+      time.getTime() >= from &&
+      (step < DAY || step === DAY || (day - 1) % (step / DAY) === 0) &&
+      !(last !== undefined && time.getTime() - last < step / 2)
+    ) {
       times.push(time.getTime());
     }
     if (step >= DAY) time.setDate(time.getDate() + 1);

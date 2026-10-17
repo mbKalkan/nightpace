@@ -1,6 +1,8 @@
 // The timeline: three lanes on one time axis. Plan quota (5-hour and weekly, as observed), the
 // sessions working at once, and API cost or tokens by model, effort level or token type. Each lane has its own value axis;
 // no lane ever carries two (no dual axes). Colors come from CSS, so a theme change restyles it.
+// Estimated quota is dashed: before the first reading, and the week ahead at the present pace,
+// which takes the time axis past now.
 // Dragging across it with the right button, scrolling (or a pinch), double-clicking and the plus,
 // minus and zero keys ask to zoom; dragging it with the left button or Shift and the arrow keys
 // pan. The panel decides what that means for the range.
@@ -31,6 +33,7 @@ export const CHART_HEIGHT =
 const MIN_DRAG_PX = 6;
 /** Polling is hourly when idle: a longer silence means Nightpace wasn't running. */
 const QUOTA_GAP_MS = 75 * 60_000;
+const DAY = 86_400_000;
 const QUOTA_SERIES = [
   { key: 'fiveHour', reset: 'fiveHourReset', span: 5 * 3_600_000, className: 'np-s-five' },
   { key: 'weekly', reset: 'weeklyReset', span: 7 * 86_400_000, className: 'np-s-week' },
@@ -194,10 +197,13 @@ export class TimelineChart {
 
   private draw(data: TimelineData, width: number): SVGSVGElement {
     const plotRight = width - RIGHT;
-    this.plotRight = plotRight;
-    const span = data.to - data.from;
-    const x = (time: number) => LEFT + ((time - data.from) / span) * (plotRight - LEFT);
+    // The week ahead takes the axis past now; pointing, zooming and panning stay before it.
+    const forecast = weeklyForecast(data);
+    const end = forecast?.end ?? data.to;
+    const x = (time: number) =>
+      LEFT + ((time - data.from) / (end - data.from)) * (plotRight - LEFT);
     this.x = x;
+    this.plotRight = x(data.to);
 
     const quota: Lane = { top: TITLE, height: HEIGHTS.quota };
     const sessions: Lane = {
@@ -226,8 +232,8 @@ export class TimelineChart {
 
     this.plotTop = quota.top;
     this.plotBottom = tokens.top + tokens.height;
-    this.drawTimeGrid(root, data, x, quota.top, tokens.top + tokens.height);
-    this.drawQuota(root, data, quota, x, plotRight);
+    this.drawTimeGrid(root, data, x, quota.top, tokens.top + tokens.height, end, plotRight);
+    this.drawQuota(root, data, quota, x, plotRight, forecast);
     this.drawSessions(root, data, sessions, x, plotRight);
     this.drawTokens(root, data, tokens, x, plotRight);
     this.drawMark(root);
@@ -235,7 +241,9 @@ export class TimelineChart {
     const hit = this.hit;
     hit.setAttribute('x', String(LEFT));
     hit.setAttribute('y', String(quota.top));
-    hit.setAttribute('width', String(plotRight - LEFT));
+    // Over today's column too, which runs on past now.
+    const lastEnd = (data.buckets.at(-1)?.start ?? data.from) + data.bucketMs;
+    hit.setAttribute('width', String(Math.min(x(lastEnd), plotRight) - LEFT));
     hit.setAttribute('height', String(tokens.top + tokens.height - quota.top));
     root.append(
       svg('line', {
@@ -255,13 +263,28 @@ export class TimelineChart {
     x: (time: number) => number,
     top: number,
     bottom: number,
+    end: number,
+    plotRight: number,
   ): void {
+    // As many labels across the time before now as without the week ahead, and more after it.
+    const stretch = (end - data.from) / (data.to - data.from);
     const { times, step } = timeTicks(
       data.from,
-      data.to,
-      Math.max(3, Math.floor(this.width / 110)),
+      end,
+      Math.max(3, Math.floor((this.width / 110) * stretch)),
     );
     const group = svg('g', { class: 'np-axis' });
+    if (end > data.to) {
+      group.append(
+        svg('rect', {
+          class: 'np-future',
+          x: x(data.to),
+          y: top,
+          width: plotRight - x(data.to),
+          height: bottom - top,
+        }),
+      );
+    }
     for (const time of times) {
       group.append(
         svg('line', { class: 'np-grid', x1: x(time), x2: x(time), y1: top, y2: bottom }),
@@ -273,8 +296,11 @@ export class TimelineChart {
       );
     }
     // Where one quota week ends and the next begins: the columns are counted from here.
-    for (const time of data.weeklyResets) {
-      if (time <= data.from || time >= data.to) continue;
+    const ahead = data.pace?.week.resetsAt;
+    const resets =
+      ahead !== undefined && ahead > data.to ? [...data.weeklyResets, ahead] : data.weeklyResets;
+    for (const time of resets) {
+      if (time <= data.from || time > end || time === data.to) continue;
       group.append(
         svg('line', { class: 'np-reset', x1: x(time), x2: x(time), y1: top, y2: bottom }),
       );
@@ -371,6 +397,7 @@ export class TimelineChart {
     lane: Lane,
     x: (time: number) => number,
     plotRight: number,
+    forecast: WeeklyForecast | undefined,
   ): void {
     const s = this.strings;
     const recording = data.recordingSince;
@@ -380,8 +407,16 @@ export class TimelineChart {
         : recording > data.from
           ? s.quotaSince.replace('{0}', this.formats.dayClock(recording))
           : undefined;
+    // An estimate at today's rates can pass 100%: the limits were not what they are now.
+    const estimate = data.quotaEstimate ?? [];
+    const highest = Math.max(
+      100,
+      ...estimate.map((point) => Math.max(point.fiveHour ?? 0, point.weekly ?? 0)),
+    );
+    const ticks = Array.from({ length: Math.ceil(highest / 25) + 1 }, (_, i) => i * 25);
+    const top = ticks[ticks.length - 1];
     // The same scale as the lane's value axis, drawn after the legend.
-    const percentY = (value: number) => lane.top + lane.height - (value / 100) * lane.height;
+    const percentY = (value: number) => lane.top + lane.height - (value / top) * lane.height;
     const paths = QUOTA_SERIES.map((series) => ({
       series,
       ...quotaPath(data.quota, series.key, series.reset, series.span, x, percentY),
@@ -399,10 +434,15 @@ export class TimelineChart {
         ...(paths.some((path) => path.unrecorded)
           ? [{ className: 'np-unrecorded', label: s.notRecorded, shape: 'line' as const }]
           : []),
+        ...(estimate.length > 0 || forecast
+          ? [{ className: 'np-estimated', label: s.estimated, shape: 'line' as const }]
+          : []),
       ],
       note,
     );
-    const y = this.valueAxis(root, lane, [0, 25, 50, 75, 100], (v) => `${v}%`, plotRight);
+    // On a taller scale, a label every 25% would crowd the lane: every 50% then.
+    const label = (v: number) => (ticks.length > 7 && v % 50 !== 0 ? '' : `${v}%`);
+    const y = this.valueAxis(root, lane, ticks, label, plotRight);
     if (data.quota.length === 0) {
       root.append(
         svg(
@@ -418,7 +458,23 @@ export class TimelineChart {
       );
       return;
     }
-    const ends: Array<{ y: number; text: string; className: string }> = [];
+    for (const series of QUOTA_SERIES) {
+      const d = estimate
+        .filter((point) => point[series.key] !== undefined)
+        .map((point, i) => `${i ? 'L' : 'M'}${x(point.time)},${y(point[series.key]!)}`)
+        .join('');
+      if (!d) continue;
+      root.append(
+        svg('path', {
+          d,
+          class: `np-line np-estimated ${series.className}`,
+          'clip-path': 'url(#np-plot-clip)',
+        }),
+      );
+    }
+    const ends: Array<{ x: number; y: number; text: string; className: string }> = [];
+    // The labels of the readings sit by their dots once the axis runs on past now.
+    const labelX = forecast ? this.plotRight + 8 : plotRight + 10;
     for (const { series, observed, unrecorded } of paths) {
       if (!observed) continue;
       root.append(
@@ -451,15 +507,41 @@ export class TimelineChart {
             class: `np-dot ${series.className}`,
           }),
         );
-        ends.push({ y: y(value), text: this.formats.percent(value), className: series.className });
+        // The weekly line's label goes to the end of where it is heading.
+        if (!(forecast && series.key === 'weekly')) {
+          ends.push({
+            x: labelX,
+            y: y(value),
+            text: this.formats.percent(value),
+            className: series.className,
+          });
+        }
       }
     }
-    // End labels that would collide are left to the legend and the tooltip.
-    const apart = ends.length < 2 || Math.abs(ends[0].y - ends[1].y) >= 14;
-    for (const end of apart ? ends : ends.slice(0, 1)) {
+    if (forecast) {
+      const d = forecast.points
+        .map(([time, value], i) => `${i ? 'L' : 'M'}${x(time)},${y(value)}`)
+        .join('');
       root.append(
-        svg('text', { x: plotRight + 10, y: end.y + 4, class: 'np-end-label' }, end.text),
+        svg('path', {
+          d,
+          class: 'np-line np-estimated np-s-week',
+          'clip-path': 'url(#np-plot-clip)',
+        }),
       );
+      const [time, value] = forecast.points[forecast.points.length - 1];
+      ends.push({
+        x: x(time) + 8,
+        y: y(value),
+        text: this.formats.percent(value),
+        className: 'np-s-week',
+      });
+    }
+    // End labels that would collide are left to the legend and the tooltip.
+    const apart =
+      ends.length < 2 || ends[0].x !== ends[1].x || Math.abs(ends[0].y - ends[1].y) >= 14;
+    for (const end of apart ? ends : ends.slice(0, 1)) {
+      root.append(svg('text', { x: end.x, y: end.y + 4, class: 'np-end-label' }, end.text));
     }
   }
 
@@ -721,12 +803,16 @@ export class TimelineChart {
     const s = this.strings;
     const bucket = data.buckets[index];
     const end = Math.min(bucket.start + data.bucketMs, data.to);
-    const quota = quotaAt(data.quota, end);
+    const recorded = quotaAt(data.quota, end);
+    // Before the first reading, the estimate says what it can.
+    const estimated = recorded ? undefined : quotaAt(data.quotaEstimate ?? [], end);
+    const quota = recorded ?? estimated;
+    const name = (label: string) => (estimated ? s.estimatedLabel.replace('{0}', label) : label);
     const rows: Array<[string, string, string]> = [];
     if (quota?.fiveHour !== undefined)
-      rows.push([this.formats.percent(quota.fiveHour), s.fiveHour, 'np-s-five']);
+      rows.push([this.formats.percent(quota.fiveHour), name(s.fiveHour), 'np-s-five']);
     if (quota?.weekly !== undefined)
-      rows.push([this.formats.percent(quota.weekly), s.weekly, 'np-s-week']);
+      rows.push([this.formats.percent(quota.weekly), name(s.weekly), 'np-s-week']);
     rows.push([String(bucket.maxSessions), s.sessions, 'np-s-sessions']);
     for (const { value, label, className } of tokenSeries(data, this.split, this.measure, s)) {
       const amount = value(bucket);
@@ -781,6 +867,42 @@ export class TimelineChart {
     }
     this.tooltip.replaceChildren(title, list);
   }
+}
+
+export interface WeeklyForecast {
+  /**
+   * Where the time axis ends: a third of the window shown past now, so the time before now keeps
+   * three quarters of the width however far it is zoomed in.
+   */
+  end: number;
+  /** From the last reading through now to the reset or the end, as [time, percent]. */
+  points: Array<[number, number]>;
+}
+
+/**
+ * Where the weekly quota heads at the pace of the last 7 days, while the window shown reaches
+ * the present: to the reset, or the end of the axis if that comes first, never past 100%.
+ */
+export function weeklyForecast(data: TimelineData): WeeklyForecast | undefined {
+  const week = data.pace?.week;
+  if (!week || data.to < data.extent.to || week.resetsAt <= data.to) return undefined;
+  const end = data.to + (data.to - data.from) / 3;
+  const stop = Math.min(week.resetsAt, end);
+  const points: Array<[number, number]> = [];
+  const last = [...data.quota]
+    .reverse()
+    .find((point) => point.weekly !== undefined && point.time <= data.to);
+  // A reading from before a reset doesn't lead on to this week.
+  if (last && !(last.weeklyReset !== undefined && last.weeklyReset <= data.to)) {
+    points.push([last.time, last.weekly!]);
+  }
+  points.push([data.to, Math.min(week.used, 100)]);
+  if (week.runsOut !== undefined && week.runsOut > data.to && week.runsOut < stop) {
+    points.push([week.runsOut, 100], [stop, 100]);
+  } else {
+    points.push([stop, Math.min(100, week.used + (week.pace * (stop - data.to)) / DAY)]);
+  }
+  return { end, points };
 }
 
 /** The part of a timeline within a window, for showing at once while the host zooms. */

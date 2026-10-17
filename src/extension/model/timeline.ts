@@ -16,6 +16,7 @@ import { EFFORT_LEVELS, MODEL_FAMILIES, NO_EFFORT, TOKEN_TYPES } from '../../sha
 import { clampWindow } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
+import { estimateQuota } from './estimate';
 import { modelFamily } from './family';
 import { paceOf } from './pace';
 import { requestCost } from './pricing';
@@ -222,6 +223,8 @@ export function buildTimeline({
     }
   }
 
+  const pace = paceOf(all, snapshots, now, utcOffset);
+  const recordingSince = snapshots.find((snapshot) => snapshot.available)?.time;
   return {
     range,
     extent,
@@ -229,6 +232,17 @@ export function buildTimeline({
     to,
     bucketMs,
     quota: quotaPoints(snapshots, from, to),
+    quotaEstimate:
+      pace && anchor.reset && recordingSince !== undefined && recordingSince > from
+        ? estimateQuota({
+            requests: all,
+            weeklyReset: anchor.time,
+            fiveHourPerDollar: pace.fiveHourPerDollar,
+            weeklyPerDollar: pace.weeklyPerDollar,
+            from,
+            to: Math.min(to, recordingSince),
+          })
+        : undefined,
     weeklyResets,
     sessions,
     buckets,
@@ -237,8 +251,8 @@ export function buildTimeline({
     sessionList: summarizeSessions(all, intervals, from, to),
     tokenDetails: tokenDetails(all, from, to),
     spend: spendOf(all, now, startOfToday),
-    pace: paceOf(all, snapshots, now, utcOffset),
-    recordingSince: snapshots.find((snapshot) => snapshot.available)?.time,
+    pace,
+    recordingSince,
   };
 }
 

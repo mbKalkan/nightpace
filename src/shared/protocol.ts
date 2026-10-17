@@ -191,6 +191,11 @@ export interface TimelineData {
   /** Observations within the window, plus the last one before and the first one after it. */
   quota: QuotaPoint[];
   /**
+   * Before the first reading, the quota worked out from the requests' API cost at the measured
+   * rates; none without a measure or before the first full week of requests.
+   */
+  quotaEstimate?: QuotaPoint[];
+  /**
    * The weekly quota's resets within the window, a week apart from the last one Claude Code
    * reported; the columns are counted from them. Empty before any quota reading.
    */
@@ -257,6 +262,14 @@ export interface PanelStrings {
   weeklyReset: string;
   /** Where Nightpace wasn't running and the quota can't be worked out. */
   notRecorded: string;
+  /** Quota worked out from API cost: before the first reading, and the week ahead. */
+  estimated: string;
+  /** `{0}`: a series, like `Weekly`. */
+  estimatedLabel: string;
+  /** Under the chart, what the dashed quota is. */
+  estimateNote: string;
+  /** After it, when an estimate passes 100%. */
+  estimateOverNote: string;
   /** `{0}`: when recording started. */
   quotaSince: string;
   chartLabel: string;

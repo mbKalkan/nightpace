@@ -21,7 +21,7 @@ without opening anything.
 > **Preview.** The forecasts are new: they are estimated from your own quota readings and get
 > sharper as Nightpace records more.
 
-![Nightpace: this week is 62% used and runs out on Sunday at this pace, with the hours a day that last until the Monday reset for one to five sessions at once; this 5-hour window is 20% used, and lasts with one Opus xhigh session but runs out in 2h 21m with three; below, a week of quota lines rising with the cost columns, the sessions working at once, what it would cost at API prices and the tokens by type](docs/images/timeline-dark.png)
+![Nightpace: this week is 62% used and runs out on Sunday at this pace, with the hours a day that last until the Monday reset for one to five sessions at once; this 5-hour window is 20% used, and lasts with one Opus xhigh session but runs out in 2h 21m with three; below, a week of quota lines rising with the cost columns and the weekly line heading, dashed, to 100% by Sunday, the sessions working at once, what it would cost at API prices and the tokens by type](docs/images/timeline-dark.png)
 
 ## Why Nightpace
 
@@ -70,7 +70,9 @@ Run **Nightpace: Show Timeline** from the Command Palette for the last 24 hours,
 days on one time axis:
 
 - **Plan quota used:** the 5-hour and weekly limits, as Claude Code reported them while Nightpace
-  was recording.
+  was recording. Dashed where they are estimated from API cost at your measured rates: before
+  Nightpace started recording, from the first full week of your Claude Code logs, and the week
+  ahead at the pace of the last 7 days, up to the reset.
 - **Sessions working at once:** a session counts as working until it has been quiet for 5
   minutes.
 - **API cost or tokens:** by model, by effort level or by token type (input, cache writes, cache

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { lowestTextContrast } from './contrast';
 import { openPanel, strings } from './harness';
-import { readmeTimeline } from './readmeSample';
+import { README_NOW, readmeTimeline } from './readmeSample';
 import { sampleTimeline } from './sampleTimeline';
 import type { ThemeName } from './themes';
 import { PLANNED_SESSIONS, type TimeWindow } from '../../src/shared/protocol';
@@ -29,8 +29,11 @@ for (const theme of ['dark', 'light', 'hcDark', 'hcLight'] as ThemeName[]) {
       for (const text of [strings.fiveHour, strings.weekly, 'Opus', 'Fable', 'Sonnet']) {
         await expect(chart.getByText(text, { exact: true })).toBeVisible();
       }
-      await expect(page.locator('.np-chart .np-line.np-s-five')).toHaveCount(1);
-      await expect(page.locator('.np-chart .np-line.np-s-week')).toHaveCount(1);
+      // As read; the dashed estimates are their own paths.
+      const read = (series: string) =>
+        page.locator(`.np-chart .np-line.${series}:not(.np-estimated)`);
+      await expect(read('np-s-five')).toHaveCount(1);
+      await expect(read('np-s-week')).toHaveCount(1);
       expect(await page.locator('.np-col').count()).toBeGreaterThan(10);
       await expect(page.getByRole('button', { name: strings.ranges['24h'] })).toHaveAttribute(
         'aria-pressed',
@@ -294,9 +297,12 @@ test('pans when dragged with the left button', async ({ page }) => {
     to: whole.from + span * 0.5,
   });
   await panel.post({ type: 'timeline', data: shown });
-  await page.mouse.move(box.x + box.width * 0.5, y);
+  // In the past there is no week ahead: the plot is wider.
+  await expect(page.locator('.np-chart .np-future')).toHaveCount(0);
+  const past = (await page.locator('.np-hit').boundingBox())!;
+  await page.mouse.move(past.x + past.width * 0.5, y);
   await page.mouse.down({ button: 'left' });
-  await page.mouse.move(box.x + box.width * 0.25, y, { steps: 5 });
+  await page.mouse.move(past.x + past.width * 0.25, y, { steps: 5 });
   await expect(page.locator('.np-chart.np-panning')).toHaveCount(1);
   await page.mouse.up({ button: 'left' });
   await expect(page.locator('.np-chart.np-panning')).toHaveCount(0);
@@ -745,6 +751,62 @@ test('scrolls in one place, never the page around the panel', async ({ page }) =
   expect(overflow.page).toBeLessThanOrEqual(0);
   expect(overflow.app).toBeGreaterThan(0);
   expect(panel.problems).toEqual([]);
+});
+
+test.describe('estimated quota', () => {
+  for (const theme of ['dark', 'light'] as ThemeName[]) {
+    test(`dashes the quota before the first reading and the week ahead (${theme})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1400, height: 900 });
+      const panel = await openPanel(page, theme);
+      // Nightpace started recording two and a half days ago; the requests go back further.
+      const recorded = README_NOW - 2.5 * 86_400_000;
+      const data = readmeTimeline('7d', undefined, recorded);
+      expect(data.quotaEstimate!.length).toBeGreaterThan(0);
+      await panel.init(data);
+      const chart = page.locator('.np-chart svg');
+      // The weekly line before the first reading and ahead of now; the 5-hour one before.
+      await expect(chart.locator('.np-line.np-estimated.np-s-week')).toHaveCount(2);
+      await expect(chart.locator('.np-line.np-estimated.np-s-five')).toHaveCount(1);
+      await expect(chart.locator('.np-future')).toHaveCount(1);
+      await expect(chart.getByText(strings.estimated, { exact: true })).toBeVisible();
+      await expect(page.locator('.np-note-text', { hasText: strings.estimateNote })).toBeVisible();
+      // A column before the first reading tells its quota as estimated.
+      const index = data.buckets.reduce(
+        (found, bucket, i) =>
+          bucket.requests > 0 && bucket.start + data.bucketMs <= recorded ? i : found,
+        -1,
+      );
+      expect(data.buckets[index].start).toBeGreaterThan(data.quotaEstimate![0].time);
+      await page.locator('.np-chart').scrollIntoViewIfNeeded();
+      const column = (await page.locator(`.np-col[data-index="${index}"]`).boundingBox())!;
+      await page.mouse.move(column.x + column.width / 2, column.y + column.height / 2);
+      await expect(page.locator('.np-tooltip')).toContainText(
+        strings.estimatedLabel.replace('{0}', strings.weekly),
+      );
+      expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);
+      await page.screenshot({ path: `${SCREENS}/estimated-${theme}.png` });
+      // The table marks the estimate, and says what it is.
+      await page.getByRole('button', { name: strings.showTable }).click();
+      await expect(page.locator('.np-table td', { hasText: /^≈\d+%$/ }).first()).toBeVisible();
+      await expect(page.locator('.np-note-text', { hasText: strings.estimateNote })).toBeVisible();
+      expect(panel.problems).toEqual([]);
+    });
+  }
+
+  test('has no week ahead in a window of the past', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    const data = readmeTimeline('7d');
+    await panel.init(data);
+    await expect(page.locator('.np-chart .np-future')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    const window = { from: data.extent.from, to: data.extent.to - 2 * 86_400_000 };
+    await panel.init(readmeTimeline('7d', window));
+    await expect(page.locator('.np-chart .np-future')).toHaveCount(0);
+    await expect(page.locator('.np-chart .np-line.np-estimated')).toHaveCount(0);
+    expect(panel.problems).toEqual([]);
+  });
 });
 
 test.describe('pace', () => {
