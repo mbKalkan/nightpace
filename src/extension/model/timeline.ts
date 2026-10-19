@@ -194,6 +194,15 @@ export function quotaWeeks(
   };
 }
 
+/** The quota weeks from the one `from` falls in to the one before `to`. */
+function weeksBetween(from: number, to: number, anchor: number): TimeWindow[] {
+  const weeks: TimeWindow[] = [];
+  for (let start = floorFrom(from, WEEK, anchor); start < to; start += WEEK) {
+    weeks.push({ from: start, to: start + WEEK });
+  }
+  return weeks;
+}
+
 export function buildTimeline({
   range,
   now,
@@ -272,6 +281,8 @@ export function buildTimeline({
   }
 
   const pace = paceOf(all, snapshots, now, utcOffset);
+  // A window that reaches now runs on with this week's days ahead.
+  const daysEnd = to >= now ? weeks.current.to : to;
   const recordingSince = snapshots.find((snapshot) => snapshot.available)?.time;
   return {
     range,
@@ -306,15 +317,15 @@ export function buildTimeline({
     week: { ...quotaWeek, offset, oldest: weeks.oldest },
     ...(pace &&
       anchor.reset && {
-        weekDays: weekDays({
-          week: quotaWeek,
+        days: weekDays({
+          weeks: weeksBetween(from, daysEnd, anchor.time),
           now,
           requests: all,
           snapshots,
           limits,
           pace,
           weeklyReset: anchor.time,
-        }),
+        }).filter((day) => day.to > from && day.from < daysEnd),
       }),
   };
 }

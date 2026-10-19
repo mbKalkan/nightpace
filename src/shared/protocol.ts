@@ -161,7 +161,8 @@ export interface WindowForecast {
   resetsAt?: number;
   /**
    * For each session rate and each number of sessions at once, the milliseconds until a limit
-   * runs out (the 5-hour one, or the weekly one if it comes first); null when it lasts.
+   * runs out: the 5-hour one in this window or the next, or the weekly one if it comes first;
+   * null when work lasts through the next window too.
    */
   lasts: Array<Array<number | null>>;
 }
@@ -211,12 +212,6 @@ export interface WeekDay extends TimeWindow {
   cost: number;
 }
 
-/** The weekly limit a day at a time, over one quota week. */
-export interface WeekDays {
-  week: TimeWindow;
-  days: WeekDay[];
-}
-
 export interface TimelineData {
   range: RangeKey;
   /** The whole range; `from` and `to` lie within it when zoomed in. */
@@ -254,8 +249,11 @@ export interface TimelineData {
   pace?: Pace;
   /** The quota week in focus: the one shown in the `week` range, this one otherwise. */
   week: QuotaWeek;
-  /** The weekly limit by day over the week in focus; none until the quota has been measured. */
-  weekDays?: WeekDays;
+  /**
+   * The weekly limit a day at a time over the quota weeks the window touches, with this week's
+   * days ahead when it reaches now; none until the quota has been measured.
+   */
+  days?: WeekDay[];
   /** When Nightpace recorded its first quota snapshot, if ever. */
   recordingSince?: number;
 }
@@ -396,12 +394,13 @@ export interface PanelStrings {
   trendCostTitle: string;
   /** `{0}`: when; `{1}`: 1% in dollars. */
   trendCostPoint: string;
-  daysTitle: string;
+  /** The lane of the weekly limit a day at a time. */
+  daysLane: string;
   /** What a day ahead can take for the week to last to its reset. */
   budgetToLast: string;
   /** A seventh of the limit a day. */
   evenSplit: string;
-  /** `{0}`: the time of day the week resets. */
+  /** Where a day of the week starts and ends: `{0}`, the time of day the week resets. */
   daysNote: string;
 }
 

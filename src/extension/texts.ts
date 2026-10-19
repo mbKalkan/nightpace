@@ -172,10 +172,10 @@ export function panelStrings(t: Translate): PanelStrings {
     trendEmpty: t('Points appear once a stretch has used 10% of the limit.'),
     trendCostTitle: t('1% of the limit at API prices, over time'),
     trendCostPoint: t('{0}: 1% of the limit was {1} at API prices.', '{0}', '{1}'),
-    daysTitle: t('Weekly limit by day'),
+    daysLane: t('Weekly limit by day'),
     budgetToLast: t('Budget to last'),
     evenSplit: t('Even split'),
-    daysNote: t("Days start at the weekly reset's time: {0}.", '{0}'),
+    daysNote: t('Each day {0} – {0}', '{0}'),
     zoomToSession: t('Click to zoom the chart to this session'),
     zoomToProject: t('Click to zoom the chart to this project'),
     zoomHint: t(

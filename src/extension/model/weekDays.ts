@@ -1,8 +1,8 @@
-// The weekly limit a day at a time over one quota week. Days are counted from the reset, so seven
-// of them make the week. A day used what the weekly quota rose by within it: from the readings,
+// The weekly limit a day at a time over quota weeks. Days are counted from the reset, so seven
+// of them make a week. A day used what the weekly quota rose by within it: from the readings,
 // carried to the day's ends with the cost of the requests between at the measured rate, and
 // before the week's first reading from the estimate the timeline draws.
-import type { LimitHit, Pace, TimeWindow, WeekDay, WeekDays } from '../../shared/protocol';
+import type { LimitHit, Pace, TimeWindow, WeekDay } from '../../shared/protocol';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import { estimateQuota } from './estimate';
 import { costIndex } from './pace';
@@ -18,7 +18,8 @@ const READING_GAP = 75 * 60_000;
 const RESET_BY_HAND_DROP = 2;
 
 export interface WeekDaysInput {
-  week: TimeWindow;
+  /** Quota weeks, each from a reset to the next. */
+  weeks: readonly TimeWindow[];
   now: number;
   requests: readonly TimelineRequest[];
   snapshots: readonly QuotaSnapshot[];
@@ -35,15 +36,32 @@ interface Value {
 }
 
 export function weekDays({
-  week,
+  weeks,
   now,
   requests,
   snapshots,
   limits,
   pace,
   weeklyReset,
-}: WeekDaysInput): WeekDays {
+}: WeekDaysInput): WeekDay[] {
   const cost = costIndex(requests);
+  return weeks.flatMap((week) =>
+    daysOf({ week, now, requests, snapshots, limits, pace, weeklyReset }, cost),
+  );
+}
+
+function daysOf(
+  {
+    week,
+    now,
+    requests,
+    snapshots,
+    limits,
+    pace,
+    weeklyReset,
+  }: Omit<WeekDaysInput, 'weeks'> & { week: TimeWindow },
+  cost: (from: number, to: number) => number,
+): WeekDay[] {
   const perDollar = pace.weeklyPerDollar;
   const readings: Value[] = snapshots
     .filter(
@@ -112,7 +130,7 @@ export function weekDays({
     }
     days.push(day);
   }
-  return { week, days };
+  return days;
 }
 
 /**

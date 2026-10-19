@@ -44,14 +44,14 @@ const reading = (time: number, weekly: number): QuotaSnapshot => ({
 
 const days = (requests: TimelineRequest[], snapshots: QuotaSnapshot[], at = now, shown = week) =>
   weekDays({
-    week: shown,
+    weeks: [shown],
     now: at,
     requests,
     snapshots,
     limits: [],
     pace,
     weeklyReset: reset,
-  }).days;
+  });
 
 describe('weekDays', () => {
   it('takes what each day used from the readings, and what each day ahead can take', () => {
@@ -139,6 +139,22 @@ describe('weekDays', () => {
     );
     expect(result[6].used).toBeCloseTo(3);
     expect(result.every((day) => day.canTake === undefined)).toBe(true);
+  });
+
+  it('runs the days of several weeks one after the other', () => {
+    const before = { from: week.from - 7 * DAY, to: week.from };
+    const result = weekDays({
+      weeks: [before, week],
+      now,
+      requests: [],
+      snapshots: [],
+      limits: [],
+      pace,
+      weeklyReset: reset,
+    });
+    expect(result.map((day) => day.from)).toEqual(
+      Array.from({ length: 14 }, (_, i) => before.from + i * DAY),
+    );
   });
 
   it('says nothing of days it has no way to know', () => {

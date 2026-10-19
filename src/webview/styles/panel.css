@@ -90,7 +90,19 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+  /* Sticks to the top, over the panel's own padding, so the range is in reach anywhere. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-inline: -20px;
+  padding: 8px 20px;
+  background: var(--vscode-editor-background);
+}
+
+.np-header.np-scrolled {
+  box-shadow: 0 2px 6px -2px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  border-bottom: 1px solid var(--np-card-border);
 }
 
 /* Every section is a card of the same make: a header row of the same height (a title, and its
@@ -483,8 +495,7 @@ body {
   shape-rendering: crispEdges;
 }
 
-.np-tooltip,
-.np-day-tooltip {
+.np-tooltip {
   position: absolute;
   z-index: 1;
   min-width: 140px;
@@ -611,13 +622,12 @@ body {
   overflow-x: auto;
 }
 
-/* The timeline in one half; the cost and the weekly limit by day stacked in the other, the last
-   stretched so both halves end together; the tokens by type under both. One under the other
-   where they don't fit. */
+/* The timeline in one half; the cost and the tokens by type stacked in the other, the last
+   stretched so both halves end together. One under the other where they don't fit. */
 .np-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'spend' 'timeline' 'days' 'details';
+  grid-template-areas: 'spend' 'timeline' 'details';
   gap: 16px;
 }
 
@@ -629,18 +639,28 @@ body {
   grid-area: timeline;
 }
 
+/* Stretched to end with the timeline beside it: the table's rows take the room, not a gap. */
 .np-details {
   grid-area: details;
+  display: flex;
+  flex-direction: column;
+}
+
+.np-details > .np-table-scroll {
+  flex: 1;
+}
+
+.np-details-table {
+  height: 100%;
 }
 
 @media (min-width: 1100px) {
   .np-columns {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto 1fr;
     grid-template-areas:
       'timeline spend'
-      'timeline days'
-      'details details';
+      'timeline details';
   }
 
   /* Two by two: the half is tall beside the timeline, and narrow. */
@@ -837,6 +857,11 @@ body {
     padding-inline: 12px;
   }
 
+  .np-header {
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+
   .np-card {
     padding: 10px 12px 12px;
   }
@@ -992,41 +1017,9 @@ body {
   cursor: help;
 }
 
-/* The weekly limit by day: drawn to the size of its place, which the card stretches beside the
-   timeline. */
-.np-days {
-  display: flex;
-  flex-direction: column;
-  grid-area: days;
-}
-
-.np-days-place {
-  position: relative;
-  flex: 1;
-  min-height: 220px;
-}
-
-.np-days-place svg {
-  position: absolute;
-  inset: 0;
-  display: block;
-  overflow: visible;
-}
-
-.np-days-place:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
-}
-
-.np-days .np-axis-label {
-  fill: var(--vscode-descriptionForeground);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.np-days .np-day-today {
-  fill: var(--vscode-foreground);
-  font-weight: 600;
+/* The weekly limit a day at a time, in the timeline's second lane. */
+.np-days-hovering .np-day:not(.np-active) {
+  opacity: 0.45;
 }
 
 .np-day-bar {
@@ -1034,7 +1027,7 @@ body {
 }
 
 /* Worked out from API cost: the same hue, lighter. */
-.np-day-bar.np-day-estimated {
+.np-day-estimated {
   fill-opacity: 0.45;
 }
 
@@ -1072,13 +1065,4 @@ body {
 .np-day-label.np-day-ahead {
   fill: var(--vscode-descriptionForeground);
   font-weight: 400;
-}
-
-.np-day-hit {
-  fill: transparent;
-}
-
-.np-days-note {
-  margin: 8px 0 0;
-  font-size: 0.92em;
 }

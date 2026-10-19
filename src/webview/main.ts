@@ -13,7 +13,6 @@ import { clampWindow, coversExtent, MIN_WINDOW_MS, scaleWindow } from '../shared
 import { CHART_HEIGHT, TimelineChart } from './chart/timelineChart';
 import { Formats } from './format';
 import { Breakdown, type Grouping } from './breakdown';
-import { DayCard } from './days';
 import { PaceCards } from './pace';
 import { SpendTiles } from './spend';
 import { TokenDetailsView } from './tokenDetails';
@@ -46,7 +45,6 @@ class Panel {
   private readonly estimateNote = document.createElement('p');
   private readonly spend: SpendTiles;
   private readonly pace: PaceCards;
-  private readonly days: DayCard;
   private readonly details: TokenDetailsView;
   private readonly columns = document.createElement('div');
   /** Below the header, not in it: a label that comes and goes there wraps the controls. */
@@ -81,6 +79,14 @@ class Panel {
     title.className = 'np-title';
     title.textContent = strings.title;
     header.append(title, this.controls());
+    // The controls stay at the top while the panel scrolls, set off from what passes under them.
+    app.addEventListener(
+      'scroll',
+      () => header.classList.toggle('np-scrolled', app.scrollTop > 0),
+      {
+        passive: true,
+      },
+    );
 
     this.body.className = 'np-body';
     const loading = document.createElement('p');
@@ -95,7 +101,6 @@ class Panel {
     this.estimateNote.hidden = true;
     this.spend = new SpendTiles(strings, this.formats);
     this.pace = new PaceCards(strings, this.formats);
-    this.days = new DayCard(strings, this.formats);
     this.details = new TokenDetailsView(strings, this.formats);
     const privacy = document.createElement('p');
     privacy.className = 'np-privacy';
@@ -112,9 +117,8 @@ class Panel {
         zoom: (span) => this.zoomTo(span),
       },
     );
-    // The timeline in one half, the cost and the weekly limit by day in the other, and the tokens
-    // by type under both; one under the other where there is no room. The window shown heads the
-    // timeline, with the chart's own controls.
+    // The timeline in one half, the cost and the tokens by type in the other; one under the other
+    // where there is no room. The window shown heads the timeline, with the chart's own controls.
     const timeline = document.createElement('div');
     timeline.className = 'np-card np-timeline';
     const timelineHeader = document.createElement('div');
@@ -125,7 +129,7 @@ class Panel {
     notes.append(hint, this.measureNote, this.estimateNote);
     timeline.append(timelineHeader, this.body, notes);
     this.columns.className = 'np-columns';
-    this.columns.append(this.spend.element, timeline, this.days.element, this.details.element);
+    this.columns.append(this.spend.element, timeline, this.details.element);
     main.append(header, this.pace.element, this.columns, this.breakdown.element, privacy);
     app.replaceChildren(main);
 
@@ -308,7 +312,6 @@ class Panel {
     this.draw();
     this.spend.render(data.spend);
     this.pace.render(data.pace);
-    this.days.render(data.weekDays);
     this.breakdown.render(data, this.measure);
   }
 

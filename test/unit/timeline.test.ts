@@ -341,8 +341,10 @@ describe('buildTimeline', () => {
       expect(data.from).toBe(thisWeek);
       expect(data.to).toBe(now);
       expect(data.bucketMs).toBe(3 * HOUR);
-      expect(data.weekDays?.week).toEqual({ from: thisWeek, to: reset });
-      expect(data.weekDays?.days).toHaveLength(7);
+      // Its days, those ahead too.
+      expect(data.days?.map((day) => day.from)).toEqual(
+        Array.from({ length: 7 }, (_, i) => thisWeek + i * 24 * HOUR),
+      );
     });
 
     it('shows a week before, from reset to reset, and no further back than the requests', () => {
@@ -354,7 +356,9 @@ describe('buildTimeline', () => {
         oldest: -2,
       });
       expect([before.from, before.to]).toEqual([thisWeek - week, thisWeek]);
-      expect(before.weekDays?.week).toEqual({ from: thisWeek - week, to: thisWeek });
+      expect(before.days?.map((day) => day.from)).toEqual(
+        Array.from({ length: 7 }, (_, i) => thisWeek - week + i * 24 * HOUR),
+      );
       const oldest = buildTimeline({ range: 'week', week: -9, now, requests, snapshots });
       expect(oldest.week.offset).toBe(-2);
       expect(oldest.from).toBe(thisWeek - 2 * week);
@@ -363,9 +367,12 @@ describe('buildTimeline', () => {
     it('keeps this week in focus in the other ranges', () => {
       const data = buildTimeline({ range: '7d', week: -1, now, requests, snapshots });
       expect(data.week).toEqual({ from: thisWeek, to: reset, offset: 0, oldest: -2 });
-      expect(data.weekDays?.week).toEqual({ from: thisWeek, to: reset });
+      // The days the window touches, from the one it starts in, on to the end of this week.
+      expect(data.days![0].from).toBeLessThanOrEqual(data.from);
+      expect(data.days![0].to).toBeGreaterThan(data.from);
+      expect(data.days!.at(-1)!.to).toBe(reset);
       // Without a measure of the quota there is nothing to say of the days.
-      expect(buildTimeline({ range: '7d', now, requests, snapshots: [] }).weekDays).toBeUndefined();
+      expect(buildTimeline({ range: '7d', now, requests, snapshots: [] }).days).toBeUndefined();
     });
   });
 });

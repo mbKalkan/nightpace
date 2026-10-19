@@ -259,6 +259,26 @@ describe('windowForecast', () => {
     expect(window.lasts[0][4]).toBeCloseTo(2 * HOUR);
   });
 
+  it('looks on into the next window when this one resets first', () => {
+    // 50% used, resetting in half an hour; 25% an hour a session.
+    const latest = reading(0, 50, now + 30 * MIN, 10, now + 3 * DAY);
+    const window = windowForecast({
+      latest,
+      fiveHour: latest.fiveHour!,
+      perDollar: 1,
+      weeklyPerDollar: 0.01,
+      weeklyUsed: 10,
+      rates,
+      costBetween: costIndex([]),
+      now,
+    });
+    // One session outlasts this window; the next, from 0%, runs out after four hours.
+    expect(window.lasts[0][0]).toBeCloseTo(4.5 * HOUR);
+    expect(window.lasts[0][1]).toBeCloseTo(2.5 * HOUR);
+    // Five use up the 50% left before the reset.
+    expect(window.lasts[0][4]).toBeCloseTo(0.4 * HOUR);
+  });
+
   it('runs out with the week when the week has less left', () => {
     const latest = reading(0, 0, now + 5 * HOUR, 99, now + 3 * DAY);
     const window = windowForecast({
