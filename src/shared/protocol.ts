@@ -1,7 +1,11 @@
 // Messages between the extension host and the timeline webview.
 
-export const RANGES = ['24h', '7d', '30d'] as const;
+/** `week`: one quota week, from the weekly limit's reset to the next. */
+export const RANGES = ['24h', '7d', '30d', 'week'] as const;
 export type RangeKey = (typeof RANGES)[number];
+
+/** How many quota weeks before this one can be shown. */
+export const WEEKS_BACK = 4;
 
 /** Models are grouped by family; the order is the stacking and legend order. */
 export const MODEL_FAMILIES = ['opus', 'fable', 'sonnet', 'haiku', 'other'] as const;
@@ -157,7 +161,8 @@ export interface WindowForecast {
   resetsAt?: number;
   /**
    * For each session rate and each number of sessions at once, the milliseconds until a limit
-   * runs out (the 5-hour one, or the weekly one if it comes first); null when it lasts.
+   * runs out: the 5-hour one in this window or the next, or the weekly one if it comes first;
+   * null when work lasts through the next window too.
    */
   lasts: Array<Array<number | null>>;
 }
@@ -185,6 +190,26 @@ export interface Pace {
 export interface TimeWindow {
   from: number;
   to: number;
+}
+
+/** The quota week shown, from the weekly limit's reset to the next. */
+export interface QuotaWeek extends TimeWindow {
+  /** 0 for this week, -1 for the one before, and so on. */
+  offset: number;
+  /** The earliest offset with requests to show, down to `-WEEKS_BACK`. */
+  oldest: number;
+}
+
+/** One day of a quota week, counted from its reset. */
+export interface WeekDay extends TimeWindow {
+  /** Percent of the weekly limit used within the day, up to now; none for a day still ahead. */
+  used?: number;
+  /** Whether `used` is worked out from API cost rather than read from the quota. */
+  estimated: boolean;
+  /** What the rest of the day can take for the week to last to its reset, from now on. */
+  canTake?: number;
+  /** API cost of the day's requests, up to now. */
+  cost: number;
 }
 
 export interface TimelineData {
@@ -222,6 +247,13 @@ export interface TimelineData {
   spend: Spend;
   /** Where the plan's limits are heading; none until a reading with both limits is recorded. */
   pace?: Pace;
+  /** The quota week in focus: the one shown in the `week` range, this one otherwise. */
+  week: QuotaWeek;
+  /**
+   * The weekly limit a day at a time over the quota weeks the window touches, with this week's
+   * days ahead when it reaches now; none until the quota has been measured.
+   */
+  days?: WeekDay[];
   /** When Nightpace recorded its first quota snapshot, if ever. */
   recordingSince?: number;
 }
@@ -234,6 +266,8 @@ export interface PanelStrings {
   privacy: string;
   ranges: Record<RangeKey, string>;
   rangeLabel: string;
+  previousWeek: string;
+  nextWeek: string;
   showTable: string;
   showChart: string;
   quotaLane: string;
@@ -360,6 +394,14 @@ export interface PanelStrings {
   trendCostTitle: string;
   /** `{0}`: when; `{1}`: 1% in dollars. */
   trendCostPoint: string;
+  /** The lane of the weekly limit a day at a time. */
+  daysLane: string;
+  /** What a day ahead can take for the week to last to its reset. */
+  budgetToLast: string;
+  /** A seventh of the limit a day. */
+  evenSplit: string;
+  /** Where a day of the week starts and ends: `{0}`, the time of day the week resets. */
+  daysNote: string;
 }
 
 export type HostToWebviewMessage =
@@ -370,4 +412,6 @@ export type WebviewToHostMessage =
   | { type: 'ready' }
   | { type: 'range'; range: RangeKey }
   /** Zooms into a part of the range, or back out to the whole of it without a window. */
-  | { type: 'zoom'; window?: TimeWindow };
+  | { type: 'zoom'; window?: TimeWindow }
+  /** Shows a quota week: 0 for this one, -1 for the one before, and so on. */
+  | { type: 'week'; offset: number };

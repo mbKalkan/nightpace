@@ -361,14 +361,23 @@ export function windowForecast({
   const horizon = open ? fiveHour.resetsAt! - now : FIVE_HOURS;
   const windowLeft = Math.max(0, 100 - used);
   const weekLeft = Math.max(0, 100 - weeklyUsed);
+  // Work that outlasts this window goes on in the next, from a fresh limit, for five hours: how
+  // long it lasts looks that far, so a window about to reset still says something.
+  const span = horizon + FIVE_HOURS;
   const lasts = rates.map((rate) =>
     Array.from({ length: PLANNED_SESSIONS }, (_, i) => {
       const perHour = (i + 1) * rate.costPerHour;
-      const hours = Math.min(
-        windowLeft / (perHour * perDollar),
-        weekLeft / (perHour * weeklyPerDollar),
-      );
-      return hours * HOUR >= horizon ? null : hours * HOUR;
+      const thisWindow = (windowLeft / (perHour * perDollar)) * HOUR;
+      const nextWindow = (100 / (perHour * perDollar)) * HOUR;
+      const fiveHour =
+        thisWindow < horizon
+          ? thisWindow
+          : nextWindow < FIVE_HOURS
+            ? horizon + nextWindow
+            : Infinity;
+      const week = (weekLeft / (perHour * weeklyPerDollar)) * HOUR;
+      const until = Math.min(fiveHour, week);
+      return until >= span ? null : until;
     }),
   );
   return { used, resetsAt: open ? toMinute(fiveHour.resetsAt!) : undefined, lasts };

@@ -18,7 +18,7 @@ would have cost at Anthropic's API prices, by model, effort level or token type,
 sessions and projects spent it. The quota is in the status bar too, so you know where you stand
 without opening anything.
 
-![Nightpace: this week is 62% used and runs out on Sunday at this pace, with the hours a day that last until the Monday reset for one to five sessions at once; this 5-hour window is 20% used, and lasts with one Opus xhigh session but runs out in 2h 22m with three; below, a week of quota lines rising with the cost columns and the weekly line heading, dashed, to 100% by Sunday, the sessions working at once, what it would cost at API prices and the tokens by type](docs/images/timeline-dark.png)
+![Nightpace: this week is 62% used and runs out on Sunday at this pace, with the hours a day that last until the Monday reset for one to five sessions at once; this 5-hour window is 20% used, and lasts with one Opus xhigh session but runs out in 2h 22m with three; below, a week of quota lines rising with the cost columns and the weekly line heading, dashed, to 100% by Sunday, the weekly limit a day at a time with, dashed, what each day ahead can take for the week to last, the sessions working at once, what it would cost at API prices and the tokens by type](docs/images/timeline-dark.png)
 
 ## Why Nightpace
 
@@ -50,7 +50,7 @@ At the top, two cards. **This week**: how much is used, when it resets, and when
 the pace of the last 7 days (or where it will be at the reset), with how many hours of work a day
 last until the reset with one to five sessions at once, for each kind of session you use.
 **This 5-hour window**: how much is used, when it resets, and how long it lasts with one to five
-sessions at once.
+sessions at once, on into the next window when this one resets first.
 
 The figures are estimated. Nightpace measures how your quota readings follow the API cost of
 your requests, and says under each card what 1% of the limit is at API prices; and what a
@@ -69,13 +69,17 @@ computer uses the same quota.
 ### Timeline
 
 Run **Nightpace: Show Timeline** from the Command Palette for the last 24 hours, 7 days or 30
-days on one time axis:
+days, or one **quota week** from your plan's weekly reset to the next, on one time axis:
 
 - **Plan quota used:** the 5-hour and weekly limits, as Claude Code reported them while Nightpace
   was recording. Dashed where they are estimated from API cost at your measured rates: before
   Nightpace started recording, from the first full week of your Claude Code logs, and the week
   ahead at the pace of the last 7 days, up to the reset. A mark hangs from 100% where Claude Code
   logged that a limit ran out.
+- **Weekly limit by day:** how much of the weekly limit each day used, a column a day counted
+  from the reset, lighter where it is estimated from API cost. Past now, dashed: what today and
+  each day ahead can take for the week to last until the reset. A dashed line marks an even
+  split, a seventh of the limit a day.
 - **Sessions working at once:** a session counts as working until it has been quiet for 5
   minutes.
 - **API cost or tokens:** by model, by effort level or by token type (input, cache writes, cache
@@ -85,13 +89,15 @@ days on one time axis:
 
 Hover or use the arrow keys for every value at a time, or switch to a table. Over the quota and
 sessions lanes, the crosshair takes each point of their lines, between columns too, and the
-arrow keys go on along them. Past now, it follows the week ahead to where it runs out and
+arrow keys go on along them; over the days, a day at a time. Past now, it follows the week ahead to where it runs out and
 resets. Scroll or pinch over
 the chart to zoom in and out around the pointer, or drag across part of the range with the right
 button. Drag the chart with the left button, or Shift + scroll, to move along time, and
 double-click for the whole range again. Columns get finer as you zoom in, down to a minute, and
 are counted from your plan's weekly reset, marked with a dashed line, so seven day columns make
-one quota week.
+one quota week. **Previous week** and **Next week** go back through the quota weeks, up to four
+before this one; the cost, the tokens by type and the sessions below follow the week shown.
+The time range and these buttons stay at the top of the panel as you scroll.
 
 ![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, cost by model, tokens and requests of a quarter of an hour](docs/images/zoom-dark.png)
 

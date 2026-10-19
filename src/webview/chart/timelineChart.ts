@@ -1,13 +1,14 @@
-// The timeline: three lanes on one time axis. Plan quota (5-hour and weekly, as observed), the
-// sessions working at once, and API cost or tokens by model, effort level or token type. Each lane has its own value axis;
-// no lane ever carries two (no dual axes). Colors come from CSS, so a theme change restyles it.
+// The timeline: four lanes on one time axis. Plan quota (5-hour and weekly, as observed), the
+// weekly limit a day at a time, the sessions working at once, and API cost or tokens by model,
+// effort level or token type. Each lane has its own value axis; no lane ever carries two (no dual
+// axes). Colors come from CSS, so a theme change restyles it.
 // Estimated quota is dashed: before the first reading, and the week ahead at the present pace,
 // which takes the time axis past now.
 // Dragging across it with the right button, scrolling (or a pinch), double-clicking and the plus,
 // minus and zero keys ask to zoom; dragging it with the left button or Shift and the arrow keys
 // pan. The panel decides what that means for the range. The crosshair takes a column, or over the
 // quota and sessions lanes the nearest point of their lines, which can fall between two columns'
-// ends. Past now it follows the week ahead, to where it runs out and resets.
+// ends; over the days, a day. Past now it follows the week ahead, to where it runs out and resets.
 import type {
   LimitHit,
   PanelStrings,
@@ -16,6 +17,7 @@ import type {
   TimeWindow,
   TokenMeasure,
   TokenSplit,
+  WeekDay,
 } from '../../shared/protocol';
 import { coversExtent, scaleWindow, shiftWindow } from '../../shared/window';
 import type { Formats } from '../format';
@@ -28,10 +30,17 @@ const RIGHT = 56;
 const TITLE = 26;
 const LANE_GAP = 18;
 const AXIS = 24;
-const HEIGHTS = { quota: 140, sessions: 64, tokens: 120 };
-/** The whole chart, three lanes under their titles and the time axis. */
+// The quota keeps its height; the other lanes give some of theirs to the days.
+const HEIGHTS = { quota: 140, days: 64, sessions: 48, tokens: 100 };
+/** The whole chart, four lanes under their titles and the time axis. */
 export const CHART_HEIGHT =
-  3 * TITLE + HEIGHTS.quota + HEIGHTS.sessions + HEIGHTS.tokens + 2 * LANE_GAP + AXIS;
+  4 * TITLE +
+  HEIGHTS.quota +
+  HEIGHTS.days +
+  HEIGHTS.sessions +
+  HEIGHTS.tokens +
+  3 * LANE_GAP +
+  AXIS;
 /** A drag shorter than this is a click, not a zoom. */
 const MIN_DRAG_PX = 6;
 /** Over the quota and sessions lanes, the crosshair takes a point of their lines this close. */
@@ -41,6 +50,10 @@ const PICK_PX = 2;
 /** Polling is hourly when idle: a longer silence means Nightpace wasn't running. */
 const QUOTA_GAP_MS = 75 * 60_000;
 const DAY = 86_400_000;
+/** A seventh of the weekly limit a day spends it evenly over the week. */
+const EVEN = 100 / 7;
+/** A day's column says its value on its cap where there is this much room for it. */
+const DAY_LABEL_PX = 36;
 const QUOTA_SERIES = [
   { key: 'fiveHour', reset: 'fiveHourReset', span: 5 * 3_600_000, className: 'np-s-five' },
   { key: 'weekly', reset: 'weeklyReset', span: 7 * 86_400_000, className: 'np-s-week' },
@@ -62,12 +75,17 @@ export class TimelineChart {
   /** The points of the lanes' lines, and the one under the crosshair when it is not on a column. */
   private moments: Record<LineLane, Moment[]> = { quota: [], sessions: [] };
   private pointed: { lane: LineLane; moment: Moment } | undefined;
+  /** The day under the crosshair, in `data.days`. */
+  private dayIndex: number | undefined;
   private x: (time: number) => number = () => 0;
   private percentY: (value: number) => number = () => 0;
   private sessionsY: (count: number) => number = () => 0;
   private plotRight = 0;
-  /** Where the quota and sessions lanes end, halfway to the next lane. */
+  /** Where the axis ends, past now when the week ahead is drawn. */
+  private axisRight = 0;
+  /** Where the quota, days and sessions lanes end, halfway to the next lane. */
   private quotaBottom = 0;
+  private daysBottom = 0;
   private sessionsBottom = 0;
   /** What the token lane's columns are split by; the panel sets it before rendering. */
   split: TokenSplit = 'model';
@@ -131,8 +149,19 @@ export class TimelineChart {
       const time = this.timeAt(event.clientX);
       // Over a lane of lines, a point between two columns' ends can be pointed at too.
       const y = event.clientY - this.svgRoot!.getBoundingClientRect().top;
+      const overDays = y > this.quotaBottom && y <= this.daysBottom;
       const lane: LineLane | undefined =
-        y <= this.quotaBottom ? 'quota' : y <= this.sessionsBottom ? 'sessions' : undefined;
+        y <= this.quotaBottom
+          ? 'quota'
+          : !overDays && y <= this.sessionsBottom
+            ? 'sessions'
+            : undefined;
+      // Over the days, the day under the pointer, ahead of now too.
+      const day = overDays ? this.dayAt(this.timeAt(event.clientX, true)) : undefined;
+      if (day !== undefined) {
+        this.hoverDay(day);
+        return;
+      }
       const ahead = this.aheadAt(event.clientX, lane !== undefined);
       if (ahead) {
         this.hoverMoment('quota', ahead);
@@ -222,13 +251,17 @@ export class TimelineChart {
         ? previous.buckets[this.index].start + previous.bucketMs / 2
         : undefined;
     const pointed = this.pointed;
+    const day = this.dayIndex !== undefined ? previous?.days?.[this.dayIndex]?.from : undefined;
     this.data = window ? viewOf(data, window) : data;
     this.width = Math.max(width, 320);
     this.svgRoot = this.draw(this.data, this.width);
     this.element.classList.toggle('np-zoomed', !coversExtent(this.window, this.data.extent));
     const moment = pointed && this.nearest(pointed.lane, pointed.moment.time);
+    const sameDay = this.data.days?.findIndex((each) => each.from === day) ?? -1;
     if (pointed && moment) this.hoverMoment(pointed.lane, moment);
+    else if (sameDay >= 0) this.hoverDay(sameDay);
     else if (hovered !== undefined) this.hover(this.bucketAt(hovered));
+    else this.dayIndex = undefined;
   }
 
   private draw(data: TimelineData, width: number): SVGSVGElement {
@@ -240,10 +273,12 @@ export class TimelineChart {
       LEFT + ((time - data.from) / (end - data.from)) * (plotRight - LEFT);
     this.x = x;
     this.plotRight = x(data.to);
+    this.axisRight = plotRight;
 
     const quota: Lane = { top: TITLE, height: HEIGHTS.quota };
+    const days: Lane = { top: quota.top + quota.height + LANE_GAP + TITLE, height: HEIGHTS.days };
     const sessions: Lane = {
-      top: quota.top + quota.height + LANE_GAP + TITLE,
+      top: days.top + days.height + LANE_GAP + TITLE,
       height: HEIGHTS.sessions,
     };
     const tokens: Lane = {
@@ -269,10 +304,12 @@ export class TimelineChart {
     this.plotTop = quota.top;
     this.plotBottom = tokens.top + tokens.height;
     this.quotaBottom = quota.top + quota.height + LANE_GAP / 2;
+    this.daysBottom = days.top + days.height + LANE_GAP / 2;
     this.sessionsBottom = sessions.top + sessions.height + LANE_GAP / 2;
     this.moments = chartMoments(data, forecast);
     this.drawTimeGrid(root, data, x, quota.top, tokens.top + tokens.height, end, plotRight);
     this.drawQuota(root, data, quota, x, plotRight, forecast);
+    this.drawDays(root, data, days, x, plotRight);
     this.drawSessions(root, data, sessions, x, plotRight);
     this.drawTokens(root, data, tokens, x, plotRight);
     this.drawMark(root);
@@ -361,6 +398,8 @@ export class TimelineChart {
     title: string,
     keys: Array<{ className: string; label: string; shape: 'line' | 'rect' | 'mark' }>,
     note?: string,
+    /** Whether a note with no room beside the legend is left out rather than moved into the plot. */
+    dropNote = false,
   ): void {
     const y = lane.top - 9;
     const group = svg('g', { class: 'np-lane-title' });
@@ -407,8 +446,10 @@ export class TimelineChart {
         note,
       );
       group.append(text);
-      // Where the legend leaves no room, the note moves into the top of the plot.
-      if (this.width - RIGHT - text.getComputedTextLength() < cursor) {
+      // Where the legend leaves no room, the note moves into the top of the plot, or goes.
+      if (this.width - RIGHT - text.getComputedTextLength() < cursor && dropNote) {
+        text.remove();
+      } else if (this.width - RIGHT - text.getComputedTextLength() < cursor) {
         text.setAttribute('x', String(LEFT + 8));
         text.setAttribute('y', String(lane.top + 14));
         text.setAttribute('text-anchor', 'start');
@@ -603,6 +644,126 @@ export class TimelineChart {
     }
   }
 
+  /**
+   * The weekly limit a day at a time, a column a day from the reset: read, or lighter where it is
+   * estimated, and dashed what each day ahead can take for the week to last. A seventh of the
+   * limit a day is marked across.
+   */
+  private drawDays(
+    root: SVGSVGElement,
+    data: TimelineData,
+    lane: Lane,
+    x: (time: number) => number,
+    plotRight: number,
+  ): void {
+    const s = this.strings;
+    const f = this.formats;
+    const days = data.days ?? [];
+    const note = days.length > 0 ? s.daysNote.replaceAll('{0}', f.clock(days[0].from)) : undefined;
+    this.laneTitle(
+      root,
+      lane,
+      s.daysLane,
+      [
+        ...(days.some((day) => !day.estimated && day.used !== undefined)
+          ? [{ className: 'np-day-bar np-s-week', label: s.used, shape: 'rect' as const }]
+          : []),
+        ...(days.some((day) => day.estimated && day.used !== undefined)
+          ? [
+              {
+                className: 'np-day-bar np-s-week np-day-estimated',
+                label: s.estimated,
+                shape: 'rect' as const,
+              },
+            ]
+          : []),
+        ...(days.some((day) => (day.canTake ?? 0) > 0)
+          ? [{ className: 'np-day-budget', label: s.budgetToLast, shape: 'rect' as const }]
+          : []),
+        ...(days.length > 0
+          ? [{ className: 'np-even', label: s.evenSplit, shape: 'line' as const }]
+          : []),
+      ],
+      note,
+      // Columns fill the top of this lane: a day says where it starts in its tooltip anyway.
+      true,
+    );
+    const tops = days.map((day) => (day.used ?? 0) + (day.canTake ?? 0));
+    const ticks = valueTicks(Math.max(EVEN, ...tops) * 1.1, 3);
+    const y = this.valueAxis(root, lane, ticks, (v) => `${v}%`, plotRight);
+    if (days.length === 0) {
+      root.append(
+        svg(
+          'text',
+          {
+            x: (LEFT + plotRight) / 2,
+            y: lane.top + lane.height / 2,
+            'text-anchor': 'middle',
+            class: 'np-note',
+          },
+          data.pace ? s.empty : s.noQuotaYet,
+        ),
+      );
+      return;
+    }
+    root.append(
+      svg('line', {
+        class: 'np-even',
+        x1: LEFT,
+        x2: plotRight,
+        y1: y(EVEN),
+        y2: y(EVEN),
+      }),
+      svg('text', { class: 'np-end-label', x: plotRight + 8, y: y(EVEN) + 4 }, f.fine(EVEN)),
+    );
+    const group = svg('g', { class: 'np-days', 'clip-path': 'url(#np-plot-clip)' });
+    days.forEach((day, index) => {
+      const slot = x(day.to) - x(day.from);
+      const width = Math.max(2, Math.min(24, slot - 4));
+      const center = x(day.from + DAY / 2);
+      const left = center - width / 2;
+      const column = svg('g', { class: 'np-day', 'data-index': index });
+      const used = day.used ?? 0;
+      const usedHeight = y(0) - y(used);
+      const aheadHeight = y(0) - y(day.canTake ?? 0);
+      if (usedHeight >= 0.5) {
+        column.append(
+          svg('path', {
+            d: columnPath(left, y(used), width, Math.max(1, usedHeight), aheadHeight < 1),
+            class: `np-day-bar np-s-week${day.estimated ? ' np-day-estimated' : ''}`,
+          }),
+        );
+      }
+      // What the rest of the day can take sits on what it used, a gap apart.
+      const base = usedHeight >= 0.5 ? y(used) - 2 : y(0);
+      if (aheadHeight >= 1) {
+        column.append(
+          svg('path', {
+            d: columnPath(left, base - aheadHeight, width, aheadHeight, true),
+            class: 'np-day-budget',
+          }),
+        );
+      }
+      // The value on the cap where there is room: what the day used, or for a day ahead what it
+      // can take. Today's use sits on its own part, within what it can still take if that fits.
+      const value = day.used ?? day.canTake;
+      if (value !== undefined && slot >= DAY_LABEL_PX) {
+        const inside = day.used !== undefined && aheadHeight >= 20;
+        const top = aheadHeight >= 1 && !inside ? base - aheadHeight : y(used);
+        const kind = day.used === undefined ? ' np-day-ahead' : inside ? ' np-day-inside' : '';
+        column.append(
+          svg(
+            'text',
+            { class: `np-day-label${kind}`, x: center, y: top - 5, 'text-anchor': 'middle' },
+            f.fine(value),
+          ),
+        );
+      }
+      group.append(column);
+    });
+    root.append(group);
+  }
+
   private drawSessions(
     root: SVGSVGElement,
     data: TimelineData,
@@ -793,8 +954,10 @@ export class TimelineChart {
   /** Plus and minus zoom around the crosshair, or the middle; zero shows the whole range. */
   private zoomKey(key: string): boolean {
     const data = this.data!;
+    const day = this.dayIndex !== undefined ? data.days?.[this.dayIndex] : undefined;
     const center = Math.min(
       this.pointed?.moment.time ??
+        (day && day.from + DAY / 2) ??
         (this.index !== undefined
           ? data.buckets[this.index].start + data.bucketMs / 2
           : (data.from + data.to) / 2),
@@ -828,6 +991,15 @@ export class TimelineChart {
       this.hover(undefined);
       return;
     }
+    // From a day, the keys go on a day at a time.
+    if (this.dayIndex !== undefined && data.days) {
+      const step = stepTo(event.key, this.dayIndex, data.days.length - 1);
+      if (step === undefined) return;
+      event.preventDefault();
+      this.hoverDay(step);
+      this.live.textContent = this.describeDay(data.days[step]).join(', ');
+      return;
+    }
     // From a point of a lane's lines, the keys go on along them.
     if (this.pointed) {
       const { lane, moment } = this.pointed;
@@ -858,6 +1030,7 @@ export class TimelineChart {
   private hover(index: number | undefined): void {
     this.index = index;
     this.pointed = undefined;
+    this.dayIndex = undefined;
     const data = this.data;
     if (!data) return;
     const center =
@@ -870,6 +1043,7 @@ export class TimelineChart {
   /** Points at a point of a lane's lines, with a dot on each of them. */
   private hoverMoment(lane: LineLane, moment: Moment): void {
     this.index = undefined;
+    this.dayIndex = undefined;
     this.pointed = { lane, moment };
     const center = this.x(moment.time);
     this.place(center, () => this.fillTooltip(this.momentHeading(moment), this.momentRows(moment)));
@@ -903,6 +1077,10 @@ export class TimelineChart {
         Number(column.getAttribute('data-index')) === this.index,
       );
     }
+    root.classList.toggle('np-days-hovering', this.dayIndex !== undefined);
+    for (const day of root.querySelectorAll('.np-day')) {
+      day.classList.toggle('np-active', Number(day.getAttribute('data-index')) === this.dayIndex);
+    }
     for (const dot of root.querySelectorAll('.np-hover-dot')) dot.remove();
     const crosshair = root.querySelector('.np-crosshair');
     if (center === undefined) {
@@ -919,6 +1097,45 @@ export class TimelineChart {
     const left = center + 14 + width > this.width ? center - 14 - width : center + 14;
     this.tooltip.style.left = `${Math.max(0, left)}px`;
     this.tooltip.style.top = `${TITLE}px`;
+  }
+
+  /** Points at a day, with the crosshair through its middle. */
+  private hoverDay(index: number): void {
+    const day = this.data!.days![index];
+    this.index = undefined;
+    this.pointed = undefined;
+    this.dayIndex = index;
+    const center = Math.min(Math.max(this.x(day.from + DAY / 2), LEFT), this.axisRight);
+    this.place(center, () =>
+      this.fillTooltip(this.formats.window(day.from, day.to), this.dayRows(day)),
+    );
+  }
+
+  /** The day at `time` among those drawn. */
+  private dayAt(time: number): number | undefined {
+    const index = this.data?.days?.findIndex((day) => day.from <= time && time < day.to) ?? -1;
+    return index >= 0 ? index : undefined;
+  }
+
+  /** What a day used, can take and cost, as rows of [value, label, series class]. */
+  private dayRows(day: WeekDay): Array<[string, string, string]> {
+    const s = this.strings;
+    const f = this.formats;
+    const rows: Array<[string, string, string]> = [];
+    if (day.used !== undefined) {
+      const label = day.estimated ? s.estimatedLabel.replace('{0}', s.used) : s.used;
+      rows.push([f.fine(day.used), label, 'np-s-week']);
+    }
+    if (day.canTake !== undefined) rows.push([f.fine(day.canTake), s.budgetToLast, '']);
+    if (day.cost > 0) rows.push([f.money(day.cost), s.cost, '']);
+    return rows;
+  }
+
+  private describeDay(day: WeekDay): string[] {
+    return [
+      this.formats.window(day.from, day.to),
+      ...this.dayRows(day).map(([value, label]) => `${label} ${value}`),
+    ];
   }
 
   /**
@@ -1238,7 +1455,8 @@ function lastAt<T extends { time: number }>(points: readonly T[], time: number):
 export interface WeeklyForecast {
   /**
    * Where the time axis ends: a third of the window shown past now, so the time before now keeps
-   * three quarters of the width however far it is zoomed in.
+   * three quarters of the width however far it is zoomed in; the reset, for the whole of this
+   * quota week.
    */
   end: number;
   /** From the last reading through now to the reset or the end, as [time, percent]. */
@@ -1250,9 +1468,16 @@ export interface WeeklyForecast {
  * the present: to the reset, or the end of the axis if that comes first, never past 100%.
  */
 export function weeklyForecast(data: TimelineData): WeeklyForecast | undefined {
-  const week = data.pace?.week;
-  if (!week || data.to < data.extent.to || week.resetsAt <= data.to) return undefined;
-  const end = data.to + (data.to - data.from) / 3;
+  const { pace } = data;
+  const week = pace?.week;
+  // A quota week gone by ends before now: nothing leads on from it.
+  if (!week || data.to < data.extent.to || data.extent.to < pace.now || week.resetsAt <= data.to)
+    return undefined;
+  // The whole of this quota week runs to its reset.
+  const end =
+    data.range === 'week' && data.from <= data.extent.from
+      ? Math.max(data.week.to, data.to)
+      : data.to + (data.to - data.from) / 3;
   const stop = Math.min(week.resetsAt, end);
   const points: Array<[number, number]> = [];
   const last = [...data.quota]

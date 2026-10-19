@@ -35,6 +35,8 @@ class Panel {
   private readonly chart: TimelineChart;
   private readonly body = document.createElement('div');
   private readonly rangeButtons = new Map<RangeKey, HTMLButtonElement>();
+  private readonly previousWeek = document.createElement('button');
+  private readonly nextWeek = document.createElement('button');
   private readonly viewButton = document.createElement('button');
   private readonly splitButtons = new Map<TokenSplit, HTMLButtonElement>();
   private readonly measureButtons = new Map<TokenMeasure, HTMLButtonElement>();
@@ -77,6 +79,14 @@ class Panel {
     title.className = 'np-title';
     title.textContent = strings.title;
     header.append(title, this.controls());
+    // The controls stay at the top while the panel scrolls, set off from what passes under them.
+    app.addEventListener(
+      'scroll',
+      () => header.classList.toggle('np-scrolled', app.scrollTop > 0),
+      {
+        passive: true,
+      },
+    );
 
     this.body.className = 'np-body';
     const loading = document.createElement('p');
@@ -149,6 +159,22 @@ class Panel {
       this.rangeButtons.set(range, button);
       ranges.append(button);
     }
+    // A quota week at a time, from anywhere: the week before this one, then on either side.
+    const weeks = document.createElement('div');
+    weeks.className = 'np-segmented';
+    weeks.setAttribute('role', 'group');
+    weeks.setAttribute('aria-label', this.strings.ranges.week);
+    for (const [button, text, label, step] of [
+      [this.previousWeek, `‹ ${this.strings.previousWeek}`, this.strings.previousWeek, -1],
+      [this.nextWeek, `${this.strings.nextWeek} ›`, this.strings.nextWeek, 1],
+    ] as const) {
+      button.type = 'button';
+      button.textContent = text;
+      button.setAttribute('aria-label', label);
+      button.disabled = true;
+      button.addEventListener('click', () => this.stepWeek(step));
+      weeks.append(button);
+    }
 
     this.zoomLabel.className = 'np-zoom-label';
     const zoom = document.createElement('div');
@@ -190,7 +216,7 @@ class Panel {
       this.measureButtons.set(value, button);
       measure.append(button);
     }
-    row.append(ranges, zoom, this.resetButton, measure);
+    row.append(ranges, weeks, zoom, this.resetButton, measure);
     return row;
   }
 
@@ -226,6 +252,18 @@ class Panel {
     });
     row.append(split, this.viewButton);
     return row;
+  }
+
+  /** Shows the quota week before or after the one in focus, which is this one outside the range. */
+  private stepWeek(step: -1 | 1): void {
+    const data = this.data;
+    if (!data) return;
+    clearTimeout(this.zoomTimer);
+    this.zoomTimer = undefined;
+    this.pending = undefined;
+    this.body.classList.add('np-loading');
+    const offset = (data.range === 'week' ? data.week.offset : 0) + step;
+    vscode.postMessage({ type: 'week', offset });
   }
 
   /** The window on screen: the one asked for while the host works, then the host's. */
@@ -266,6 +304,9 @@ class Panel {
     for (const [range, button] of this.rangeButtons) {
       button.setAttribute('aria-pressed', String(range === data.range));
     }
+    const offset = data.range === 'week' ? data.week.offset : 0;
+    this.previousWeek.disabled = offset <= data.week.oldest;
+    this.nextWeek.disabled = offset >= 0 || data.range !== 'week';
     // Before the chart: whether the details show sets how wide the chart is.
     this.details.render(data.tokenDetails);
     this.draw();
@@ -307,7 +348,11 @@ class Panel {
     const view = this.view!;
     const estimate = data.quotaEstimate ?? [];
     // The chart draws the week ahead whenever it reaches the present; the table doesn't.
-    const ahead = !this.table && data.pace !== undefined && view.to >= data.extent.to;
+    const ahead =
+      !this.table &&
+      data.pace !== undefined &&
+      view.to >= data.extent.to &&
+      data.extent.to >= data.pace.now;
     this.estimateNote.hidden = estimate.length === 0 && !ahead;
     // A drop to zero that is not the weekly reset: a week reset by hand.
     const restarted = estimate.some(
@@ -323,7 +368,11 @@ class Panel {
       : this.strings.estimateNote;
     const zoomed = !coversExtent(view, data.extent);
     // The window shown, zoomed or not, so the line keeps its place; how long it is when zoomed.
-    const shown = this.formats.window(view.from, view.to);
+    // A whole quota week runs to its reset, past now for this one.
+    const shown =
+      data.range === 'week' && !zoomed
+        ? this.formats.window(data.week.from, data.week.to)
+        : this.formats.window(view.from, view.to);
     this.zoomLabel.textContent = zoomed
       ? `${shown} · ${this.formats.duration(view.to - view.from)}`
       : shown;

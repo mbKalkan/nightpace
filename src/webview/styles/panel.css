@@ -90,7 +90,19 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+  /* Sticks to the top, over the panel's own padding, so the range is in reach anywhere. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-inline: -20px;
+  padding: 8px 20px;
+  background: var(--vscode-editor-background);
+}
+
+.np-header.np-scrolled {
+  box-shadow: 0 2px 6px -2px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  border-bottom: 1px solid var(--np-card-border);
 }
 
 /* Every section is a card of the same make: a header row of the same height (a title, and its
@@ -627,8 +639,19 @@ body {
   grid-area: timeline;
 }
 
+/* Stretched to end with the timeline beside it: the table's rows take the room, not a gap. */
 .np-details {
   grid-area: details;
+  display: flex;
+  flex-direction: column;
+}
+
+.np-details > .np-table-scroll {
+  flex: 1;
+}
+
+.np-details-table {
+  height: 100%;
 }
 
 @media (min-width: 1100px) {
@@ -834,6 +857,11 @@ body {
     padding-inline: 12px;
   }
 
+  .np-header {
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+
   .np-card {
     padding: 10px 12px 12px;
   }
@@ -987,4 +1015,54 @@ body {
 
 .np-lasts-table tbody th {
   cursor: help;
+}
+
+/* The weekly limit a day at a time, in the timeline's second lane. */
+.np-days-hovering .np-day:not(.np-active) {
+  opacity: 0.45;
+}
+
+.np-day-bar {
+  stroke: none;
+}
+
+/* Worked out from API cost: the same hue, lighter. */
+.np-day-estimated {
+  fill-opacity: 0.45;
+}
+
+/* What a day ahead can take for the week to last: dashed, as the week ahead is on the timeline. */
+.np-day-budget {
+  fill: var(--np-week);
+  fill-opacity: 0.1;
+  stroke: var(--np-week);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.np-even {
+  stroke: var(--vscode-descriptionForeground);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+/* A ring in the surface color keeps a label legible where the even split crosses it. */
+.np-day-label {
+  fill: var(--vscode-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--np-surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.np-day-label.np-day-inside {
+  stroke: color-mix(in srgb, var(--np-week) 10%, var(--np-surface));
+}
+
+.np-day-label.np-day-ahead {
+  fill: var(--vscode-descriptionForeground);
+  font-weight: 400;
 }

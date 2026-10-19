@@ -53,6 +53,8 @@ export class TimelinePanel {
   private updating = 0;
   /** The part of the range zoomed into; not remembered past the panel. */
   private zoom: TimeWindow | undefined;
+  /** In the quota week range, which week: 0 for this one. Not remembered past the panel. */
+  private week = 0;
 
   private constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -94,7 +96,13 @@ export class TimelinePanel {
       void this.update();
     } else if (message.type === 'range' && RANGES.includes(message.range)) {
       this.zoom = undefined;
+      this.week = 0;
       void this.context.state.update(RANGE_KEY, message.range).then(() => this.update());
+    } else if (message.type === 'week' && Number.isFinite(message.offset)) {
+      // The timeline keeps it within the weeks there are.
+      this.zoom = undefined;
+      this.week = Math.min(0, Math.round(message.offset));
+      void this.context.state.update(RANGE_KEY, 'week').then(() => this.update());
     } else if (message.type === 'zoom') {
       const { window } = message;
       this.zoom =
@@ -113,7 +121,7 @@ export class TimelinePanel {
     // A slower, older update must not replace a newer one.
     const id = ++this.updating;
     try {
-      const data = await this.context.source.timeline(this.range, this.zoom);
+      const data = await this.context.source.timeline(this.range, this.zoom, Date.now(), this.week);
       if (id === this.updating) this.post({ type: 'timeline', data });
     } catch (error) {
       this.context.log(`Timeline: ${String(error)}`);
