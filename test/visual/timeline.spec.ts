@@ -146,6 +146,83 @@ for (const theme of ['dark', 'light'] as ThemeName[]) {
   });
 }
 
+for (const theme of ['dark', 'light'] as ThemeName[]) {
+  test(`follows the week ahead past now, to where it runs out and resets (${theme})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1630, height: 900 });
+    const panel = await openPanel(page, theme);
+    const data = readmeTimeline('30d');
+    await panel.init(data);
+    await page.locator('.np-chart').scrollIntoViewIfNeeded();
+    const week = data.pace!.week;
+    const forecast = weeklyForecast(data)!;
+    // Both within the axis, which runs ten days on.
+    expect(week.runsOut).toBeLessThan(week.resetsAt);
+    expect(week.resetsAt).toBeLessThan(forecast.end);
+    const chart = (await page.locator('.np-chart svg').boundingBox())!;
+    const hit = (await page.locator('.np-hit').boundingBox())!;
+    const offset = (time: number) =>
+      48 + ((time - data.from) / (forecast.end - data.from)) * (chart.width - 48 - 56);
+    const tooltip = page.locator('.np-tooltip');
+    const crosshair = page.locator('.np-crosshair');
+    const crosshairAt = async () => Number(await crosshair.getAttribute('x1'));
+
+    // Over the quota lane where the line reaches 100%.
+    await page.mouse.move(chart.x + offset(week.runsOut!), hit.y + 20);
+    await expect(tooltip).toContainText(strings.runsOutAtPace);
+    await expect(tooltip).toContainText('100%');
+    await expect(tooltip).not.toContainText(strings.sessions);
+    expect(Math.abs((await crosshairAt()) - offset(week.runsOut!))).toBeLessThan(0.5);
+    await expect(page.locator('.np-chart .np-hover-dot.np-s-week')).toHaveCount(1);
+    await expect(page.locator('.np-chart .np-hover-dot')).toHaveCount(1);
+    await page.screenshot({ path: `${SCREENS}/week-ahead-${theme}.png` });
+
+    // Past the reset, over the columns' lane too: the week ends at its reset.
+    await page.mouse.move(chart.x + offset(forecast.end) - 4, hit.y + hit.height - 30);
+    await expect(tooltip).toContainText(strings.weeklyReset);
+    expect(Math.abs((await crosshairAt()) - offset(week.resetsAt))).toBeLessThan(0.5);
+    // Halfway from now to where it runs out, the line between.
+    await page.mouse.move(chart.x + offset((data.to + week.runsOut!) / 2), hit.y + 60);
+    await expect(tooltip).not.toContainText(strings.runsOutAtPace);
+    await expect(tooltip).not.toContainText(strings.requests);
+
+    // The keys go along it, and on to it from today's column.
+    await page.locator('.np-chart').focus();
+    await page.keyboard.press('End');
+    await expect(tooltip).toContainText(strings.weeklyReset);
+    await page.keyboard.press('ArrowLeft');
+    await expect(tooltip).toContainText(strings.runsOutAtPace);
+    await page.keyboard.press('Escape');
+    await page.mouse.move(chart.x + offset(data.from) + 4, hit.y + hit.height - 30);
+    await page.keyboard.press('End');
+    await expect(tooltip).toContainText(strings.requests);
+    await page.keyboard.press('ArrowRight');
+    await expect(tooltip).not.toContainText(strings.requests);
+    expect(Math.abs((await crosshairAt()) - offset(data.to))).toBeLessThan(0.5);
+    expect(panel.problems).toEqual([]);
+  });
+}
+
+test('says at the end of the axis when the week runs out past it', async ({ page }) => {
+  await page.setViewportSize({ width: 1630, height: 900 });
+  const panel = await openPanel(page, 'dark');
+  const data = readmeTimeline('24h');
+  await panel.init(data);
+  const forecast = weeklyForecast(data)!;
+  expect(data.pace!.week.runsOut).toBeGreaterThan(forecast.end);
+  await page.locator('.np-chart').scrollIntoViewIfNeeded();
+  const ahead = (await page.locator('.np-hit-ahead').boundingBox())!;
+  const tooltip = page.locator('.np-tooltip');
+  await page.mouse.move(ahead.x + ahead.width / 2, ahead.y + 30);
+  await expect(tooltip).toContainText(strings.weekly);
+  await expect(tooltip).not.toContainText(strings.runsOutAtPace);
+  await page.mouse.move(ahead.x + ahead.width - 2, ahead.y + 30);
+  await expect(tooltip).toContainText(strings.runsOutAtPace);
+  await page.screenshot({ path: `${SCREENS}/week-ahead-axis-end-dark.png` });
+  expect(panel.problems).toEqual([]);
+});
+
 test('moves through time with the keyboard and reads the values out', async ({ page }) => {
   const panel = await openPanel(page, 'dark');
   await panel.init(sampleTimeline('24h'));

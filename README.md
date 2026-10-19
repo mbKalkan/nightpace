@@ -85,7 +85,8 @@ days on one time axis:
 
 Hover or use the arrow keys for every value at a time, or switch to a table. Over the quota and
 sessions lanes, the crosshair takes each point of their lines, between columns too, and the
-arrow keys go on along them. Scroll or pinch over
+arrow keys go on along them. Past now, it follows the week ahead to where it runs out and
+resets. Scroll or pinch over
 the chart to zoom in and out around the pointer, or drag across part of the range with the right
 button. Drag the chart with the left button, or Shift + scroll, to move along time, and
 double-click for the whole range again. Columns get finer as you zoom in, down to a minute, and

@@ -443,18 +443,21 @@ body {
   opacity: 0.45;
 }
 
-.np-hit {
+.np-hit,
+.np-hit-ahead {
   fill: transparent;
   cursor: crosshair;
   /* Sideways drags pan the zoomed window; up and down still scroll the panel. */
   touch-action: pan-y;
 }
 
-.np-zoomed .np-hit {
+.np-zoomed .np-hit,
+.np-zoomed .np-hit-ahead {
   cursor: grab;
 }
 
-.np-panning .np-hit {
+.np-panning .np-hit,
+.np-panning .np-hit-ahead {
   cursor: grabbing;
 }
 

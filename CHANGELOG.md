@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The crosshair goes on past now, along the week ahead: it shows the weekly percent the line
+  reaches, when the week runs out at this pace and when it resets. Where the axis ends first,
+  its last point says when the week runs out. The arrow keys go on to it from today's column.
+
 ### Fixed
 
 - After VS Code starts in the first days of a month, the forecast could count only part of the
