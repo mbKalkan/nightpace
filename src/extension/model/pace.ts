@@ -24,6 +24,8 @@ const FIVE_HOURS = 5 * HOUR;
 const WEEK = 7 * DAY;
 /** Readings older than this measured a plan or prices that may have changed since. */
 const CALIBRATION_SPAN = 28 * DAY;
+/** The requests the measure needs: its oldest readings count the cost since their week opened. */
+export const PACE_SPAN = CALIBRATION_SPAN + WEEK;
 /** The work that session rates are measured over. */
 const RATE_SPAN = 14 * DAY;
 /** A kind of session worked for less than this has no rate of its own: too few hours to tell. */

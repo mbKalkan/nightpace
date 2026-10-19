@@ -2,6 +2,7 @@ import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { requestCost } from '../../src/extension/model/pricing';
 import { QuotaStore } from '../../src/extension/store/quotaStore';
 import {
   decodeRequest,
@@ -207,5 +208,30 @@ describe('TimelineSource with a request store', () => {
     expect(await total(source)).toBe(4);
     await source.reset();
     expect(await total(source)).toBe(4);
+  });
+
+  it('keeps the cost since the week of the oldest reading the pace measures opened', async () => {
+    const storage = fresh();
+    // 31 days before now is 3 October: September's requests are older than the longest range.
+    const now = Date.UTC(2026, 10, 3, 12);
+    const store = new RequestStore(storage);
+    await store.append([
+      request({ requestId: 'req_week', time: Date.UTC(2026, 8, 30, 15) }),
+      request({ requestId: 'req_window', time: Date.UTC(2026, 9, 7, 10) }),
+    ]);
+    const quota = new QuotaStore(storage);
+    // Both windows reset at 14:00 on 7 October: the week opened on 30 September.
+    await quota.append({
+      time: Date.UTC(2026, 9, 7, 11),
+      available: true,
+      plan: 'max',
+      fiveHour: { percent: 10, resetsAt: Date.UTC(2026, 9, 7, 14) },
+      weekly: { percent: 20, resetsAt: Date.UTC(2026, 9, 7, 14) },
+      models: [],
+    });
+    const source = new TimelineSource(() => [], quota, store);
+
+    const { pace } = await source.timeline('30d', undefined, now);
+    expect(pace?.weeklyPerDollar).toBeCloseTo(20 / (2 * requestCost(request())!.total));
   });
 });
