@@ -101,4 +101,58 @@ describe('chartMoments', () => {
       { time: 50 * MIN, fiveHour: 12, weekly: 30, estimated: false, limits: [], sessions: 0 },
     ]);
   });
+
+  it('goes on along the week ahead a column apart, to where it runs out and resets', () => {
+    // Columns of 20 minutes from minute 5; now is minute 100, the reset minute 190.
+    const data = timeline({
+      quota: [at(95, { fiveHour: 10, weekly: 39 })],
+      buckets: [{ start: 5 * MIN }],
+      bucketMs: 20 * MIN,
+      pace: { week: { runsOut: 160 * MIN, resetsAt: 190 * MIN } },
+    } as unknown as Partial<TimelineData>);
+    const { quota } = chartMoments(data, {
+      end: 200 * MIN,
+      points: [
+        [95 * MIN, 39],
+        [100 * MIN, 40],
+        [160 * MIN, 100],
+        [190 * MIN, 100],
+      ],
+    });
+    expect(
+      quota.map(({ time, fiveHour, weekly, ahead }) => [time / MIN, fiveHour, weekly, ahead]),
+    ).toEqual([
+      [95, 10, 39, undefined],
+      [100, undefined, 40, 'pace'],
+      [105, undefined, 45, 'pace'],
+      [125, undefined, 65, 'pace'],
+      [145, undefined, 85, 'pace'],
+      [160, undefined, 100, 'runsOut'],
+      [165, undefined, 100, 'pace'],
+      [185, undefined, 100, 'pace'],
+      [190, undefined, 100, 'reset'],
+    ]);
+    expect(quota.slice(1).every((moment) => moment.estimated)).toBe(true);
+  });
+
+  it('ends the week ahead where the axis does, and keeps a reading taken now', () => {
+    const data = timeline({
+      quota: [at(100, { fiveHour: 10, weekly: 40 })],
+      buckets: [{ start: 0 }],
+      bucketMs: 30 * MIN,
+      pace: { week: { resetsAt: 500 * MIN } },
+    } as unknown as Partial<TimelineData>);
+    const { quota } = chartMoments(data, {
+      end: 150 * MIN,
+      points: [
+        [100 * MIN, 40],
+        [150 * MIN, 45],
+      ],
+    });
+    expect(quota.map(({ time, weekly, ahead }) => [time / MIN, weekly, ahead])).toEqual([
+      [100, 40, undefined],
+      [120, 42, 'pace'],
+      [150, 45, 'pace'],
+    ]);
+  });
 });

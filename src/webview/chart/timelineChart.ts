@@ -7,7 +7,7 @@
 // minus and zero keys ask to zoom; dragging it with the left button or Shift and the arrow keys
 // pan. The panel decides what that means for the range. The crosshair takes a column, or over the
 // quota and sessions lanes the nearest point of their lines, which can fall between two columns'
-// ends.
+// ends. Past now it follows the week ahead, to where it runs out and resets.
 import type {
   LimitHit,
   PanelStrings,
@@ -83,6 +83,8 @@ export class TimelineChart {
    * scroll to the panel.
    */
   private readonly hit = svg('rect', { class: 'np-hit' });
+  /** The same past today's column, over the week ahead. */
+  private readonly hitAhead = svg('rect', { class: 'np-hit-ahead' });
   private plotTop = 0;
   private plotBottom = 0;
   /** A stretch of time to mark, such as the session under the pointer in the table. */
@@ -107,6 +109,7 @@ export class TimelineChart {
     this.element.addEventListener('keydown', (event) => this.key(event));
     this.element.addEventListener('blur', () => this.hover(undefined));
     this.listen(this.hit);
+    this.listen(this.hitAhead);
   }
 
   private listen(hit: SVGRectElement): void {
@@ -130,6 +133,11 @@ export class TimelineChart {
       const y = event.clientY - this.svgRoot!.getBoundingClientRect().top;
       const lane: LineLane | undefined =
         y <= this.quotaBottom ? 'quota' : y <= this.sessionsBottom ? 'sessions' : undefined;
+      const ahead = this.aheadAt(event.clientX, lane !== undefined);
+      if (ahead) {
+        this.hoverMoment('quota', ahead);
+        return;
+      }
       const moment = lane && this.nearest(lane, time, y);
       if (lane && moment && Math.abs(this.x(moment.time) - this.x(time)) <= SNAP_PX) {
         this.hoverMoment(lane, moment);
@@ -262,7 +270,7 @@ export class TimelineChart {
     this.plotBottom = tokens.top + tokens.height;
     this.quotaBottom = quota.top + quota.height + LANE_GAP / 2;
     this.sessionsBottom = sessions.top + sessions.height + LANE_GAP / 2;
-    this.moments = chartMoments(data);
+    this.moments = chartMoments(data, forecast);
     this.drawTimeGrid(root, data, x, quota.top, tokens.top + tokens.height, end, plotRight);
     this.drawQuota(root, data, quota, x, plotRight, forecast);
     this.drawSessions(root, data, sessions, x, plotRight);
@@ -274,8 +282,14 @@ export class TimelineChart {
     hit.setAttribute('y', String(quota.top));
     // Over today's column too, which runs on past now.
     const lastEnd = (data.buckets.at(-1)?.start ?? data.from) + data.bucketMs;
-    hit.setAttribute('width', String(Math.min(x(lastEnd), plotRight) - LEFT));
+    const hitRight = Math.min(x(lastEnd), plotRight);
+    hit.setAttribute('width', String(hitRight - LEFT));
     hit.setAttribute('height', String(tokens.top + tokens.height - quota.top));
+    const ahead = this.hitAhead;
+    ahead.setAttribute('x', String(hitRight));
+    ahead.setAttribute('y', String(quota.top));
+    ahead.setAttribute('width', String(Math.max(0, plotRight - hitRight)));
+    ahead.setAttribute('height', String(tokens.top + tokens.height - quota.top));
     root.append(
       svg('line', {
         class: 'np-crosshair',
@@ -284,6 +298,7 @@ export class TimelineChart {
         y2: tokens.top + tokens.height,
       }),
       hit,
+      ...(forecast ? [ahead] : []),
     );
     return root;
   }
@@ -688,12 +703,26 @@ export class TimelineChart {
     return Math.min(Math.max(index, 0), data.buckets.length - 1);
   }
 
-  /** The time under a client x coordinate, within the window shown. */
-  private timeAt(clientX: number): number {
+  /** The time under a client x coordinate, within the window shown or, `ahead`, past now. */
+  private timeAt(clientX: number, ahead = false): number {
     const data = this.data!;
     const box = this.svgRoot!.getBoundingClientRect();
-    const share = (clientX - box.left - LEFT) / (this.plotRight - LEFT);
-    return data.from + Math.min(Math.max(share, 0), 1) * (data.to - data.from);
+    const share = Math.max((clientX - box.left - LEFT) / (this.plotRight - LEFT), 0);
+    return data.from + (ahead ? share : Math.min(share, 1)) * (data.to - data.from);
+  }
+
+  /**
+   * Past now, the point of the week ahead nearest the pointer: anywhere over the lanes of lines,
+   * and over the columns once past today's.
+   */
+  private aheadAt(clientX: number, overLines: boolean): Moment | undefined {
+    const data = this.data!;
+    const time = this.timeAt(clientX, true);
+    const lastEnd = (data.buckets.at(-1)?.start ?? data.from) + data.bucketMs;
+    if (time <= data.to || (!overLines && time < lastEnd)) return undefined;
+    const nearest = this.nearest('quota', time);
+    if (nearest?.ahead) return nearest;
+    return this.moments.quota.find((moment) => moment.ahead);
   }
 
   private get window(): TimeWindow {
@@ -764,11 +793,14 @@ export class TimelineChart {
   /** Plus and minus zoom around the crosshair, or the middle; zero shows the whole range. */
   private zoomKey(key: string): boolean {
     const data = this.data!;
-    const center =
+    const center = Math.min(
       this.pointed?.moment.time ??
-      (this.index !== undefined
-        ? data.buckets[this.index].start + data.bucketMs / 2
-        : (data.from + data.to) / 2);
+        (this.index !== undefined
+          ? data.buckets[this.index].start + data.bucketMs / 2
+          : (data.from + data.to) / 2),
+      // From the week ahead, around now: there is nothing to zoom into past it.
+      data.to,
+    );
     if (key === '+' || key === '=') this.onZoom(scaleWindow(this.window, 0.5, center));
     else if (key === '-' || key === '_') this.onZoom(scaleWindow(this.window, 2, center));
     else if (key === '0') this.onZoom(undefined);
@@ -805,6 +837,14 @@ export class TimelineChart {
       event.preventDefault();
       this.hoverMoment(lane, moments[step]);
       this.live.textContent = this.describeMoment(moments[step]).join(', ');
+      return;
+    }
+    // From today's column, on to the week ahead.
+    const ahead = this.moments.quota.find((moment) => moment.ahead);
+    if (event.key === 'ArrowRight' && this.index === data.buckets.length - 1 && ahead) {
+      event.preventDefault();
+      this.hoverMoment('quota', ahead);
+      this.live.textContent = this.describeMoment(ahead).join(', ');
       return;
     }
     const next = stepTo(event.key, this.index, data.buckets.length - 1);
@@ -994,7 +1034,10 @@ export class TimelineChart {
     const rows: Array<[string, string, string]> = [];
     if (moment.fiveHour !== undefined)
       rows.push([this.formats.percent(moment.fiveHour), name(s.fiveHour), 'np-s-five']);
-    if (moment.weekly !== undefined)
+    // Short of where the week ahead runs out it isn't at 100% yet, however close.
+    if (moment.ahead && moment.weekly !== undefined && moment.weekly < 100) {
+      rows.push([this.formats.percent(Math.min(moment.weekly, 99)), name(s.weekly), 'np-s-week']);
+    } else if (moment.weekly !== undefined)
       rows.push([this.formats.percent(moment.weekly), name(s.weekly), 'np-s-week']);
     for (const limit of moment.limits) {
       const five = limit === 'fiveHour';
@@ -1004,7 +1047,19 @@ export class TimelineChart {
         five ? 'np-s-five' : 'np-s-week',
       ]);
     }
-    rows.push([String(moment.sessions), s.sessions, 'np-s-sessions']);
+    const runsOut = this.data!.pace?.week.runsOut;
+    if (moment.ahead === 'runsOut') {
+      rows.push([this.formats.clock(moment.time), s.runsOutAtPace, 'np-s-week']);
+    } else if (moment.ahead === 'reset') {
+      rows.push([this.formats.clock(moment.time), s.weeklyReset, '']);
+    } else if (moment.ahead && moment === this.moments.quota.at(-1) && runsOut !== undefined) {
+      // Where the axis ends first, when the week runs out past it.
+      if (runsOut > moment.time) {
+        rows.push([this.formats.dayClock(runsOut), s.runsOutAtPace, 'np-s-week']);
+      }
+    }
+    // No session works in the week ahead yet.
+    if (!moment.ahead) rows.push([String(moment.sessions), s.sessions, 'np-s-sessions']);
     return rows;
   }
 
@@ -1058,14 +1113,20 @@ export interface Moment {
   limits: Array<LimitHit['limit']>;
   /** The sessions working then. */
   sessions: number;
+  /** From now on, along the week ahead at the present pace; there it may run out or reset. */
+  ahead?: 'pace' | 'runsOut' | 'reset';
 }
 
 /**
  * The points of the lines within the window, oldest first. For the quota lane: each reading, each
  * estimated point and each limit that ran out; where an estimate drops at a reset, the value it
- * drops from. For the sessions lane: each change in the sessions working at once.
+ * drops from; then the week ahead. For the sessions lane: each change in the sessions working at
+ * once.
  */
-export function chartMoments(data: TimelineData): Record<LineLane, Moment[]> {
+export function chartMoments(
+  data: TimelineData,
+  forecast?: WeeklyForecast,
+): Record<LineLane, Moment[]> {
   const inside = (time: number) => time >= data.from && time <= data.to;
   const sessionsAt = (time: number) => lastAt(data.sessions, time)?.count ?? 0;
   const quota = new Map<number, Moment>();
@@ -1109,6 +1170,10 @@ export function chartMoments(data: TimelineData): Record<LineLane, Moment[]> {
     }
     if (!moment.limits.includes(hit.limit)) moment.limits.push(hit.limit);
   }
+  // A reading taken now says more than the week ahead does.
+  for (const moment of forecast ? aheadMoments(data, forecast) : []) {
+    if (!quota.has(moment.time)) quota.set(moment.time, moment);
+  }
   const sessions = data.sessions
     .filter((step) => inside(step.time))
     .map((step) => ({
@@ -1118,6 +1183,44 @@ export function chartMoments(data: TimelineData): Record<LineLane, Moment[]> {
       sessions: step.count,
     }));
   return { quota: [...quota.values()].sort((a, b) => a.time - b.time), sessions };
+}
+
+/**
+ * The week ahead from now: a point a column apart, as the columns before now are, and where it
+ * runs out and where it ends, each at the percent its line reaches there.
+ */
+function aheadMoments(data: TimelineData, forecast: WeeklyForecast): Moment[] {
+  const { points } = forecast;
+  const along = (time: number) => {
+    const next = points.findIndex(([at]) => at >= time);
+    if (next <= 0) return points.at(next)![1];
+    const [t0, v0] = points[next - 1];
+    const [t1, v1] = points[next];
+    return v0 + ((v1 - v0) * (time - t0)) / (t1 - t0);
+  };
+  const week = data.pace!.week;
+  const [stop] = points[points.length - 1];
+  const moments = new Map<number, Moment>();
+  const add = (time: number, ahead: Moment['ahead']) =>
+    moments.set(time, {
+      time,
+      weekly: along(time),
+      estimated: true,
+      limits: [],
+      sessions: 0,
+      ahead,
+    });
+  add(data.to, 'pace');
+  const origin = data.buckets[0]?.start ?? data.from;
+  if (data.bucketMs > 0) {
+    const first = origin + (Math.floor((data.to - origin) / data.bucketMs) + 1) * data.bucketMs;
+    for (let time = first; time < stop; time += data.bucketMs) add(time, 'pace');
+  }
+  if (week.runsOut !== undefined && week.runsOut > data.to && week.runsOut < stop) {
+    add(week.runsOut, 'runsOut');
+  }
+  add(stop, stop === week.resetsAt ? 'reset' : 'pace');
+  return [...moments.values()].sort((a, b) => a.time - b.time);
 }
 
 /** The last of points sorted by time at or before `time`. */
