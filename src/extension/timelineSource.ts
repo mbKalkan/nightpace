@@ -1,4 +1,5 @@
 import type { RangeKey, TimelineData, TimeWindow } from '../shared/protocol';
+import { PACE_SPAN } from './model/pace';
 import { buildTimeline, RANGE_SPANS } from './model/timeline';
 import { limitHit, type LimitStore } from './store/limitStore';
 import type { QuotaStore } from './store/quotaStore';
@@ -10,8 +11,11 @@ import type { LimitHit } from '../shared/protocol';
 /** Only lines with this can tell of a limit that ran out. */
 const LIMIT_MARKER = '"rate_limit"';
 
-/** The longest range, and a day to spare for its first bucket. */
-const KEPT_IN_MEMORY_MS = RANGE_SPANS['30d'] + 24 * 3_600_000;
+/**
+ * The longest range with a day to spare for its first bucket, or further back for the pace: a
+ * reading measured without the start of its week's cost would make a dollar use too much.
+ */
+const KEPT_IN_MEMORY_MS = Math.max(RANGE_SPANS['30d'] + 24 * 3_600_000, PACE_SPAN);
 
 /**
  * The data behind the timeline. Requests come from Nightpace's request store, then from what
