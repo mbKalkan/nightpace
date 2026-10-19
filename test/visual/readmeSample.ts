@@ -181,17 +181,22 @@ export function readmeSnapshots(requests: TimelineRequest[]): QuotaSnapshot[] {
   return snapshots;
 }
 
-/** `recordedFrom`: when Nightpace started recording the quota, if later than the requests. */
+/**
+ * `recordedFrom`: when Nightpace started recording the quota, if later than the requests.
+ * `week`: in the quota week range, which week, 0 for this one.
+ */
 export function readmeTimeline(
   range: RangeKey,
   zoom?: TimeWindow,
   recordedFrom = -Infinity,
+  week = 0,
 ): TimelineData {
   const requests = readmeRequests();
   return buildTimeline({
     range,
     now: README_NOW,
     zoom,
+    week,
     requests,
     snapshots: readmeSnapshots(requests).filter((snapshot) => snapshot.time >= recordedFrom),
     // The README's screenshots are taken in UTC, whatever the machine's zone.

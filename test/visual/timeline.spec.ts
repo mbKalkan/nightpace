@@ -6,6 +6,7 @@ import { sampleTimeline } from './sampleTimeline';
 import type { ThemeName } from './themes';
 import { PLANNED_SESSIONS, type TimeWindow } from '../../src/shared/protocol';
 import { weeklyForecast } from '../../src/webview/chart/timelineChart';
+import { Formats } from '../../src/webview/format';
 
 const SCREENS = 'test-results/screens';
 
@@ -233,7 +234,7 @@ test('moves through time with the keyboard and reads the values out', async ({ p
   const last = await page.locator('.np-tooltip-title').textContent();
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.np-tooltip-title')).not.toHaveText(last!);
-  await expect(page.locator('[aria-live="polite"]')).toContainText(strings.sessions);
+  await expect(page.locator('.np-chart [aria-live="polite"]')).toContainText(strings.sessions);
   await page.keyboard.press('Escape');
   await expect(page.locator('.np-tooltip')).toBeHidden();
   expect(panel.problems).toEqual([]);
@@ -726,24 +727,30 @@ test.describe('tokens by type', () => {
     expect(panel.problems).toEqual([]);
   });
 
-  test('sits beside the timeline, each half the width, where both fit', async ({ page }) => {
+  test('goes under the timeline and the weekly limit by day, across both', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     const panel = await openPanel(page, 'dark');
     await panel.init(sampleTimeline('7d'));
     const section = page.getByRole('region', { name: strings.tokenDetailsTitle });
+    const days = page.getByRole('region', { name: strings.daysTitle });
     await expect(section).toBeVisible();
     const main = (await page.locator('main').boundingBox())!;
-    const chart = (await page.locator('.np-body').boundingBox())!;
-    const details = (await section.boundingBox())!;
-    expect(details.x).toBeGreaterThan(chart.x + chart.width);
     await expect.poll(() => drawnWidth(page)).toBeGreaterThan(main.width * 0.4);
     expect(await drawnWidth(page)).toBeLessThan(main.width * 0.55);
-    // The cost above the tokens by type; the two halves start and end together.
+    // Beside the timeline the cost, then the weekly limit by day: the two halves start and end
+    // together.
     const timeline = (await page.locator('.np-timeline').boundingBox())!;
     const spend = (await page.getByRole('region', { name: strings.spendTitle }).boundingBox())!;
+    const daysBox = (await days.boundingBox())!;
+    expect(spend.x).toBeGreaterThan(timeline.x + timeline.width);
     expect(Math.abs(spend.y - timeline.y)).toBeLessThan(1);
-    expect(details.y).toBeGreaterThan(spend.y + spend.height);
-    expect(Math.abs(details.y + details.height - (timeline.y + timeline.height))).toBeLessThan(1);
+    expect(daysBox.y).toBeGreaterThan(spend.y + spend.height);
+    expect(Math.abs(daysBox.y + daysBox.height - (timeline.y + timeline.height))).toBeLessThan(1);
+    // The tokens by type under both, as wide as both.
+    const details = (await section.boundingBox())!;
+    expect(details.y).toBeGreaterThan(timeline.y + timeline.height);
+    expect(Math.abs(details.x - timeline.x)).toBeLessThan(1);
+    expect(Math.abs(details.x + details.width - (spend.x + spend.width))).toBeLessThan(1);
     const overflow = await page.evaluate(
       () =>
         document.getElementById('app')!.scrollWidth - document.getElementById('app')!.clientWidth,
@@ -751,34 +758,145 @@ test.describe('tokens by type', () => {
     expect(overflow).toBeLessThanOrEqual(0);
     await page.screenshot({ path: `${SCREENS}/timeline-wide-dark.png` });
 
-    // The table view keeps its columns in the half, scrolling sideways if it must.
+    // The table view keeps the timeline's height: nothing beside it moves.
     await page.getByRole('button', { name: strings.showTable }).click();
     await expect(page.locator('.np-body table')).toBeVisible();
-    expect((await section.boundingBox())!.x).toBeGreaterThan(main.x + main.width * 0.45);
-
+    const tableDays = (await days.boundingBox())!;
+    expect(Math.abs(tableDays.y - daysBox.y)).toBeLessThan(1);
     await page.getByRole('button', { name: strings.showChart }).click();
     await expect(page.locator('.np-chart svg')).toBeVisible();
 
-    // Measured against the chart's container: a resize redraws the chart in a new element.
-    const body = page.locator('.np-body');
-    const offset = async () => {
-      const [sectionBox, bodyBox] = [await section.boundingBox(), await body.boundingBox()];
-      return { x: sectionBox!.x - bodyBox!.x, y: sectionBox!.y - bodyBox!.y };
-    };
-
-    // At the narrowest width with two halves, the table still fits its half.
-    await page.setViewportSize({ width: 1100, height: 900 });
-    await expect.poll(async () => (await offset()).x).toBeGreaterThan(400);
-    const tableOverflow = await section
-      .locator('.np-table-scroll')
-      .evaluate((element) => element.scrollWidth - element.clientWidth);
-    expect(tableOverflow).toBeLessThanOrEqual(0);
-    await section.screenshot({ path: `${SCREENS}/token-details-half-dark.png` });
-
-    // Narrower, the tokens by type go under the timeline.
+    // Narrower, one under the other: the timeline, then the weekly limit by day.
     await page.setViewportSize({ width: 1000, height: 900 });
-    await expect.poll(async () => (await offset()).y).toBeGreaterThan(300);
-    expect((await offset()).x).toBeLessThan(1);
+    const timelineBox = async () => (await page.locator('.np-timeline').boundingBox())!;
+    await expect
+      .poll(async () => (await days.boundingBox())!.y - (await timelineBox()).y)
+      .toBeGreaterThan(300);
+    expect(Math.abs((await days.boundingBox())!.x - (await timelineBox()).x)).toBeLessThan(1);
+    expect(panel.problems).toEqual([]);
+  });
+});
+
+test.describe('quota week', () => {
+  test('shows a quota week from reset to reset, and the weeks either side', async ({ page }) => {
+    await page.setViewportSize({ width: 1630, height: 900 });
+    const panel = await openPanel(page, 'dark');
+    await panel.init(readmeTimeline('7d'));
+    const top = (await page.locator('.np-timeline').boundingBox())!.y;
+    const previous = page.getByRole('button', { name: strings.previousWeek });
+    const next = page.getByRole('button', { name: strings.nextWeek });
+    // From any range, the week before this one; nothing after this one.
+    await expect(previous).toBeEnabled();
+    await expect(next).toBeDisabled();
+    await page.getByRole('button', { name: strings.ranges.week }).click();
+    await expect
+      .poll(async () => (await panel.sent()).at(-1))
+      .toEqual({ type: 'range', range: 'week' });
+
+    const data = readmeTimeline('week');
+    await panel.post({ type: 'timeline', data });
+    await expect(page.getByRole('button', { name: strings.ranges.week })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    // The whole week, past now to the reset, and nothing above the chart moved.
+    const formats = new Formats('en');
+    await expect(page.locator('.np-zoom-label')).toHaveText(
+      formats.window(data.week.from, data.week.to),
+    );
+    expect(weeklyForecast(data)?.end).toBe(data.week.to);
+    await expect(page.locator('.np-chart .np-future')).toHaveCount(1);
+    expect((await page.locator('.np-timeline').boundingBox())!.y).toBe(top);
+    await page.screenshot({ path: `${SCREENS}/quota-week-dark.png` });
+
+    await previous.click();
+    await expect
+      .poll(async () => (await panel.sent()).at(-1))
+      .toEqual({ type: 'week', offset: -1 });
+    const before = readmeTimeline('week', undefined, undefined, -1);
+    expect(before.week.offset).toBe(-1);
+    await panel.post({ type: 'timeline', data: before });
+    await expect(page.locator('.np-zoom-label')).toHaveText(
+      formats.window(before.week.from, before.week.to),
+    );
+    // A week gone by ends at its reset: no week ahead.
+    await expect(page.locator('.np-chart .np-future')).toHaveCount(0);
+    await expect(page.locator('.np-hit-ahead')).toHaveCount(0);
+    // The sample's requests start in the week before this one: none further back.
+    await expect(previous).toBeDisabled();
+    await expect(next).toBeEnabled();
+    await next.click();
+    await expect.poll(async () => (await panel.sent()).at(-1)).toEqual({ type: 'week', offset: 0 });
+    expect(panel.problems).toEqual([]);
+  });
+});
+
+test.describe('weekly limit by day', () => {
+  for (const theme of ['dark', 'light'] as ThemeName[]) {
+    test(`says what each day of the week used, and what each day ahead can take (${theme})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1630, height: 900 });
+      const panel = await openPanel(page, theme);
+      // Recorded from yesterday: the days before are worked out from API cost.
+      const data = readmeTimeline('7d', undefined, README_NOW - 24 * 3_600_000);
+      await panel.init(data);
+      const days = page.getByRole('region', { name: strings.daysTitle });
+      await days.scrollIntoViewIfNeeded();
+      const list = data.weekDays!.days;
+      await expect(days.locator('.np-col')).toHaveCount(7);
+      for (const text of [
+        strings.used,
+        strings.estimated,
+        strings.budgetToLast,
+        strings.evenSplit,
+      ]) {
+        await expect(days.getByText(text, { exact: true })).toBeVisible();
+      }
+      // Each day used, or can take, says so on its cap.
+      const formats = new Formats('en');
+      for (const day of list) {
+        const value = day.used ?? day.canTake;
+        if (value !== undefined) {
+          await expect(days.getByText(formats.fine(value), { exact: true }).first()).toBeVisible();
+        }
+      }
+      expect(list.some((day) => day.estimated && day.used !== undefined)).toBe(true);
+      expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(4.5);
+      await days.screenshot({ path: `${SCREENS}/week-days-${theme}.png` });
+
+      // Pointing at a day gone by: what it used and cost.
+      const tooltip = days.locator('.np-day-tooltip');
+      const hits = days.locator('.np-day-hit');
+      await hits.nth(1).hover();
+      await expect(tooltip).toBeVisible();
+      await expect(tooltip).toContainText(strings.cost);
+      await expect(days.locator('.np-col.np-active')).toHaveCount(1);
+      // Today: what it used so far, and what it can still take.
+      const today = list.findIndex((day) => day.canTake !== undefined);
+      await hits.nth(today).hover();
+      await expect(tooltip).toContainText(strings.used);
+      await expect(tooltip).toContainText(strings.budgetToLast);
+      await days.screenshot({ path: `${SCREENS}/week-days-hover-${theme}.png` });
+
+      // The keys go from day to day and read them out.
+      await page.mouse.move(0, 0);
+      await days.locator('.np-days-place').focus();
+      await page.keyboard.press('ArrowLeft');
+      await expect(tooltip).toBeVisible();
+      await expect(days.locator('[aria-live="polite"]')).toContainText(strings.used);
+      await page.keyboard.press('Escape');
+      await expect(tooltip).toBeHidden();
+      expect(panel.problems).toEqual([]);
+    });
+  }
+
+  test('says nothing of the days until the quota has been read', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    await panel.init(readmeTimeline('7d', undefined, Infinity));
+    const days = page.getByRole('region', { name: strings.daysTitle });
+    await expect(days.getByText(strings.noQuotaYet)).toBeVisible();
+    await expect(days.locator('.np-col')).toHaveCount(0);
     expect(panel.problems).toEqual([]);
   });
 });

@@ -18,7 +18,7 @@ would have cost at Anthropic's API prices, by model, effort level or token type,
 sessions and projects spent it. The quota is in the status bar too, so you know where you stand
 without opening anything.
 
-![Nightpace: this week is 62% used and runs out on Sunday at this pace, with the hours a day that last until the Monday reset for one to five sessions at once; this 5-hour window is 20% used, and lasts with one Opus xhigh session but runs out in 2h 22m with three; below, a week of quota lines rising with the cost columns and the weekly line heading, dashed, to 100% by Sunday, the sessions working at once, what it would cost at API prices and the tokens by type](docs/images/timeline-dark.png)
+![Nightpace: this week is 62% used and runs out on Sunday at this pace, with the hours a day that last until the Monday reset for one to five sessions at once; this 5-hour window is 20% used, and lasts with one Opus xhigh session but runs out in 2h 22m with three; below, a week of quota lines rising with the cost columns and the weekly line heading, dashed, to 100% by Sunday, the sessions working at once; beside them, what it would cost at API prices and the weekly limit by day, each day's use and, dashed, what each day ahead can take for the week to last](docs/images/timeline-dark.png)
 
 ## Why Nightpace
 
@@ -69,7 +69,7 @@ computer uses the same quota.
 ### Timeline
 
 Run **Nightpace: Show Timeline** from the Command Palette for the last 24 hours, 7 days or 30
-days on one time axis:
+days, or one **quota week** from your plan's weekly reset to the next, on one time axis:
 
 - **Plan quota used:** the 5-hour and weekly limits, as Claude Code reported them while Nightpace
   was recording. Dashed where they are estimated from API cost at your measured rates: before
@@ -91,7 +91,8 @@ the chart to zoom in and out around the pointer, or drag across part of the rang
 button. Drag the chart with the left button, or Shift + scroll, to move along time, and
 double-click for the whole range again. Columns get finer as you zoom in, down to a minute, and
 are counted from your plan's weekly reset, marked with a dashed line, so seven day columns make
-one quota week.
+one quota week. **Previous week** and **Next week** go back through the quota weeks, up to four
+before this one; the cost, the tokens by type and the sessions below follow the week shown.
 
 ![One working day zoomed in: the 5-hour quota rises during each block of work and drops when the window resets, and the tooltip lists the quota, sessions, cost by model, tokens and requests of a quarter of an hour](docs/images/zoom-dark.png)
 
@@ -100,14 +101,22 @@ one quota week.
 Beside the timeline, what Claude Code's requests would have cost had you paid per token instead
 of through your plan: today, the last 7 days, the last 30 days and per active day.
 
+### Weekly limit by day
+
+Beside the timeline, under the cost, how much of the weekly limit each day of the quota week
+used, a column a day counted from the reset, lighter where it is estimated from API cost. For
+this week, dashed: what today and each day ahead can take for the week to last until the reset.
+A dashed line marks an even split, a seventh of the limit a day. Point at a day, or use the
+arrow keys, for what it used, can take and cost. It shows the week shown in the quota week
+range, and this week otherwise.
+
 ### Tokens by type
 
-Beside the timeline, under the cost, the tokens of the period shown by kind: input, cache writes
+Under the timeline, the tokens of the period shown by kind: input, cache writes
 (5-minute and 1-hour), cache reads and output, with the thinking part of output when Claude Code
 reports it. Each kind's tokens, API cost and share of both: cache reads are most of the tokens
 and a fraction of the cost. Above them, how much of the prompt came from the cache, what caching
-saved at API prices and what the requests would have cost without it. In a narrow panel it
-moves under the timeline.
+saved at API prices and what the requests would have cost without it.
 
 ### Where the tokens went
 
@@ -117,7 +126,7 @@ and the models and effort levels it used. Point at a row's tokens for them by ki
 column. Point at a row to see its time on the chart, and click it to zoom the chart to that
 session or project.
 
-![The cost columns of a week split by token type in a light theme; beside them, the week's tokens by type, cache reads 97% of the tokens and a third of the cost, caching saving most of what the requests would have cost; below, the projects, each with 97% of its prompt from the cache](docs/images/types-light.png)
+![The cost columns of a week split by token type in a light theme, beside the weekly limit by day; below, the week's tokens by type, cache reads 97% of the tokens and a third of the cost, caching saving most of what the requests would have cost; then the projects, each with 97% of its prompt from the cache](docs/images/types-light.png)
 
 ### Status bar
 

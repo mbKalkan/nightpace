@@ -324,6 +324,50 @@ describe('buildTimeline', () => {
     expect(data.buckets[47].cost.total).toBe(0);
     expect(data.spend.unpriced).toBe(1);
   });
+
+  describe('in the quota week range', () => {
+    // The weekly limit resets on Saturday at noon UTC: this week began last Saturday.
+    const reset = Date.UTC(2026, 9, 17, 12);
+    const thisWeek = reset - 7 * 24 * HOUR;
+    const week = 7 * 24 * HOUR;
+    const snapshots = [snapshot(30, 10, 20)];
+    // A request two weeks back: two weeks before this one can be shown.
+    const requests = [request('a', 13 * 24 * 60), request('b', 60)];
+
+    it('shows this week from its reset, its columns from the whole week', () => {
+      const data = buildTimeline({ range: 'week', now, requests, snapshots });
+      expect(data.week).toEqual({ from: thisWeek, to: reset, offset: 0, oldest: -2 });
+      expect(data.extent).toEqual({ from: thisWeek, to: now });
+      expect(data.from).toBe(thisWeek);
+      expect(data.to).toBe(now);
+      expect(data.bucketMs).toBe(3 * HOUR);
+      expect(data.weekDays?.week).toEqual({ from: thisWeek, to: reset });
+      expect(data.weekDays?.days).toHaveLength(7);
+    });
+
+    it('shows a week before, from reset to reset, and no further back than the requests', () => {
+      const before = buildTimeline({ range: 'week', week: -1, now, requests, snapshots });
+      expect(before.week).toEqual({
+        from: thisWeek - week,
+        to: thisWeek,
+        offset: -1,
+        oldest: -2,
+      });
+      expect([before.from, before.to]).toEqual([thisWeek - week, thisWeek]);
+      expect(before.weekDays?.week).toEqual({ from: thisWeek - week, to: thisWeek });
+      const oldest = buildTimeline({ range: 'week', week: -9, now, requests, snapshots });
+      expect(oldest.week.offset).toBe(-2);
+      expect(oldest.from).toBe(thisWeek - 2 * week);
+    });
+
+    it('keeps this week in focus in the other ranges', () => {
+      const data = buildTimeline({ range: '7d', week: -1, now, requests, snapshots });
+      expect(data.week).toEqual({ from: thisWeek, to: reset, offset: 0, oldest: -2 });
+      expect(data.weekDays?.week).toEqual({ from: thisWeek, to: reset });
+      // Without a measure of the quota there is nothing to say of the days.
+      expect(buildTimeline({ range: '7d', now, requests, snapshots: [] }).weekDays).toBeUndefined();
+    });
+  });
 });
 
 describe('spendOf', () => {

@@ -124,5 +124,12 @@
   "{0}d {1}h": "{0}g {1}sa",
   "{0}d": "{0}g",
   "{0}h": "{0}sa",
-  "{0}m": "{0}dk"
+  "{0}m": "{0}dk",
+  "Quota week": "Kota haftası",
+  "Previous week": "Önceki hafta",
+  "Next week": "Sonraki hafta",
+  "Weekly limit by day": "Günlere göre haftalık limit",
+  "Budget to last": "Yetmesi için bütçe",
+  "Even split": "Eşit dağılım",
+  "Days start at the weekly reset's time: {0}.": "Günler haftalık sıfırlamanın saatinde başlar: {0}."
 }

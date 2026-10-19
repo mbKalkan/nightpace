@@ -13,7 +13,13 @@ import type {
   TokenBucket,
   TokenType,
 } from '../../shared/protocol';
-import { EFFORT_LEVELS, MODEL_FAMILIES, NO_EFFORT, TOKEN_TYPES } from '../../shared/protocol';
+import {
+  EFFORT_LEVELS,
+  MODEL_FAMILIES,
+  NO_EFFORT,
+  TOKEN_TYPES,
+  WEEKS_BACK,
+} from '../../shared/protocol';
 import { clampWindow } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
@@ -22,6 +28,7 @@ import { modelFamily } from './family';
 import { paceOf } from './pace';
 import { requestCost } from './pricing';
 import { tokenDetails } from './tokenDetails';
+import { weekDays } from './weekDays';
 import {
   concurrency,
   sessionIntervals,
@@ -37,6 +44,7 @@ export const RANGE_SPANS: Record<RangeKey, number> = {
   '24h': 24 * HOUR,
   '7d': 7 * 24 * HOUR,
   '30d': 30 * 24 * HOUR,
+  week: 7 * 24 * HOUR,
 };
 
 const MAX_BUCKETS = 60;
@@ -116,6 +124,8 @@ export interface TimelineInput {
   now: number;
   /** A part of the range to zoom into; the whole range without it. */
   zoom?: TimeWindow;
+  /** In the `week` range, which quota week: 0 for this one, -1 for the one before. */
+  week?: number;
   requests: Iterable<TimelineRequest>;
   snapshots: readonly QuotaSnapshot[];
   /** When limits ran out, as Claude Code logged it; none when left out. */
@@ -166,20 +176,55 @@ export function rangeExtent(range: RangeKey, now: number, anchor: number): TimeW
   return { from: floorFrom(now - span, bucketFor(span), anchor), to: now };
 }
 
+/**
+ * The quota weeks that can be shown: this one, from its reset, and the ones before it back to the
+ * first request, at most `WEEKS_BACK`.
+ */
+export function quotaWeeks(
+  now: number,
+  anchor: number,
+  firstRequest: number,
+): { current: TimeWindow; oldest: number } {
+  // At the reset itself, the week that ends then: the new one has no time yet.
+  const from = floorFrom(now - 1, WEEK, anchor);
+  const back = Number.isFinite(firstRequest) ? Math.ceil((from - firstRequest) / WEEK) : 0;
+  return {
+    current: { from, to: from + WEEK },
+    oldest: -Math.min(WEEKS_BACK, Math.max(0, back)),
+  };
+}
+
 export function buildTimeline({
   range,
   now,
   zoom,
+  week = 0,
   requests,
   snapshots,
   limits = [],
   startOfToday = new Date(now).setHours(0, 0, 0, 0),
   utcOffset = -new Date(now).getTimezoneOffset() * MIN,
 }: TimelineInput): TimelineData {
+  const all = [...requests];
   const anchor = columnAnchor(snapshots, utcOffset);
-  const extent = rangeExtent(range, now, anchor.time);
+  const weeks = quotaWeeks(
+    now,
+    anchor.time,
+    all.reduce((first, request) => Math.min(first, request.time), Infinity),
+  );
+  // Outside the week range, the week in focus is this one.
+  const offset = range === 'week' ? Math.min(0, Math.max(Math.round(week), weeks.oldest)) : 0;
+  const quotaWeek = {
+    from: weeks.current.from + offset * WEEK,
+    to: weeks.current.to + offset * WEEK,
+  };
+  const extent =
+    range === 'week'
+      ? { from: quotaWeek.from, to: Math.min(quotaWeek.to, now) }
+      : rangeExtent(range, now, anchor.time);
   const shown = zoom ? clampWindow(zoom, extent) : extent;
-  const bucketMs = bucketFor(shown.to - shown.from);
+  // The whole of this week takes its columns from the whole week, as a week before it does.
+  const bucketMs = bucketFor(range === 'week' && !zoom ? WEEK : shown.to - shown.from);
   const from = floorFrom(shown.from, bucketMs, anchor.time);
   const to = Math.min(ceilFrom(shown.to, bucketMs, anchor.time), extent.to);
   const weeklyResets: number[] = [];
@@ -197,7 +242,6 @@ export function buildTimeline({
     maxSessions: 0,
   }));
 
-  const all = [...requests];
   const used = new Set<ModelFamily>();
   const efforts = new Set<string>();
   for (const request of all) {
@@ -259,6 +303,19 @@ export function buildTimeline({
     spend: spendOf(all, now, startOfToday),
     pace,
     recordingSince,
+    week: { ...quotaWeek, offset, oldest: weeks.oldest },
+    ...(pace &&
+      anchor.reset && {
+        weekDays: weekDays({
+          week: quotaWeek,
+          now,
+          requests: all,
+          snapshots,
+          limits,
+          pace,
+          weeklyReset: anchor.time,
+        }),
+      }),
   };
 }
 

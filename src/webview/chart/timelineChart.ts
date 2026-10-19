@@ -1238,7 +1238,8 @@ function lastAt<T extends { time: number }>(points: readonly T[], time: number):
 export interface WeeklyForecast {
   /**
    * Where the time axis ends: a third of the window shown past now, so the time before now keeps
-   * three quarters of the width however far it is zoomed in.
+   * three quarters of the width however far it is zoomed in; the reset, for the whole of this
+   * quota week.
    */
   end: number;
   /** From the last reading through now to the reset or the end, as [time, percent]. */
@@ -1250,9 +1251,16 @@ export interface WeeklyForecast {
  * the present: to the reset, or the end of the axis if that comes first, never past 100%.
  */
 export function weeklyForecast(data: TimelineData): WeeklyForecast | undefined {
-  const week = data.pace?.week;
-  if (!week || data.to < data.extent.to || week.resetsAt <= data.to) return undefined;
-  const end = data.to + (data.to - data.from) / 3;
+  const { pace } = data;
+  const week = pace?.week;
+  // A quota week gone by ends before now: nothing leads on from it.
+  if (!week || data.to < data.extent.to || data.extent.to < pace.now || week.resetsAt <= data.to)
+    return undefined;
+  // The whole of this quota week runs to its reset.
+  const end =
+    data.range === 'week' && data.from <= data.extent.from
+      ? Math.max(data.week.to, data.to)
+      : data.to + (data.to - data.from) / 3;
   const stop = Math.min(week.resetsAt, end);
   const points: Array<[number, number]> = [];
   const last = [...data.quota]

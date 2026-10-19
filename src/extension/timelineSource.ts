@@ -1,4 +1,4 @@
-import type { RangeKey, TimelineData, TimeWindow } from '../shared/protocol';
+import { WEEKS_BACK, type RangeKey, type TimelineData, type TimeWindow } from '../shared/protocol';
 import { PACE_SPAN } from './model/pace';
 import { buildTimeline, RANGE_SPANS } from './model/timeline';
 import { limitHit, type LimitStore } from './store/limitStore';
@@ -12,10 +12,15 @@ import type { LimitHit } from '../shared/protocol';
 const LIMIT_MARKER = '"rate_limit"';
 
 /**
- * The longest range with a day to spare for its first bucket, or further back for the pace: a
- * reading measured without the start of its week's cost would make a dollar use too much.
+ * The longest range with a day to spare for its first bucket, the quota weeks that can be shown,
+ * or further back for the pace: a reading measured without the start of its week's cost would
+ * make a dollar use too much.
  */
-const KEPT_IN_MEMORY_MS = Math.max(RANGE_SPANS['30d'] + 24 * 3_600_000, PACE_SPAN);
+const KEPT_IN_MEMORY_MS = Math.max(
+  RANGE_SPANS['30d'] + 24 * 3_600_000,
+  (WEEKS_BACK + 1) * RANGE_SPANS.week,
+  PACE_SPAN,
+);
 
 /**
  * The data behind the timeline. Requests come from Nightpace's request store, then from what
@@ -37,12 +42,19 @@ export class TimelineSource {
     private readonly limits?: LimitStore,
   ) {}
 
-  async timeline(range: RangeKey, zoom?: TimeWindow, now = Date.now()): Promise<TimelineData> {
+  /** `week`: in the `week` range, which quota week, 0 for this one. */
+  async timeline(
+    range: RangeKey,
+    zoom?: TimeWindow,
+    now = Date.now(),
+    week = 0,
+  ): Promise<TimelineData> {
     await this.sync(now);
     return buildTimeline({
       range,
       now,
       zoom,
+      week,
       requests: this.log.usage(),
       snapshots: await this.quota.snapshots(),
       limits: (await this.limits?.hits()) ?? [],

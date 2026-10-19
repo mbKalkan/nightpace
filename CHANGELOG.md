@@ -8,9 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **Quota week** range shows one week of your plan's weekly limit, from its reset to the next,
+  and **Previous week** and **Next week** go through the four weeks before this one. The cost,
+  the tokens by type and the sessions follow the week shown.
+- **Weekly limit by day**: how much of the weekly limit each day of the quota week used, read or
+  estimated, and for this week what each day ahead can take for the week to last, against an
+  even split of a seventh a day.
 - The crosshair goes on past now, along the week ahead: it shows the weekly percent the line
   reaches, when the week runs out at this pace and when it resets. Where the axis ends first,
   its last point says when the week runs out. The arrow keys go on to it from today's column.
+
+### Changed
+
+- The tokens by type moved under the timeline, across the panel, to make room for the weekly
+  limit by day beside it.
 
 ### Fixed
 

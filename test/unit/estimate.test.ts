@@ -168,4 +168,24 @@ describe('weeklyForecast', () => {
   it('is left out of a window in the past', () => {
     expect(weeklyForecast({ ...data({}), to: now - DAY })).toBeUndefined();
   });
+
+  it('runs the whole of this quota week to its reset, and none of a week gone by', () => {
+    const thisWeek = {
+      ...data({}, reset - 7 * DAY),
+      range: 'week',
+      extent: { from: reset - 7 * DAY, to: now },
+      week: { from: reset - 7 * DAY, to: reset, offset: 0, oldest: -1 },
+    } as TimelineData;
+    expect(weeklyForecast(thisWeek)?.end).toBe(reset);
+    // Zoomed in to the days before now, a third of the window past now again.
+    expect(weeklyForecast({ ...thisWeek, from: now - DAY })?.end).toBe(now + 8 * HOUR);
+    const before = {
+      ...thisWeek,
+      from: reset - 14 * DAY,
+      to: reset - 7 * DAY,
+      extent: { from: reset - 14 * DAY, to: reset - 7 * DAY },
+      week: { from: reset - 14 * DAY, to: reset - 7 * DAY, offset: -1, oldest: -1 },
+    } as TimelineData;
+    expect(weeklyForecast(before)).toBeUndefined();
+  });
 });

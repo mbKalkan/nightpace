@@ -12,8 +12,15 @@ export function panelStrings(t: Translate): PanelStrings {
     privacy: t(
       "Nightpace reads times, models, effort levels and token counts from Claude Code's local logs, and asks Claude Code for your plan's quota. It never stores prompts, replies, tool output or code.",
     ),
-    ranges: { '24h': t('24 hours'), '7d': t('7 days'), '30d': t('30 days') },
+    ranges: {
+      '24h': t('24 hours'),
+      '7d': t('7 days'),
+      '30d': t('30 days'),
+      week: t('Quota week'),
+    },
     rangeLabel: t('Time range'),
+    previousWeek: t('Previous week'),
+    nextWeek: t('Next week'),
     showTable: t('Table'),
     showChart: t('Chart'),
     quotaLane: t('Plan quota used'),
@@ -165,6 +172,10 @@ export function panelStrings(t: Translate): PanelStrings {
     trendEmpty: t('Points appear once a stretch has used 10% of the limit.'),
     trendCostTitle: t('1% of the limit at API prices, over time'),
     trendCostPoint: t('{0}: 1% of the limit was {1} at API prices.', '{0}', '{1}'),
+    daysTitle: t('Weekly limit by day'),
+    budgetToLast: t('Budget to last'),
+    evenSplit: t('Even split'),
+    daysNote: t("Days start at the weekly reset's time: {0}.", '{0}'),
     zoomToSession: t('Click to zoom the chart to this session'),
     zoomToProject: t('Click to zoom the chart to this project'),
     zoomHint: t(
