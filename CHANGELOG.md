@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-19
+
+A quota week at a time: the timeline can show one week of the weekly limit from its reset to the
+next, and go back through the weeks before it. A new lane shows the weekly limit a day at a time,
+with what each day ahead can take for the week to last, and the crosshair now follows the week
+ahead to where it runs out.
+
 ### Added
 
 - A **Quota week** range shows one week of your plan's weekly limit, from its reset to the next,
@@ -167,7 +174,8 @@ First preview release.
   again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
-[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/mbKalkan/nightpace/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/mbKalkan/nightpace/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mbKalkan/nightpace/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mbKalkan/nightpace/compare/v0.2.0...v0.3.0
