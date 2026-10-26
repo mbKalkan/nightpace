@@ -7,6 +7,8 @@ const SNAPSHOTS = 'quota.jsonl';
 const POLL = 'poll.json';
 const POLL_FILE = /^poll(-[0-9a-f]+)?\.json$/;
 const SOURCES = 'sources.json';
+/** Numbers this process's temporary files. */
+let writes = 0;
 
 /** When a poll was last tried, by any VS Code window, how it went, and the latest snapshot. */
 export interface PollRecord {
@@ -110,10 +112,13 @@ export class QuotaStore {
     }
   }
 
-  /** Written beside and renamed, so another window never reads half of it. */
+  /**
+   * Written beside and renamed, so another window never reads half of it; under a name of its
+   * own, as two recorders of this window may write the same file at once.
+   */
   private async write(name: string, value: unknown): Promise<void> {
     await mkdir(this.folder, { recursive: true });
-    const temporary = join(this.folder, `${name}.${process.pid}.tmp`);
+    const temporary = join(this.folder, `${name}.${process.pid}.${++writes}.tmp`);
     await writeFile(temporary, JSON.stringify(value));
     await rename(temporary, join(this.folder, name));
   }

@@ -108,6 +108,16 @@ describe('requestUsage', () => {
     });
   });
 
+  it('keeps the usage when initialize gets no answer', async () => {
+    await withMode('noinit', async () => {
+      const short = await requestUsage(fake(), { timeoutMs: 400 });
+      expect(short.init).toBeUndefined();
+      expect(parseUsageResponse(short.usage, 0)).toMatchObject({ fiveHour: { percent: 41 } });
+      const graced = await requestUsage(fake());
+      expect(parseUsageResponse(graced.usage, 0)).toMatchObject({ fiveHour: { percent: 41 } });
+    });
+  });
+
   it('fails when Claude Code refuses the request', async () => {
     await withMode('refuse', async () => {
       const error = await requestUsage(fake()).catch((e: unknown) => e);

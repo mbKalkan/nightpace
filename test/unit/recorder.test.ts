@@ -161,12 +161,16 @@ describe('QuotaRecorder', () => {
     expect(r.queries()).toBe(2);
   });
 
-  it('asks at once after an update, when the last poll did not note the account', async () => {
+  it('waits as usual after a poll that did not note the account, as an older Nightpace writes', async () => {
     const store = newStore();
     await store.recordPoll({ time: 1000 * MIN - MIN, snapshot: snapshot(1) });
     const r = recorder(store, { signedIn: () => 'personal' });
     await r.recorder.tick();
+    expect(r.queries()).toBe(0);
+    r.advance(ACTIVE_INTERVAL_MS);
+    await r.recorder.tick();
     expect(r.queries()).toBe(1);
+    expect(await store.lastPoll()).toMatchObject({ signedIn: 'personal' });
   });
 
   it("leaves a folder alone while it isn't signed in to an account", async () => {

@@ -32,24 +32,42 @@ interface FolderLine {
  * - A reading names its account.
  * - Readings from before that belong to the first account seen afterwards whose weekly reset falls
  *   at the same time of the week (the same quota going on), or else to the first account seen.
+ * - A reading without one among named ones (Claude Code didn't say, or a window still runs an
+ *   older Nightpace) belongs to its folder's account of the moment.
  * - A request belongs to the account its config folder was signed in to then: the one of the
  *   folder's latest reading up to that time, or of its first reading for a request before any.
+ *   A folder that never answered has no account: its requests aren't anyone's.
  */
 export class Accounts {
   readonly list: AccountSummary[];
-  /** The account the readings without one belong to; none until an account is seen. */
+  /** The account the readings from before accounts were told apart belong to. */
   readonly legacy: string | undefined;
   private readonly folders = new Map<string, FolderLine>();
+  private readonly owners = new Map<QuotaSnapshot, string>();
 
   constructor(snapshots: readonly QuotaSnapshot[]) {
     const sorted = [...snapshots].sort((a, b) => a.time - b.time);
     const tagged = sorted.filter((snapshot) => snapshot.account);
-    this.legacy = legacyOwner(sorted, tagged);
+    const firstTagged = tagged[0]?.time ?? Infinity;
+    this.legacy = legacyOwner(
+      sorted.filter((snapshot) => !snapshot.account && snapshot.time < firstTagged),
+      tagged,
+    );
     const summaries = new Map<string, AccountSummary>();
+    /** Each folder's account as of the reading at hand. */
+    const signedIn = new Map<string, string>();
     for (const snapshot of sorted) {
-      const key = this.ofSnapshot(snapshot);
+      const folder = snapshot.configDir ?? DEFAULT_DIR;
+      let key: string | undefined;
+      if (snapshot.account) {
+        key = accountKey(snapshot.account);
+        signedIn.set(folder, key);
+      } else {
+        // Only the default folder has readings from before accounts were told apart.
+        key = signedIn.get(folder) ?? (snapshot.configDir === undefined ? this.legacy : undefined);
+      }
       if (key === undefined) continue;
-      const folder = snapshot.account ? (snapshot.configDir ?? DEFAULT_DIR) : DEFAULT_DIR;
+      this.owners.set(snapshot, key);
       const line = this.folders.get(folder) ?? { times: [], keys: [] };
       line.times.push(snapshot.time);
       line.keys.push(key);
@@ -71,15 +89,15 @@ export class Accounts {
     this.list = [...summaries.values()];
   }
 
-  /** The account of a reading. */
+  /** The account of a reading, one of those given. */
   ofSnapshot(snapshot: QuotaSnapshot): string | undefined {
-    return snapshot.account ? accountKey(snapshot.account) : this.legacy;
+    return this.owners.get(snapshot);
   }
 
   /** The account a config folder (none: the default one) was signed in to at a time. */
   at(configDir: string | undefined, time: number): string | undefined {
     const line = this.folders.get(configDir ?? DEFAULT_DIR);
-    if (!line) return this.legacy ?? this.list[0]?.key;
+    if (!line) return undefined;
     // The last reading at or before the time.
     let low = 0;
     let high = line.times.length - 1;
@@ -120,15 +138,16 @@ export class Accounts {
   }
 }
 
+/** `before`: the readings without an account from before any named one, oldest first. */
 function legacyOwner(
-  sorted: readonly QuotaSnapshot[],
+  before: readonly QuotaSnapshot[],
   tagged: readonly QuotaSnapshot[],
 ): string | undefined {
   const first = tagged[0]?.account;
   if (!first) return undefined;
   let lastReset: number | undefined;
-  for (const snapshot of sorted) {
-    if (!snapshot.account && snapshot.weekly?.resetsAt) lastReset = snapshot.weekly.resetsAt;
+  for (const snapshot of before) {
+    if (snapshot.weekly?.resetsAt) lastReset = snapshot.weekly.resetsAt;
   }
   const going = lastReset
     ? tagged.find(

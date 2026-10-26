@@ -29,7 +29,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('Nightpace', { log: true });
   const store = new QuotaStore(context.globalStorageUri.fsPath);
   const statusBar = new QuotaStatusBar();
-  let sources: ClaudeSource[] = [];
+  // The folders known at once; the ones remembered and named join when the settings are applied.
+  let sources = claudeSources({ home: homedir(), current: currentConfigDir() });
   /** The latest snapshot of the folder VS Code's Claude Code uses. */
   let current: QuotaSnapshot | undefined;
   const source = new TimelineSource(
@@ -48,8 +49,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // One recorder per config folder, made again when a folder becomes or stops being VS Code's.
   const recorders = new Map<string, QuotaRecorder>();
-  const recorderFor = (folder: ClaudeSource) =>
-    new QuotaRecorder({
+  const recorderFor = (folder: ClaudeSource, key: string): QuotaRecorder => {
+    const recorder: QuotaRecorder = new QuotaRecorder({
       query: () => askClaudeCode(folder),
       lastActivity: transcriptActivity(folder.projects),
       signedIn: signedInAccount(folder.configFile),
@@ -58,6 +59,8 @@ export function activate(context: vscode.ExtensionContext): void {
       recordPoll: (record) => store.recordPoll(record, folder.configDir),
       append: (snapshot) => store.append(snapshot),
       onSnapshot: (snapshot) => {
+        // A poll that was under way when its recorder was replaced shows nothing.
+        if (recorders.get(key) !== recorder) return;
         if (folder.current) {
           current = snapshot;
           statusBar.show(snapshot);
@@ -67,6 +70,8 @@ export function activate(context: vscode.ExtensionContext): void {
       log: (message) =>
         output.warn(folder.configDir ? `${message} (${folder.configDir})` : message),
     });
+    return recorder;
+  };
   const stopRecorders = () => {
     for (const recorder of recorders.values()) recorder.stop();
     recorders.clear();
@@ -80,7 +85,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     for (const [key, folder] of wanted) {
       if (recorders.has(key)) continue;
-      const recorder = recorderFor(folder);
+      const recorder = recorderFor(folder, key);
       recorders.set(key, recorder);
       recorder.start();
     }
@@ -90,12 +95,24 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.getConfiguration('nightpace').get<boolean>('quota.enabled', true);
   const applySettings = async () => {
     const configDir = currentConfigDir();
-    if (configDir) await store.rememberConfigDir(normalizeDir(configDir));
+    let remembered: string[] = [];
+    try {
+      if (configDir) await store.rememberConfigDir(normalizeDir(configDir));
+      remembered = await store.configDirs();
+    } catch (error) {
+      output.warn(`Config folders: ${String(error)}`);
+    }
+    const before = currentFolder(sources);
     sources = claudeSources({
       home: homedir(),
       current: configDir,
-      others: [...(await store.configDirs()), ...namedConfigDirs()],
+      others: [...remembered, ...namedConfigDirs()],
     });
+    if (currentFolder(sources) !== before) {
+      // Another account's numbers until the new folder's own arrive would mislead.
+      current = undefined;
+      statusBar.show(undefined);
+    }
     if (quotaEnabled()) {
       startRecorders();
     } else {
@@ -104,8 +121,12 @@ export function activate(context: vscode.ExtensionContext): void {
       statusBar.show(undefined);
     }
   };
+  // One at a time, in order, so an older run can't finish last with stale folders.
+  let applying = Promise.resolve();
   const apply = () =>
-    applySettings().catch((error: unknown) => output.warn(`Settings: ${String(error)}`));
+    (applying = applying
+      .then(applySettings)
+      .catch((error: unknown) => output.warn(`Settings: ${String(error)}`)));
   void apply();
 
   context.subscriptions.push(
@@ -167,11 +188,23 @@ function recorderKey(folder: ClaudeSource): string {
   return `${folder.configDir ?? ''}|${folder.current ? 'current' : ''}`;
 }
 
+/** The folder VS Code's Claude Code uses, as `ClaudeSource.configDir` names it: '' for the default. */
+function currentFolder(sources: readonly ClaudeSource[]): string {
+  return sources.find((folder) => folder.current)?.configDir ?? '';
+}
+
+/**
+ * A setting from the user's own settings only. What starts Claude Code, and which folders it
+ * reads, must never come from a workspace someone else wrote; VS Code keeps machine settings out
+ * of workspaces, but only for settings an installed extension declares.
+ */
+function userSetting(section: string, name: string): unknown {
+  return vscode.workspace.getConfiguration(section).inspect<unknown>(name)?.globalValue;
+}
+
 /** What VS Code's Claude Code starts Claude with, from its `environmentVariables` setting. */
 function claudeCodeEnv(): Record<string, string> {
-  const variables = vscode.workspace
-    .getConfiguration('claudeCode')
-    .get<unknown>('environmentVariables');
+  const variables = userSetting('claudeCode', 'environmentVariables');
   const env: Record<string, string> = {};
   if (!Array.isArray(variables)) return env;
   for (const variable of variables as Array<{ name?: unknown; value?: unknown }>) {
@@ -191,7 +224,7 @@ function currentConfigDir(): string | undefined {
 
 /** Config folders the user asked Nightpace to follow too, such as one the terminal's Claude uses. */
 function namedConfigDirs(): string[] {
-  const dirs = vscode.workspace.getConfiguration('nightpace').get<unknown>('claudeConfigDirs');
+  const dirs = userSetting('nightpace', 'claudeConfigDirs');
   if (!Array.isArray(dirs)) return [];
   return dirs
     .filter((dir): dir is string => typeof dir === 'string' && dir.trim() !== '')

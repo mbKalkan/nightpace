@@ -113,15 +113,16 @@ describe('Accounts', () => {
   });
 
   it('gives readings from before accounts were told apart to the account that went on', () => {
+    const old = reading(NOW - 3 * DAY);
     const accounts = new Accounts([
-      reading(NOW - 3 * DAY),
+      old,
       reading(NOW - 2 * DAY),
       // After the update, the other account happened to answer first.
       reading(NOW - DAY, WORK, { configDir: '/work' }),
       reading(NOW - DAY + MIN, PERSONAL),
     ]);
     expect(accounts.legacy).toBe(personal);
-    expect(accounts.ofSnapshot(reading(NOW - 3 * DAY))).toBe(personal);
+    expect(accounts.ofSnapshot(old)).toBe(personal);
     expect(accounts.list.map((account) => [account.key, account.first])).toEqual([
       [personal, NOW - 3 * DAY],
       [work, NOW - DAY],
@@ -163,8 +164,29 @@ describe('Accounts', () => {
     // Before the folder's first reading: its transcripts from before Nightpace followed it.
     expect(accounts.at('/work', NOW - 20 * DAY)).toBe(work);
     expect(accounts.at('/work', NOW)).toBe(work);
-    // A folder that never answered goes with the account of the readings from before.
-    expect(accounts.at('/elsewhere', NOW)).toBe(personal);
+    // A folder that never answered is no account's: charging it to one would be a guess.
+    expect(accounts.at('/elsewhere', NOW)).toBeUndefined();
+  });
+
+  it("gives a reading without an account among named ones to its folder's account then", () => {
+    const old = reading(NOW - 10 * DAY);
+    // Claude Code didn't name the account, or another window still runs an older Nightpace.
+    const unnamed = reading(NOW - 2 * HOUR);
+    const unnamedWork = reading(NOW - HOUR, undefined, { configDir: '/work' });
+    const accounts = new Accounts([
+      old,
+      reading(NOW - 5 * HOUR, PERSONAL),
+      reading(NOW - 4 * HOUR, WORK),
+      unnamed,
+      unnamedWork,
+      reading(NOW, PERSONAL),
+    ]);
+    expect(accounts.ofSnapshot(old)).toBe(personal);
+    expect(accounts.ofSnapshot(unnamed)).toBe(work);
+    expect(accounts.at(undefined, NOW - 90 * MIN)).toBe(work);
+    // A folder with no named reading yet isn't the older readings' account.
+    expect(accounts.ofSnapshot(unnamedWork)).toBeUndefined();
+    expect(accounts.at('/work', NOW)).toBeUndefined();
   });
 
   it('shows the account asked for, else the one signed in, else the one read last', () => {

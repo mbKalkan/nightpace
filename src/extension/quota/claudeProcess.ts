@@ -100,8 +100,14 @@ export function requestUsage(
           ...(init?.payload !== undefined && { init: init.payload }),
         });
     };
+    // The usage that came in time counts, whatever became of the account.
     const timer = setTimeout(
-      () => finish(new QuotaError('timeout', `No reply from Claude Code in ${timeoutMs} ms`)),
+      () =>
+        finish(
+          usage
+            ? undefined
+            : new QuotaError('timeout', `No reply from Claude Code in ${timeoutMs} ms`),
+        ),
       timeoutMs,
     );
 

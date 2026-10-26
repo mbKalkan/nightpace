@@ -67,8 +67,10 @@ export class QuotaRecorder {
         failures: last?.failures,
         lastActivity: await deps.lastActivity(),
         // Each poll keeps what the file said, so a file that disagrees with Claude Code's own
-        // answer can't make it ask every minute.
-        switched: signedIn !== undefined && signedIn !== last?.signedIn,
+        // answer can't make it ask every minute. A record without it (an older Nightpace in
+        // another window) waits for the usual time.
+        switched:
+          signedIn !== undefined && last?.signedIn !== undefined && signedIn !== last.signedIn,
       });
       if (!due) return undefined;
       // Claimed before asking, so other windows wait instead of asking at the same time.
