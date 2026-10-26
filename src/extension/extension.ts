@@ -8,7 +8,6 @@ import { parseUsageResponse, type QuotaSnapshot } from './quota/snapshot';
 import {
   claudeSources,
   expandHome,
-  normalizeDir,
   signedInAccount,
   sourceEnv,
   type ClaudeSource,
@@ -97,7 +96,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const configDir = currentConfigDir();
     let remembered: string[] = [];
     try {
-      if (configDir) await store.rememberConfigDir(normalizeDir(configDir));
+      if (configDir) await store.rememberConfigDir(configDir);
       remembered = await store.configDirs();
     } catch (error) {
       output.warn(`Config folders: ${String(error)}`);

@@ -14,17 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tokens. The status bar shows the account Claude Code in VS Code is signed in to, and its
   tooltip names it.
 - Accounts in separate config folders (`CLAUDE_CONFIG_DIR`) are followed side by side: the
-  default one, the one Claude Code in VS Code uses, and any added to the new
-  `nightpace.claudeConfigDirs` setting.
+  default one while signed in, the one Claude Code in VS Code uses, the ones it used before, and
+  any added to the new `nightpace.claudeConfigDirs` setting.
 
 ### Changed
 
-- The history recorded before this version stays as it is and shows under the account it belongs
-  to; nothing is deleted or read again.
+- The history recorded before this version stays as it is, nothing is deleted or read again. It
+  shows under the account that carries on its weekly limit, or else the first account seen.
 
 ### Fixed
 
-- A `CLAUDE_CONFIG_DIR` set in Claude Code's `claudeCode.environmentVariables` setting is now
+- A `CLAUDE_CONFIG_DIR` set in your user settings' `claudeCode.environmentVariables` is now
   followed: the quota was read from the default folder instead.
 
 ## [0.5.0] - 2026-10-19

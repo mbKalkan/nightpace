@@ -73,12 +73,14 @@ export class QuotaRecorder {
           signedIn !== undefined && last?.signedIn !== undefined && signedIn !== last.signedIn,
       });
       if (!due) return undefined;
+      // '' while signed out, so signing in afterwards counts as a switch too.
+      const noted = signedIn ?? (deps.signedIn ? '' : undefined);
       // Claimed before asking, so other windows wait instead of asking at the same time.
-      await deps.recordPoll({ time: now, snapshot: last?.snapshot, signedIn });
+      await deps.recordPoll({ time: now, snapshot: last?.snapshot, signedIn: noted });
       try {
         const snapshot = await deps.query();
         await deps.append(snapshot);
-        await deps.recordPoll({ time: now, snapshot, signedIn });
+        await deps.recordPoll({ time: now, snapshot, signedIn: noted });
         this.show(snapshot);
         return snapshot;
       } catch (error) {
@@ -88,7 +90,7 @@ export class QuotaRecorder {
           failed: true,
           failures,
           snapshot: last?.snapshot,
-          signedIn,
+          signedIn: noted,
         });
         deps.log(`Couldn't get the quota from Claude Code: ${String(error)}`);
         return undefined;
