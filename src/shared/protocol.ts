@@ -212,6 +212,18 @@ export interface WeekDay extends TimeWindow {
   cost: number;
 }
 
+/** A Claude account the panel can show, each with its own quota. */
+export interface AccountOption {
+  /** Names it in messages; not shown. */
+  key: string;
+  email: string;
+  organization?: string;
+  /** `pro`, `max`, `team`, … as Claude Code reports it. */
+  plan?: string;
+  /** Claude Code in VS Code is signed in to it now. */
+  current: boolean;
+}
+
 export interface TimelineData {
   range: RangeKey;
   /** The whole range; `from` and `to` lie within it when zoomed in. */
@@ -256,11 +268,22 @@ export interface TimelineData {
   days?: WeekDay[];
   /** When Nightpace recorded its first quota snapshot, if ever. */
   recordingSince?: number;
+  /**
+   * The accounts Nightpace has seen, when there is more than one; everything above is the chosen
+   * one's alone.
+   */
+  accounts?: AccountOption[];
+  /** The key of the account shown, among `accounts`. */
+  account?: string;
 }
 
 /** User-facing text for the webview, translated by the host. */
 export interface PanelStrings {
   title: string;
+  /** The label of the account chooser. */
+  account: string;
+  /** `{0}`: an account, the one Claude Code is signed in to now. */
+  accountSignedIn: string;
   loading: string;
   empty: string;
   privacy: string;
@@ -414,4 +437,6 @@ export type WebviewToHostMessage =
   /** Zooms into a part of the range, or back out to the whole of it without a window. */
   | { type: 'zoom'; window?: TimeWindow }
   /** Shows a quota week: 0 for this one, -1 for the one before, and so on. */
-  | { type: 'week'; offset: number };
+  | { type: 'week'; offset: number }
+  /** Shows another account's usage. */
+  | { type: 'account'; account: string };

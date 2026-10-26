@@ -31,9 +31,12 @@ export class QuotaStatusBar implements vscode.Disposable {
       return;
     }
     this.item.text = `$(dashboard) ${text.text}`;
-    const tooltip = new vscode.MarkdownString(
-      [`**${vscode.l10n.t('Claude Code quota')}**`, ...text.tooltip].join('  \n'),
-    );
+    const tooltip = new vscode.MarkdownString(`**${vscode.l10n.t('Claude Code quota')}**`);
+    // As text: an email address may hold characters Markdown would take as formatting.
+    for (const line of text.tooltip) {
+      tooltip.appendMarkdown('  \n');
+      tooltip.appendText(line);
+    }
     tooltip.appendMarkdown(
       `\n\n${vscode.l10n.t('Claude Code reports these numbers; Nightpace asks it every few minutes while you work.')}`,
     );

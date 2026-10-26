@@ -6,6 +6,11 @@ import type { LimitEvent } from '../transcripts/events';
 const HITS = 'limits.jsonl';
 const STATE = 'limits.json';
 
+/** A hit as kept, with the config folder whose transcript told of it; none for the default one. */
+export interface StoredLimitHit extends LimitHit {
+  configDir?: string;
+}
+
 /** The limit a refused request ran into, as the timeline tells them apart; others are left out. */
 export function limitHit(event: LimitEvent): LimitHit | undefined {
   if (event.limit === 'five_hour') return { time: event.time, limit: 'fiveHour' };
@@ -21,7 +26,7 @@ export function limitHit(event: LimitEvent): LimitHit | undefined {
 export class LimitStore {
   constructor(private readonly folder: string) {}
 
-  async append(hits: readonly LimitHit[]): Promise<void> {
+  async append(hits: readonly StoredLimitHit[]): Promise<void> {
     if (hits.length === 0) return;
     await mkdir(this.folder, { recursive: true });
     await appendFile(
@@ -31,20 +36,24 @@ export class LimitStore {
   }
 
   /** Every hit kept, oldest first. */
-  async hits(): Promise<LimitHit[]> {
+  async hits(): Promise<StoredLimitHit[]> {
     let text: string;
     try {
       text = await readFile(join(this.folder, HITS), 'utf8');
     } catch {
       return [];
     }
-    const hits = new Map<string, LimitHit>();
+    const hits = new Map<string, StoredLimitHit>();
     for (const line of text.split('\n')) {
       if (!line) continue;
       try {
-        const hit = JSON.parse(line) as LimitHit;
+        const hit = JSON.parse(line) as StoredLimitHit;
         if (typeof hit.time === 'number' && (hit.limit === 'fiveHour' || hit.limit === 'weekly')) {
-          hits.set(`${hit.time}|${hit.limit}`, hit);
+          hits.set(`${hit.time}|${hit.limit}`, {
+            time: hit.time,
+            limit: hit.limit,
+            ...(typeof hit.configDir === 'string' && { configDir: hit.configDir }),
+          });
         }
       } catch {
         // A line cut short when VS Code closed mid-write.

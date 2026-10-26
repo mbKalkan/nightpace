@@ -131,5 +131,8 @@
   "Weekly limit by day": "Günlere göre haftalık limit",
   "Budget to last": "Yetmesi için bütçe",
   "Even split": "Eşit dağılım",
-  "Each day {0} – {0}": "Her gün {0} – {0}"
+  "Each day {0} – {0}": "Her gün {0} – {0}",
+  "Account": "Hesap",
+  "{0} (signed in)": "{0} (oturum açık)",
+  "Account: {0}": "Hesap: {0}"
 }

@@ -53,6 +53,7 @@ export function quotaText(
   if (weekly?.resetsAt) parts[1] += ` ↻${until(weekly.resetsAt, now, t)}`;
 
   const tooltip: string[] = [];
+  if (snapshot.account) tooltip.push(t('Account: {0}', snapshot.account.email));
   if (fiveHour) {
     tooltip.push(
       fiveHour.resetsAt

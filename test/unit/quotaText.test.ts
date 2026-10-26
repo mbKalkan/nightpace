@@ -34,6 +34,17 @@ describe('quotaText', () => {
     expect(text.tooltip[3]).toBe(`Updated at ${hm(now - 60_000)}`);
   });
 
+  it('names the account the numbers are for, first', () => {
+    const text = quotaText(
+      snapshot({ account: { email: 'me@work.example', organization: 'Acme' } }),
+      now,
+      english,
+      'en',
+    )!;
+    expect(text.tooltip[0]).toBe('Account: me@work.example');
+    expect(text.tooltip[1]).toMatch(/^5-hour limit/);
+  });
+
   it('shows times on a 24-hour clock in every locale', () => {
     // 21:30 in any time zone from UTC-9 to UTC+2 is past noon.
     const evening = Date.UTC(2026, 9, 15, 21, 30);

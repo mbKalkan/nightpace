@@ -62,7 +62,7 @@ describe('TimelineSource', () => {
     const storage = join(folder, 'storage');
     const limits = new LimitStore(storage);
     const source = new TimelineSource(
-      () => [transcripts],
+      () => [{ projects: transcripts }],
       new QuotaStore(storage),
       new RequestStore(storage),
       limits,

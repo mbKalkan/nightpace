@@ -20,6 +20,8 @@ export interface TimelineContext {
   /** Remembers the chosen time range across panels and windows. */
   state: vscode.Memento;
   source: TimelineSource;
+  /** The account VS Code's Claude Code is signed in to now, as `accountKey` makes it. */
+  currentAccount(): string | undefined;
   log(message: string): void;
 }
 
@@ -55,6 +57,11 @@ export class TimelinePanel {
   private zoom: TimeWindow | undefined;
   /** In the quota week range, which week: 0 for this one. Not remembered past the panel. */
   private week = 0;
+  /**
+   * The account chosen in the panel, while it isn't the one signed in; without one the panel
+   * follows the account Claude Code is signed in to. Not remembered past the panel.
+   */
+  private account: string | undefined;
 
   private constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -103,6 +110,10 @@ export class TimelinePanel {
       this.zoom = undefined;
       this.week = Math.min(0, Math.round(message.offset));
       void this.context.state.update(RANGE_KEY, 'week').then(() => this.update());
+    } else if (message.type === 'account' && typeof message.account === 'string') {
+      this.account =
+        message.account === this.context.currentAccount() ? undefined : message.account;
+      void this.update();
     } else if (message.type === 'zoom') {
       const { window } = message;
       this.zoom =
@@ -121,7 +132,16 @@ export class TimelinePanel {
     // A slower, older update must not replace a newer one.
     const id = ++this.updating;
     try {
-      const data = await this.context.source.timeline(this.range, this.zoom, Date.now(), this.week);
+      const data = await this.context.source.timeline(
+        this.range,
+        this.zoom,
+        Date.now(),
+        this.week,
+        {
+          asked: this.account,
+          current: this.context.currentAccount(),
+        },
+      );
       if (id === this.updating) this.post({ type: 'timeline', data });
     } catch (error) {
       this.context.log(`Timeline: ${String(error)}`);

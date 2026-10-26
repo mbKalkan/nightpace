@@ -7,6 +7,8 @@ export type Translate = (message: string, ...args: Array<string | number>) => st
 export function panelStrings(t: Translate): PanelStrings {
   return {
     title: t('Claude Code usage'),
+    account: t('Account'),
+    accountSignedIn: t('{0} (signed in)', '{0}'),
     loading: t("Reading Claude Code's logs…"),
     empty: t('No Claude Code usage in this period.'),
     privacy: t(

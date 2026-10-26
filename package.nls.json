@@ -4,5 +4,6 @@
   "category": "Nightpace",
   "command.showTimeline": "Show Timeline",
   "command.deleteData": "Delete Recorded Data",
-  "config.quota.enabled": "Record your plan's 5-hour and weekly quota. Nightpace asks Claude Code for it every 5 minutes while you work and hourly otherwise; Claude Code gets the numbers from Anthropic, as it does for its own usage view. No prompt is sent and no quota is used."
+  "config.quota.enabled": "Record your plan's 5-hour and weekly quota. Nightpace asks Claude Code for it every 5 minutes while you work and hourly otherwise; Claude Code gets the numbers from Anthropic, as it does for its own usage view. No prompt is sent and no quota is used.",
+  "config.claudeConfigDirs": "Other Claude Code config folders to follow, as `CLAUDE_CONFIG_DIR` names them: one the terminal's `claude` uses for another account, for instance. Nightpace already follows the default folder (`~/.claude`) and the one Claude Code in VS Code uses. Each folder's account gets its own quota and usage, and the panel lets you choose which to show."
 }

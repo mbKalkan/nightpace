@@ -37,6 +37,11 @@ export interface UsageEvent {
   /** Inference kept in the US, which the API bills at 1.1 times. */
   usOnly?: true;
   tokens: TokenCounts;
+  /**
+   * The Claude Code config folder its transcript is in (`CLAUDE_CONFIG_DIR`); none for the
+   * default one. Set by the reader of the folder, not from the line.
+   */
+  configDir?: string;
 }
 
 /** A request refused because a plan limit was reached. */

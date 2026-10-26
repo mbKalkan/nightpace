@@ -93,6 +93,15 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "%config.quota.enabled%"
+        },
+        "nightpace.claudeConfigDirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "machine",
+          "markdownDescription": "%config.claudeConfigDirs%"
         }
       }
     }

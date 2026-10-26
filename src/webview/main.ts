@@ -10,6 +10,7 @@ import {
   type TokenSplit,
 } from '../shared/protocol';
 import { clampWindow, coversExtent, MIN_WINDOW_MS, scaleWindow } from '../shared/window';
+import { AccountChooser } from './accounts';
 import { CHART_HEIGHT, TimelineChart } from './chart/timelineChart';
 import { Formats } from './format';
 import { Breakdown, type Grouping } from './breakdown';
@@ -57,6 +58,7 @@ class Panel {
   private pending: TimeWindow | undefined;
   private zoomTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly breakdown: Breakdown;
+  private readonly accounts: AccountChooser;
   private state: ViewState = (vscode.getState() as ViewState | undefined) ?? {};
 
   constructor(
@@ -78,7 +80,11 @@ class Panel {
     const title = document.createElement('h1');
     title.className = 'np-title';
     title.textContent = strings.title;
-    header.append(title, this.controls());
+    this.accounts = new AccountChooser(strings, (account) => this.chooseAccount(account));
+    const heading = document.createElement('div');
+    heading.className = 'np-heading';
+    heading.append(title, this.accounts.element);
+    header.append(heading, this.controls());
     // The controls stay at the top while the panel scrolls, set off from what passes under them.
     app.addEventListener(
       'scroll',
@@ -266,6 +272,13 @@ class Panel {
     vscode.postMessage({ type: 'week', offset });
   }
 
+  /** Shows another account's usage, in the same range and window. */
+  private chooseAccount(account: string): void {
+    if (!this.data || account === this.data.account) return;
+    this.body.classList.add('np-loading');
+    vscode.postMessage({ type: 'account', account });
+  }
+
   /** The window on screen: the one asked for while the host works, then the host's. */
   private get view(): TimeWindow | undefined {
     return this.pending ?? (this.data && { from: this.data.from, to: this.data.to });
@@ -304,6 +317,7 @@ class Panel {
     for (const [range, button] of this.rangeButtons) {
       button.setAttribute('aria-pressed', String(range === data.range));
     }
+    this.accounts.render(data);
     const offset = data.range === 'week' ? data.week.offset : 0;
     this.previousWeek.disabled = offset <= data.week.oldest;
     this.nextWeek.disabled = offset >= 0 || data.range !== 'week';

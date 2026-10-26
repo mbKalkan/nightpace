@@ -6,6 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **More than one Claude account.** Each quota reading names the account that answered, and a
+  switch to another account is noticed within a minute. Once a second account is seen, a chooser
+  beside the panel's title shows one account at a time: its quota, pace, forecasts, cost and
+  tokens. The status bar shows the account Claude Code in VS Code is signed in to, and its
+  tooltip names it.
+- Accounts in separate config folders (`CLAUDE_CONFIG_DIR`) are followed side by side: the
+  default one, the one Claude Code in VS Code uses, and any added to the new
+  `nightpace.claudeConfigDirs` setting.
+
+### Changed
+
+- The history recorded before this version stays as it is and shows under the account it belongs
+  to; nothing is deleted or read again.
+
+### Fixed
+
+- A `CLAUDE_CONFIG_DIR` set in Claude Code's `claudeCode.environmentVariables` setting is now
+  followed: the quota was read from the default folder instead.
+
 ## [0.5.0] - 2026-10-19
 
 A quota week at a time: the timeline can show one week of the weekly limit from its reset to the

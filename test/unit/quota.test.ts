@@ -9,6 +9,7 @@ import {
   sdkCommand,
   type Command,
 } from '../../src/extension/quota/claudeProcess';
+import { parseInitializeAccount } from '../../src/extension/quota/account';
 import { parseUsageResponse } from '../../src/extension/quota/snapshot';
 
 const FAKE = resolve('test/fixtures/quota/fake-claude.mjs');
@@ -80,12 +81,40 @@ describe('parseUsageResponse', () => {
 
 describe('requestUsage', () => {
   it("returns the reply's payload, reassembled from the pipe", async () => {
-    const payload = await requestUsage(fake());
-    expect(parseUsageResponse(payload, 0)).toMatchObject({
+    const { usage } = await requestUsage(fake());
+    expect(parseUsageResponse(usage, 0)).toMatchObject({
       plan: 'max',
       fiveHour: { percent: 41 },
       weekly: { percent: 7 },
       models: [{ model: 'Fable', percent: 2 }],
+    });
+  });
+
+  it('names the account that answered, from the same process', async () => {
+    const { init } = await requestUsage(fake(), {
+      env: { ...process.env, FAKE_CLAUDE_EMAIL: 'Work@Example.com', CLAUDE_CONFIG_DIR: 'Acme' },
+    });
+    expect(parseInitializeAccount(init)).toEqual({
+      email: 'Work@Example.com',
+      organization: 'Acme',
+    });
+  });
+
+  it('still gives the usage when an older Claude Code refuses initialize', async () => {
+    await withMode('old', async () => {
+      const reply = await requestUsage(fake());
+      expect(reply.init).toBeUndefined();
+      expect(parseUsageResponse(reply.usage, 0)).toMatchObject({ fiveHour: { percent: 41 } });
+    });
+  });
+
+  it('keeps the usage when initialize gets no answer', async () => {
+    await withMode('noinit', async () => {
+      const short = await requestUsage(fake(), { timeoutMs: 400 });
+      expect(short.init).toBeUndefined();
+      expect(parseUsageResponse(short.usage, 0)).toMatchObject({ fiveHour: { percent: 41 } });
+      const graced = await requestUsage(fake());
+      expect(parseUsageResponse(graced.usage, 0)).toMatchObject({ fiveHour: { percent: 41 } });
     });
   });
 

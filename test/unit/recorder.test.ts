@@ -59,7 +59,14 @@ describe('shouldPoll', () => {
 });
 
 /** A recorder on a real store, with a clock and Claude Code under the test's control. */
-function recorder(store: QuotaStore, options: { query?: () => Promise<QuotaSnapshot> } = {}) {
+function recorder(
+  store: QuotaStore,
+  options: {
+    query?: () => Promise<QuotaSnapshot>;
+    signedIn?: () => string | undefined;
+    needsSignIn?: boolean;
+  } = {},
+) {
   let now = 1000 * MIN;
   const shown: QuotaSnapshot[] = [];
   const logs: string[] = [];
@@ -70,6 +77,8 @@ function recorder(store: QuotaStore, options: { query?: () => Promise<QuotaSnaps
       return options.query ? options.query() : snapshot(now, queries * 10);
     },
     lastActivity: async () => now - MIN,
+    ...(options.signedIn && { signedIn: async () => options.signedIn?.() }),
+    needsSignIn: options.needsSignIn,
     lastPoll: () => store.lastPoll(),
     recordPoll: (record) => store.recordPoll(record),
     append: (s) => store.append(s),
@@ -132,6 +141,48 @@ describe('QuotaRecorder', () => {
     await r.recorder.tick();
     expect(r.queries()).toBe(3);
     expect(await store.snapshots()).toEqual([]);
+  });
+
+  it('asks again within a minute when Claude Code is signed in to another account', async () => {
+    const store = newStore();
+    let account = 'personal';
+    const r = recorder(store, { signedIn: () => account });
+    await r.recorder.tick();
+    r.advance(MIN);
+    await r.recorder.tick();
+    expect(r.queries()).toBe(1);
+    account = 'work';
+    await r.recorder.tick();
+    expect(r.queries()).toBe(2);
+    expect(await store.lastPoll()).toMatchObject({ signedIn: 'work' });
+    // Once asked, the same account waits for the usual interval.
+    r.advance(MIN);
+    await r.recorder.tick();
+    expect(r.queries()).toBe(2);
+  });
+
+  it('waits as usual after a poll that did not note the account, as an older Nightpace writes', async () => {
+    const store = newStore();
+    await store.recordPoll({ time: 1000 * MIN - MIN, snapshot: snapshot(1) });
+    const r = recorder(store, { signedIn: () => 'personal' });
+    await r.recorder.tick();
+    expect(r.queries()).toBe(0);
+    r.advance(ACTIVE_INTERVAL_MS);
+    await r.recorder.tick();
+    expect(r.queries()).toBe(1);
+    expect(await store.lastPoll()).toMatchObject({ signedIn: 'personal' });
+  });
+
+  it("leaves a folder alone while it isn't signed in to an account", async () => {
+    const store = newStore();
+    const config: { account?: string } = {};
+    const r = recorder(store, { signedIn: () => config.account, needsSignIn: true });
+    await r.recorder.tick();
+    expect(r.queries()).toBe(0);
+    expect(await store.lastPoll()).toBeUndefined();
+    config.account = 'work';
+    await r.recorder.tick();
+    expect(r.queries()).toBe(1);
   });
 
   it('keeps showing the last snapshot through a failure', async () => {
