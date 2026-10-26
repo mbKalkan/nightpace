@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-26
+
+More than one Claude account: each quota reading now names the account that answered, and the
+panel shows one account at a time, each with its own quota, pace, forecasts, cost and tokens. The
+history recorded so far stays as it is, under the account that carries on its weekly limit.
+
 ### Added
 
 - **More than one Claude account.** Each quota reading names the account that answered, and a
@@ -195,7 +201,8 @@ First preview release.
   again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
-[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/mbKalkan/nightpace/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/mbKalkan/nightpace/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/mbKalkan/nightpace/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/mbKalkan/nightpace/compare/v0.3.0...v0.4.0
