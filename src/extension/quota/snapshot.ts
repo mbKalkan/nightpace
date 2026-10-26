@@ -1,6 +1,8 @@
 // Reads the plan usage Claude Code reports for its `get_usage` request. The reply isn't a
 // documented format, so every field is checked and anything unexpected is left out.
 
+import type { AccountId } from './account';
+
 export interface QuotaWindow {
   /** How much of the limit is used, from 0 to 100. */
   percent: number;
@@ -16,6 +18,10 @@ export interface ModelQuota extends QuotaWindow {
 export interface QuotaSnapshot {
   /** When it was asked for, in milliseconds since the epoch. */
   time: number;
+  /** The account that answered; none in readings from before accounts were told apart. */
+  account?: AccountId;
+  /** The Claude Code config folder asked (`CLAUDE_CONFIG_DIR`); none for the default one. */
+  configDir?: string;
   /** False when no plan limits apply: an API key, Bedrock or Vertex. */
   available: boolean;
   /** `pro`, `max`, `team`, … */

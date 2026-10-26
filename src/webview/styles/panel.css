@@ -184,6 +184,40 @@ body {
   font-weight: 600;
 }
 
+/* The title, and the account shown beside it when there is more than one. */
+.np-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-width: 0;
+}
+
+/* A dropdown as VS Code draws its own. */
+.np-account {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: min(100%, 360px);
+  height: 26px;
+  padding: 0 6px;
+  font: inherit;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-contrastBorder, transparent));
+  border-radius: 4px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.np-account:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.np-account[hidden] {
+  display: none;
+}
+
 .np-controls {
   display: flex;
   flex-wrap: wrap;

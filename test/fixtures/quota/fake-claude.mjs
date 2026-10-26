@@ -1,5 +1,7 @@
-// Stands in for Claude Code's SDK mode in tests: answers `get_usage` the way it does.
-// FAKE_CLAUDE picks the behavior: reply (default), refuse, silent, crash.
+// Stands in for Claude Code's SDK mode in tests: answers `initialize` and `get_usage` the way it
+// does. FAKE_CLAUDE picks the behavior: reply (default), refuse, silent, crash, and old (an older
+// Claude Code that refuses `initialize`). FAKE_CLAUDE_EMAIL names the account; CLAUDE_CONFIG_DIR,
+// when set, becomes its organization, so a test can tell which folder was asked.
 import { createInterface } from 'node:readline';
 
 const mode = process.env.FAKE_CLAUDE ?? 'reply';
@@ -27,6 +29,28 @@ for await (const line of createInterface({ input: process.stdin })) {
         request_id: id,
         error: 'Unsupported control request subtype: get_usage',
       },
+    });
+    continue;
+  }
+  if (message.request?.subtype === 'initialize') {
+    write({
+      type: 'control_response',
+      response:
+        mode === 'old'
+          ? { subtype: 'error', request_id: id, error: 'Unsupported control request subtype' }
+          : {
+              subtype: 'success',
+              request_id: id,
+              response: {
+                commands: [],
+                account: {
+                  email: process.env.FAKE_CLAUDE_EMAIL ?? 'someone@example.com',
+                  organization: process.env.CLAUDE_CONFIG_DIR ?? 'Personal',
+                  subscriptionType: 'Claude Max',
+                  apiProvider: 'firstParty',
+                },
+              },
+            },
     });
     continue;
   }

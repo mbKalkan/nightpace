@@ -21,6 +21,8 @@ export interface ScheduleState {
   failures?: number;
   /** When a transcript was last written to. */
   lastActivity?: number;
+  /** Claude Code was signed in to another account since the last poll. */
+  switched?: boolean;
 }
 
 export function shouldPoll({
@@ -29,9 +31,11 @@ export function shouldPoll({
   lastFailed,
   failures,
   lastActivity,
+  switched,
 }: ScheduleState): boolean {
   if (lastPoll === undefined) return true;
   const since = now - lastPoll;
+  if (switched && !lastFailed) return true;
   if (lastFailed) {
     // A record from before failures were counted waits the longest.
     const count = failures ?? RETRY_INTERVALS_MS.length;

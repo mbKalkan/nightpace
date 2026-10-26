@@ -7,6 +7,13 @@ export interface RecorderDeps {
   query(): Promise<QuotaSnapshot>;
   /** When a transcript was last written to. */
   lastActivity(): Promise<number | undefined>;
+  /**
+   * The account Claude Code's config file names now, as `accountKey` makes it; asked every tick,
+   * so a switch is recorded within a minute rather than at the next poll.
+   */
+  signedIn?(): Promise<string | undefined>;
+  /** Asks only while signed in: a folder other than VS Code's own may have been left behind. */
+  needsSignIn?: boolean;
   lastPoll(): Promise<PollRecord | undefined>;
   recordPoll(record: PollRecord): Promise<void>;
   append(snapshot: QuotaSnapshot): Promise<void>;
@@ -20,8 +27,9 @@ export interface RecorderDeps {
 export const TICK_MS = 60_000;
 
 /**
- * Records the quota in the background. Every VS Code window runs one; the poll record they share
- * keeps them from asking more often than one would, and passes on the latest snapshot.
+ * Records the quota of one Claude Code config folder in the background. Every VS Code window runs
+ * one per folder; the poll record they share keeps them from asking more often than one would,
+ * and passes on the latest snapshot.
  */
 export class QuotaRecorder {
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -50,25 +58,36 @@ export class QuotaRecorder {
       const now = deps.now?.() ?? Date.now();
       const last = await deps.lastPoll();
       if (last?.snapshot) this.show(last.snapshot);
+      const signedIn = await deps.signedIn?.();
+      if (deps.needsSignIn && signedIn === undefined) return undefined;
       const due = shouldPoll({
         now,
         lastPoll: last?.time,
         lastFailed: last?.failed,
         failures: last?.failures,
         lastActivity: await deps.lastActivity(),
+        // Each poll keeps what the file said, so a file that disagrees with Claude Code's own
+        // answer can't make it ask every minute.
+        switched: signedIn !== undefined && signedIn !== last?.signedIn,
       });
       if (!due) return undefined;
       // Claimed before asking, so other windows wait instead of asking at the same time.
-      await deps.recordPoll({ time: now, snapshot: last?.snapshot });
+      await deps.recordPoll({ time: now, snapshot: last?.snapshot, signedIn });
       try {
         const snapshot = await deps.query();
         await deps.append(snapshot);
-        await deps.recordPoll({ time: now, snapshot });
+        await deps.recordPoll({ time: now, snapshot, signedIn });
         this.show(snapshot);
         return snapshot;
       } catch (error) {
         const failures = last?.failed ? (last.failures ?? 1) + 1 : 1;
-        await deps.recordPoll({ time: now, failed: true, failures, snapshot: last?.snapshot });
+        await deps.recordPoll({
+          time: now,
+          failed: true,
+          failures,
+          snapshot: last?.snapshot,
+          signedIn,
+        });
         deps.log(`Couldn't get the quota from Claude Code: ${String(error)}`);
         return undefined;
       }

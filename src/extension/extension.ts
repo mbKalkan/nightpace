@@ -1,10 +1,18 @@
 import { homedir } from 'node:os';
-import { join } from 'node:path';
 import * as vscode from 'vscode';
+import { accountKey, parseInitializeAccount } from './quota/account';
 import { CLAUDE_EXTENSION_ID, claudeBinaries } from './quota/claudeBinary';
 import { QuotaError, requestUsage, sdkCommand } from './quota/claudeProcess';
 import { QuotaRecorder } from './quota/recorder';
-import { parseUsageResponse } from './quota/snapshot';
+import { parseUsageResponse, type QuotaSnapshot } from './quota/snapshot';
+import {
+  claudeSources,
+  expandHome,
+  normalizeDir,
+  signedInAccount,
+  sourceEnv,
+  type ClaudeSource,
+} from './quota/sources';
 import { QuotaStatusBar } from './statusBar';
 import { LimitStore } from './store/limitStore';
 import { QuotaStore } from './store/quotaStore';
@@ -21,8 +29,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel('Nightpace', { log: true });
   const store = new QuotaStore(context.globalStorageUri.fsPath);
   const statusBar = new QuotaStatusBar();
+  let sources: ClaudeSource[] = [];
+  /** The latest snapshot of the folder VS Code's Claude Code uses. */
+  let current: QuotaSnapshot | undefined;
   const source = new TimelineSource(
-    transcriptRoots,
+    () => sources.map(({ projects, configDir }) => ({ projects, configDir })),
     store,
     new RequestStore(context.globalStorageUri.fsPath),
     new LimitStore(context.globalStorageUri.fsPath),
@@ -34,35 +45,73 @@ export function activate(context: vscode.ExtensionContext): void {
     void sync();
     syncTimer = setInterval(() => void sync(), SYNC_EVERY_MS);
   }, FIRST_SYNC_MS);
-  const recorder = new QuotaRecorder({
-    query: askClaudeCode,
-    lastActivity: transcriptActivity(),
-    lastPoll: () => store.lastPoll(),
-    recordPoll: (record) => store.recordPoll(record),
-    append: (snapshot) => store.append(snapshot),
-    onSnapshot: (snapshot) => {
-      statusBar.show(snapshot);
-      TimelinePanel.refresh();
-    },
-    log: (message) => output.warn(message),
-  });
+
+  // One recorder per config folder, made again when a folder becomes or stops being VS Code's.
+  const recorders = new Map<string, QuotaRecorder>();
+  const recorderFor = (folder: ClaudeSource) =>
+    new QuotaRecorder({
+      query: () => askClaudeCode(folder),
+      lastActivity: transcriptActivity(folder.projects),
+      signedIn: signedInAccount(folder.configFile),
+      needsSignIn: !folder.current,
+      lastPoll: () => store.lastPoll(folder.configDir),
+      recordPoll: (record) => store.recordPoll(record, folder.configDir),
+      append: (snapshot) => store.append(snapshot),
+      onSnapshot: (snapshot) => {
+        if (folder.current) {
+          current = snapshot;
+          statusBar.show(snapshot);
+        }
+        TimelinePanel.refresh();
+      },
+      log: (message) =>
+        output.warn(folder.configDir ? `${message} (${folder.configDir})` : message),
+    });
+  const stopRecorders = () => {
+    for (const recorder of recorders.values()) recorder.stop();
+    recorders.clear();
+  };
+  const startRecorders = () => {
+    const wanted = new Map(sources.map((folder) => [recorderKey(folder), folder]));
+    for (const [key, recorder] of recorders) {
+      if (wanted.has(key)) continue;
+      recorder.stop();
+      recorders.delete(key);
+    }
+    for (const [key, folder] of wanted) {
+      if (recorders.has(key)) continue;
+      const recorder = recorderFor(folder);
+      recorders.set(key, recorder);
+      recorder.start();
+    }
+  };
 
   const quotaEnabled = () =>
     vscode.workspace.getConfiguration('nightpace').get<boolean>('quota.enabled', true);
-  const applySettings = () => {
+  const applySettings = async () => {
+    const configDir = currentConfigDir();
+    if (configDir) await store.rememberConfigDir(normalizeDir(configDir));
+    sources = claudeSources({
+      home: homedir(),
+      current: configDir,
+      others: [...(await store.configDirs()), ...namedConfigDirs()],
+    });
     if (quotaEnabled()) {
-      recorder.start();
+      startRecorders();
     } else {
-      recorder.stop();
+      stopRecorders();
+      current = undefined;
       statusBar.show(undefined);
     }
   };
-  applySettings();
+  const apply = () =>
+    applySettings().catch((error: unknown) => output.warn(`Settings: ${String(error)}`));
+  void apply();
 
   context.subscriptions.push(
     output,
     statusBar,
-    { dispose: () => recorder.stop() },
+    { dispose: stopRecorders },
     {
       dispose: () => {
         clearTimeout(firstSync);
@@ -70,13 +119,20 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     },
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('nightpace.quota.enabled')) applySettings();
+      if (
+        event.affectsConfiguration('nightpace.quota.enabled') ||
+        event.affectsConfiguration('nightpace.claudeConfigDirs') ||
+        event.affectsConfiguration('claudeCode.environmentVariables')
+      ) {
+        void apply();
+      }
     }),
     vscode.commands.registerCommand('nightpace.showTimeline', () =>
       TimelinePanel.show({
         extensionUri: context.extensionUri,
         state: context.globalState,
         source,
+        currentAccount: () => (current?.account ? accountKey(current.account) : undefined),
         log: (message) => output.warn(message),
       }),
     ),
@@ -95,7 +151,9 @@ export function activate(context: vscode.ExtensionContext): void {
       if (answer !== remove) return;
       await store.clear();
       await source.reset();
+      current = undefined;
       statusBar.show(undefined);
+      await apply();
       TimelinePanel.refresh();
       vscode.window.setStatusBarMessage(vscode.l10n.t('Nightpace data deleted'), 3000);
     }),
@@ -104,8 +162,47 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {}
 
-/** Asks the Claude Code its VS Code extension runs, or the one on the PATH. */
-async function askClaudeCode() {
+/** A recorder stands for a folder, and for whether VS Code's Claude Code uses it. */
+function recorderKey(folder: ClaudeSource): string {
+  return `${folder.configDir ?? ''}|${folder.current ? 'current' : ''}`;
+}
+
+/** What VS Code's Claude Code starts Claude with, from its `environmentVariables` setting. */
+function claudeCodeEnv(): Record<string, string> {
+  const variables = vscode.workspace
+    .getConfiguration('claudeCode')
+    .get<unknown>('environmentVariables');
+  const env: Record<string, string> = {};
+  if (!Array.isArray(variables)) return env;
+  for (const variable of variables as Array<{ name?: unknown; value?: unknown }>) {
+    if (typeof variable?.name === 'string' && variable.name && typeof variable.value === 'string') {
+      env[variable.name] = variable.value;
+    }
+  }
+  return env;
+}
+
+/** The config folder VS Code's Claude Code uses; none for the default one. */
+function currentConfigDir(): string | undefined {
+  return (
+    claudeCodeEnv().CLAUDE_CONFIG_DIR?.trim() || process.env.CLAUDE_CONFIG_DIR?.trim() || undefined
+  );
+}
+
+/** Config folders the user asked Nightpace to follow too, such as one the terminal's Claude uses. */
+function namedConfigDirs(): string[] {
+  const dirs = vscode.workspace.getConfiguration('nightpace').get<unknown>('claudeConfigDirs');
+  if (!Array.isArray(dirs)) return [];
+  return dirs
+    .filter((dir): dir is string => typeof dir === 'string' && dir.trim() !== '')
+    .map((dir) => expandHome(dir.trim(), homedir()));
+}
+
+/**
+ * Asks the Claude Code its VS Code extension runs, or the one on the PATH, for the quota of the
+ * account a config folder is signed in to.
+ */
+async function askClaudeCode(folder: ClaudeSource): Promise<QuotaSnapshot> {
   const [binary] = claudeBinaries({
     platform: process.platform,
     claudeExtensionPath: vscode.extensions.getExtension(CLAUDE_EXTENSION_ID)?.extensionPath,
@@ -113,31 +210,31 @@ async function askClaudeCode() {
   });
   if (!binary) throw new QuotaError('not-found', 'Claude Code is not installed');
   const time = Date.now();
-  const snapshot = parseUsageResponse(await requestUsage(sdkCommand(binary)), time);
+  const reply = await requestUsage(sdkCommand(binary), {
+    env: sourceEnv(folder, process.env, claudeCodeEnv()),
+  });
+  const snapshot = parseUsageResponse(reply.usage, time);
   if (!snapshot) throw new QuotaError('refused', 'Claude Code sent a reply Nightpace cannot read');
-  return snapshot;
+  const account = parseInitializeAccount(reply.init);
+  return {
+    ...snapshot,
+    ...(account && { account }),
+    ...(folder.configDir !== undefined && { configDir: folder.configDir }),
+  };
 }
 
-/** Folders Claude Code keeps its transcripts in. */
-function transcriptRoots(): string[] {
-  const roots = [join(homedir(), '.claude', 'projects')];
-  const configDir = process.env.CLAUDE_CONFIG_DIR;
-  if (configDir) roots.unshift(join(configDir, 'projects'));
-  return [...new Set(roots)];
-}
-
-/** When Claude Code last wrote a transcript, from what was appended since the last look. */
-function transcriptActivity(): () => Promise<number | undefined> {
+/** When Claude Code last wrote a transcript in a folder, from what was appended since the last look. */
+function transcriptActivity(projects: string): () => Promise<number | undefined> {
   const offsets = new Map<string, number>();
   let started = false;
   let latest: number | undefined;
   return async () => {
     if (!started) {
       started = true;
-      latest = await skipToEnd(transcriptRoots(), offsets);
+      latest = await skipToEnd([projects], offsets);
       return latest;
     }
-    await scanTranscripts(transcriptRoots(), offsets, (event) => {
+    await scanTranscripts([projects], offsets, (event) => {
       latest = Math.max(latest ?? event.time, event.time);
     });
     return latest;

@@ -26,8 +26,10 @@ type StoredRequest = [
   output: number,
   thinking: number,
   project: string | null,
-  /** Only when there were any, so older records stay as they were. */
+  /** Only when there were any, or when a config folder follows. */
   webSearches?: number,
+  /** Only for a config folder other than the default one, so older records stay as they were. */
+  configDir?: string,
 ];
 
 interface ScanState {
@@ -57,7 +59,8 @@ export function encodeRequest(request: RequestUsage): string {
     tokens.thinking,
     request.project ?? null,
   ];
-  if (tokens.webSearches) record.push(tokens.webSearches);
+  if (tokens.webSearches || request.configDir !== undefined) record.push(tokens.webSearches ?? 0);
+  if (request.configDir !== undefined) record.push(request.configDir);
   return JSON.stringify(record);
 }
 
@@ -68,10 +71,19 @@ export function decodeRequest(line: string): RequestUsage | undefined {
   } catch {
     return undefined; // A line cut short when VS Code closed mid-write.
   }
-  if (!Array.isArray(record) || (record.length !== 14 && record.length !== 15)) return undefined;
+  if (!Array.isArray(record) || record.length < 14 || record.length > 16) return undefined;
   const [requestId, sessionId, time, duration, model, effort, flags, ...rest] = record;
-  const [input, cacheWrite5m, cacheWrite1h, cacheRead, output, thinking, project, webSearches] =
-    rest;
+  const [
+    input,
+    cacheWrite5m,
+    cacheWrite1h,
+    cacheRead,
+    output,
+    thinking,
+    project,
+    webSearches,
+    configDir,
+  ] = rest;
   if (typeof requestId !== 'string' || typeof sessionId !== 'string') return undefined;
   if (typeof time !== 'number' || typeof duration !== 'number') return undefined;
   return {
@@ -86,6 +98,7 @@ export function decodeRequest(line: string): RequestUsage | undefined {
     ...((flags & 4) !== 0 && { fast: true }),
     ...((flags & 8) !== 0 && { usOnly: true }),
     ...(project !== null && { project }),
+    ...(typeof configDir === 'string' && { configDir }),
     tokens: {
       input,
       cacheWrite5m,

@@ -166,7 +166,11 @@ describe('TimelineSource with a request store', () => {
     const transcripts = join(storage, 'transcripts');
     cpSync(FIXTURES, transcripts, { recursive: true });
     const source = () =>
-      new TimelineSource(() => [transcripts], new QuotaStore(storage), new RequestStore(storage));
+      new TimelineSource(
+        () => [{ projects: transcripts }],
+        new QuotaStore(storage),
+        new RequestStore(storage),
+      );
 
     expect(await total(source())).toBe(4);
     rmSync(transcripts, { recursive: true });
@@ -178,7 +182,7 @@ describe('TimelineSource with a request store', () => {
     const transcripts = join(storage, 'transcripts');
     cpSync(FIXTURES, transcripts, { recursive: true });
     const one = new TimelineSource(
-      () => [transcripts],
+      () => [{ projects: transcripts }],
       new QuotaStore(storage),
       new RequestStore(storage),
     );
@@ -188,7 +192,7 @@ describe('TimelineSource with a request store', () => {
     const written = lines().length;
 
     const two = new TimelineSource(
-      () => [transcripts],
+      () => [{ projects: transcripts }],
       new QuotaStore(storage),
       new RequestStore(storage),
     );
@@ -201,7 +205,7 @@ describe('TimelineSource with a request store', () => {
     const transcripts = join(storage, 'transcripts');
     cpSync(FIXTURES, transcripts, { recursive: true });
     const source = new TimelineSource(
-      () => [transcripts],
+      () => [{ projects: transcripts }],
       new QuotaStore(storage),
       new RequestStore(storage),
     );

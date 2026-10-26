@@ -1270,3 +1270,80 @@ test.describe('pace', () => {
     expect(panel.problems).toEqual([]);
   });
 });
+
+test.describe('account chooser', () => {
+  const PERSONAL = '["me@example.com","Personal"]';
+  const WORK = '["me@work.example","Acme"]';
+  const withAccounts = (account = PERSONAL) => ({
+    ...sampleTimeline('24h'),
+    accounts: [
+      {
+        key: PERSONAL,
+        email: 'me@example.com',
+        organization: 'Personal',
+        plan: 'max',
+        current: true,
+      },
+      { key: WORK, email: 'me@work.example', organization: 'Acme', plan: 'team', current: false },
+    ],
+    account,
+  });
+
+  for (const theme of ['dark', 'light', 'hcDark', 'hcLight'] as ThemeName[]) {
+    test(`shows the account signed in beside the title, with the others to choose (${theme})`, async ({
+      page,
+    }) => {
+      const panel = await openPanel(page, theme);
+      await panel.init(withAccounts());
+      const chooser = page.getByRole('combobox', { name: strings.account });
+      await expect(chooser).toBeVisible();
+      await expect(chooser).toHaveValue(PERSONAL);
+      await expect(chooser.locator('option')).toHaveText([
+        'me@example.com · Max (signed in)',
+        'me@work.example · Team',
+      ]);
+      expect(await lowestTextContrast(page)).toBeGreaterThanOrEqual(theme === 'hcDark' ? 7 : 4.5);
+      await page.screenshot({
+        path: `${SCREENS}/accounts-${theme}.png`,
+        clip: { x: 0, y: 0, width: 1100, height: 120 },
+      });
+      expect(panel.problems).toEqual([]);
+    });
+  }
+
+  test('asks the host for the account chosen and dims the old one meanwhile', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    await panel.init(withAccounts());
+    await page.getByRole('combobox', { name: strings.account }).selectOption(WORK);
+    expect(await panel.sent()).toContainEqual({ type: 'account', account: WORK });
+    await expect(page.locator('.np-body')).toHaveClass(/np-loading/);
+    await panel.post({ type: 'timeline', data: withAccounts(WORK) });
+    await expect(page.locator('.np-body')).not.toHaveClass(/np-loading/);
+    await expect(page.getByRole('combobox', { name: strings.account })).toHaveValue(WORK);
+  });
+
+  test('is not there while there is one account', async ({ page }) => {
+    const panel = await openPanel(page, 'dark');
+    await panel.init(sampleTimeline('24h'));
+    await expect(page.locator('.np-account')).toBeHidden();
+  });
+
+  test('fits a narrow panel with a long email', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 760 });
+    const panel = await openPanel(page, 'dark');
+    const data = withAccounts();
+    data.accounts[0].email = 'someone.with.a.rather.long.name@a-long-company-domain.example';
+    await panel.init(data);
+    await expect(page.getByRole('combobox', { name: strings.account })).toBeVisible();
+    const overflow = await page.evaluate(
+      () =>
+        document.getElementById('app')!.scrollWidth - document.getElementById('app')!.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.screenshot({
+      path: `${SCREENS}/accounts-narrow-dark.png`,
+      clip: { x: 0, y: 0, width: 360, height: 200 },
+    });
+    expect(panel.problems).toEqual([]);
+  });
+});

@@ -131,6 +131,20 @@ Your plan's 5-hour and weekly usage, with when the 5-hour window resets and how 
 has left, like `5h 63% ↻14:02 · Wk 41% ↻3d 4h`, turning yellow at 80% and red at 95%. Hover for per-model weekly
 limits. Click to open the timeline.
 
+### More than one Claude account
+
+Each account has a quota of its own, so Nightpace keeps them apart. Every quota reading names the
+account that answered, and when you sign in to another account Nightpace notices within a minute.
+Once it has seen a second account, a chooser beside the panel's title shows one account at a
+time: its quota, its pace and forecasts, and the tokens and cost of the requests made while it
+was signed in. The status bar shows the account Claude Code in VS Code is signed in to.
+
+Accounts kept in separate config folders (`CLAUDE_CONFIG_DIR`) are followed side by side: the
+default `~/.claude`, the folder Claude Code in VS Code uses (also when set in its
+`claudeCode.environmentVariables` setting), and any you add to the `nightpace.claudeConfigDirs`
+setting, such as one your terminal's `claude` uses for another account. The history Nightpace
+recorded before it told accounts apart stays with the account it belongs to.
+
 ## Getting started
 
 1. Use [Claude Code](https://claude.com/product/claude-code) in VS Code (the Claude Code extension) or in a
@@ -155,7 +169,10 @@ without reading them all again.
 For the quota, Nightpace asks Claude Code: every 5 minutes while you work and hourly otherwise,
 it starts Claude Code briefly and asks for the plan's usage, the same request the Claude Code
 extension makes for its own usage view. Claude Code gets the numbers from Anthropic. No prompt
-is sent, no quota is used, and Nightpace never reads your credentials.
+is sent, no quota is used, and Nightpace never reads your credentials. To tell accounts apart,
+it keeps the email address and organization name Claude Code reports with each reading, and
+checks Claude Code's config file (`.claude.json`) for which account is signed in, reading nothing
+else from it.
 
 - Turn quota recording off with the `nightpace.quota.enabled` setting.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
@@ -167,6 +184,10 @@ is sent, no quota is used, and Nightpace never reads your credentials.
   Vertex there is no plan quota; tokens and sessions still show.
 - **The quota is per account, the logs are per machine.** Claude Code on another computer and
   Claude on the web use the same quota but don't appear in the token columns here.
+- **One account at a time in a config folder.** While another account is signed in to the same
+  folder, the first one's quota can't be read, so its line has a gap. Requests count for the
+  account signed in when they were made; a switch made while VS Code was closed is placed where
+  Nightpace next sees it.
 - **The forecasts are estimates.** Anthropic doesn't publish how usage counts against the plan
   limits. Nightpace measures it from your own readings: they follow the API cost closely, but
   Claude Code on another computer or Claude on the web uses the same quota without showing here,
