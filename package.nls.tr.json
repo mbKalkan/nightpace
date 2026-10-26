@@ -5,5 +5,5 @@
   "command.showTimeline": "Zaman Çizelgesini Göster",
   "command.deleteData": "Kaydedilen Verileri Sil",
   "config.quota.enabled": "Planınızın 5 saatlik ve haftalık kotasını kaydeder. Nightpace bunu çalışırken 5 dakikada bir, diğer zamanlarda saatte bir Claude Code'a sorar; Claude Code sayıları kendi kullanım görünümü için yaptığı gibi Anthropic'ten alır. İstem gönderilmez, kota harcanmaz.",
-  "config.claudeConfigDirs": "İzlenecek diğer Claude Code ayar klasörleri, `CLAUDE_CONFIG_DIR`'ın adlandırdığı gibi: örneğin terminaldeki `claude`'un başka bir hesap için kullandığı klasör. Nightpace varsayılan klasörü (`~/.claude`) ve VS Code'daki Claude Code'un kullandığını zaten izler. Her klasörün hesabının kotası ve kullanımı ayrı tutulur; panelde hangisinin gösterileceğini seçersiniz."
+  "config.claudeConfigDirs": "İzlenecek diğer Claude Code ayar klasörleri, `CLAUDE_CONFIG_DIR`'ın adlandırdığı gibi: örneğin terminaldeki `claude`'un başka bir hesap için kullandığı klasör. Nightpace varsayılan klasörü (`~/.claude`) oturum açıkken, VS Code'daki Claude Code'un kullandığını ve daha önce kullandıklarını zaten izler (**Kaydedilen Verileri Sil** bunları unutturur). Her klasörün hesabının kotası ve kullanımı ayrı tutulur; panelde hangisinin gösterileceğini seçersiniz."
 }

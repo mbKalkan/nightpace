@@ -3,6 +3,8 @@ import type { AccountOption, PanelStrings, TimelineData } from '../shared/protoc
 /** Chooses which account's usage the panel shows; there only while there is more than one. */
 export class AccountChooser {
   readonly element = document.createElement('select');
+  /** What the options say, so a refresh that changes nothing leaves an open list alone. */
+  private shown = '';
 
   constructor(
     private readonly strings: PanelStrings,
@@ -20,21 +22,32 @@ export class AccountChooser {
     const accounts = data.accounts ?? [];
     this.element.hidden = accounts.length < 2;
     if (this.element.hidden) {
+      this.shown = '';
       this.element.replaceChildren();
       return;
     }
-    this.element.replaceChildren(
-      ...accounts.map((account) => {
-        const option = document.createElement('option');
-        option.value = account.key;
-        const label = accountLabel(account, accounts);
-        option.textContent = account.current
-          ? this.strings.accountSignedIn.replace('{0}', label)
-          : label;
-        option.selected = account.key === data.account;
-        return option;
-      }),
-    );
+    const options = accounts.map((account) => {
+      const label = accountLabel(account, accounts);
+      return {
+        key: account.key,
+        text: account.current ? this.strings.accountSignedIn.replace('{0}', label) : label,
+      };
+    });
+    const shown = JSON.stringify(options);
+    if (shown !== this.shown) {
+      this.shown = shown;
+      this.element.replaceChildren(
+        ...options.map(({ key, text }) => {
+          const option = document.createElement('option');
+          option.value = key;
+          option.textContent = text;
+          return option;
+        }),
+      );
+    }
+    if (data.account !== undefined && this.element.value !== data.account) {
+      this.element.value = data.account;
+    }
   }
 }
 

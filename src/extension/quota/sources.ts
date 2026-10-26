@@ -7,7 +7,13 @@ import { join, resolve } from 'node:path';
 import { accountKey, parseConfigAccount } from './account';
 
 export interface ClaudeSource {
-  /** As `CLAUDE_CONFIG_DIR` names it, normalized; none for the default folder. */
+  /**
+   * The folder as `CLAUDE_CONFIG_DIR` was written: files are opened and Claude Code is started
+   * with this spelling, since Claude Code may key its sign-in by the exact text. None for the
+   * default folder.
+   */
+  dir?: string;
+  /** The folder's name in Nightpace's records: `dir` normalized. None for the default folder. */
   configDir?: string;
   /** Where its transcripts are. */
   projects: string;
@@ -49,22 +55,21 @@ export function claudeSources({
   others = [],
   platform = process.platform,
 }: SourceOptions): ClaudeSource[] {
-  const source = (configDir: string | undefined, isCurrent: boolean): ClaudeSource =>
-    configDir === undefined
+  const source = (dir: string | undefined, isCurrent: boolean): ClaudeSource =>
+    dir === undefined
       ? {
           projects: join(home, '.claude', 'projects'),
           configFile: join(home, '.claude.json'),
           current: isCurrent,
         }
       : {
-          configDir,
-          projects: join(configDir, 'projects'),
-          configFile: join(configDir, '.claude.json'),
+          dir,
+          configDir: normalizeDir(dir, platform),
+          projects: join(dir, 'projects'),
+          configFile: join(dir, '.claude.json'),
           current: isCurrent,
         };
-  const dirs = [current, undefined, ...others].map((dir) =>
-    dir?.trim() ? normalizeDir(dir, platform) : undefined,
-  );
+  const dirs = [current, undefined, ...others].map((dir) => dir?.trim() || undefined);
   const sources: ClaudeSource[] = [];
   const seen = new Set<string>();
   dirs.forEach((dir, index) => {
@@ -85,8 +90,8 @@ export function sourceEnv(
   extra: Readonly<Record<string, string>> = {},
 ): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...base, ...(source.current && extra) };
-  if (source.configDir === undefined) delete env.CLAUDE_CONFIG_DIR;
-  else env.CLAUDE_CONFIG_DIR = source.configDir;
+  if (source.dir === undefined) delete env.CLAUDE_CONFIG_DIR;
+  else env.CLAUDE_CONFIG_DIR = source.dir;
   return env;
 }
 

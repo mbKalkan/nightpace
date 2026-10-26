@@ -227,9 +227,20 @@ describe('config folders', () => {
       projects: join(home, '.claude', 'projects'),
       configFile: join(home, '.claude.json'),
     });
-    expect(sources[2].configFile).toBe(
-      join(normalizeDir(join(home, '.claude-old'), 'win32'), '.claude.json'),
-    );
+    expect(sources[2].configFile).toBe(join(home, '.claude-old', '.claude.json'));
+  });
+
+  it('open a folder and start Claude Code with it as written, whatever the case', () => {
+    // Claude Code may key its sign-in by the exact text; 0.5.0 kept transcript offsets by it.
+    const written = join(home, 'Claude-Work');
+    const [current] = claudeSources({ home, current: written, platform: 'win32' });
+    expect(current).toMatchObject({
+      dir: written,
+      configDir: normalizeDir(written, 'win32'),
+      projects: join(written, 'projects'),
+      configFile: join(written, '.claude.json'),
+    });
+    expect(sourceEnv(current, {}).CLAUDE_CONFIG_DIR).toBe(written);
   });
 
   it('follow only the default folder when Claude Code uses it', () => {
@@ -249,7 +260,7 @@ describe('config folders', () => {
     expect(sourceEnv(current, base, extra)).toEqual({
       PATH: 'bin',
       HTTPS_PROXY: 'proxy',
-      CLAUDE_CONFIG_DIR: current.configDir,
+      CLAUDE_CONFIG_DIR: join(home, '.claude-work'),
     });
     expect(sourceEnv(fallback, base, extra)).toEqual({ PATH: 'bin' });
   });
@@ -317,6 +328,21 @@ describe('QuotaStore with several config folders', () => {
     expect(await store.lastPoll()).toEqual({ time: 1, signedIn: 'a' });
     expect(await store.lastPoll('/work')).toEqual({ time: 2, signedIn: 'b' });
     expect(await store.lastPoll('/other')).toBeUndefined();
+  });
+
+  it('reads a reading whose account it cannot read, without the account', async () => {
+    const storage = fresh();
+    const store = new QuotaStore(storage);
+    await store.append(reading(NOW, PERSONAL));
+    mkdirSync(storage, { recursive: true });
+    writeFileSync(
+      join(storage, 'quota.jsonl'),
+      JSON.stringify({ ...reading(NOW + MIN), account: {} }) + '\n',
+      { flag: 'a' },
+    );
+    const snapshots = await store.snapshots();
+    expect(snapshots.map((snapshot) => snapshot.account)).toEqual([PERSONAL, undefined]);
+    expect(new Accounts(snapshots).list).toHaveLength(1);
   });
 
   it('remembers the folders Claude Code used, and forgets everything when cleared', async () => {

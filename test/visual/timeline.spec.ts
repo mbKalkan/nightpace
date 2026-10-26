@@ -1322,6 +1322,24 @@ test.describe('account chooser', () => {
     await expect(page.getByRole('combobox', { name: strings.account })).toHaveValue(WORK);
   });
 
+  test('keeps its list as it is when the panel refreshes with the same accounts', async ({
+    page,
+  }) => {
+    const panel = await openPanel(page, 'dark');
+    await panel.init(withAccounts());
+    const options = page.locator('.np-account option');
+    // A list rebuilt every minute would close under the pointer.
+    await options.first().evaluate((option) => option.setAttribute('data-kept', 'yes'));
+    await panel.post({ type: 'timeline', data: withAccounts() });
+    await expect(options.first()).toHaveAttribute('data-kept', 'yes');
+    // A new label is a new list.
+    const renamed = withAccounts();
+    renamed.accounts[1].plan = 'max';
+    await panel.post({ type: 'timeline', data: renamed });
+    await expect(options.first()).not.toHaveAttribute('data-kept', 'yes');
+    await expect(options.nth(1)).toHaveText('me@work.example · Max');
+  });
+
   test('is not there while there is one account', async ({ page }) => {
     const panel = await openPanel(page, 'dark');
     await panel.init(sampleTimeline('24h'));

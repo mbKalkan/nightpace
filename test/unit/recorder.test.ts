@@ -173,6 +173,18 @@ describe('QuotaRecorder', () => {
     expect(await store.lastPoll()).toMatchObject({ signedIn: 'personal' });
   });
 
+  it('counts signing in after a poll made while signed out as a switch', async () => {
+    const store = newStore();
+    const config: { account?: string } = {};
+    const r = recorder(store, { signedIn: () => config.account });
+    await r.recorder.tick();
+    expect(await store.lastPoll()).toMatchObject({ signedIn: '' });
+    config.account = 'work';
+    r.advance(MIN);
+    await r.recorder.tick();
+    expect(r.queries()).toBe(2);
+  });
+
   it("leaves a folder alone while it isn't signed in to an account", async () => {
     const store = newStore();
     const config: { account?: string } = {};

@@ -140,10 +140,15 @@ time: its quota, its pace and forecasts, and the tokens and cost of the requests
 was signed in. The status bar shows the account Claude Code in VS Code is signed in to.
 
 Accounts kept in separate config folders (`CLAUDE_CONFIG_DIR`) are followed side by side: the
-default `~/.claude`, the folder Claude Code in VS Code uses (also when set in its
-`claudeCode.environmentVariables` setting), and any you add to the `nightpace.claudeConfigDirs`
-setting, such as one your terminal's `claude` uses for another account. The history Nightpace
-recorded before it told accounts apart stays with the account it belongs to.
+default `~/.claude` while it is signed in, the folder Claude Code in VS Code uses (also when set
+in its `claudeCode.environmentVariables` user setting; workspace settings are ignored), folders
+it used before, and any you add to the `nightpace.claudeConfigDirs` setting, such as one your
+terminal's `claude` uses for another account. Each folder signed in is asked for its quota on
+its own schedule. **Nightpace: Delete Recorded Data** forgets the folders used before.
+
+The history Nightpace recorded before it told accounts apart goes to the account that carries on
+its weekly limit (the one whose weekly reset falls at the same time of the week), or else to the
+first account it sees afterwards.
 
 ## Getting started
 
@@ -170,9 +175,9 @@ For the quota, Nightpace asks Claude Code: every 5 minutes while you work and ho
 it starts Claude Code briefly and asks for the plan's usage, the same request the Claude Code
 extension makes for its own usage view. Claude Code gets the numbers from Anthropic. No prompt
 is sent, no quota is used, and Nightpace never reads your credentials. To tell accounts apart,
-it keeps the email address and organization name Claude Code reports with each reading, and
-checks Claude Code's config file (`.claude.json`) for which account is signed in, reading nothing
-else from it.
+it keeps the email address and organization name Claude Code reports with each reading. When
+Claude Code's config file (`.claude.json`) changes, Nightpace reads it to see which account is
+signed in and keeps only that.
 
 - Turn quota recording off with the `nightpace.quota.enabled` setting.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
