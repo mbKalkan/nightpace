@@ -97,6 +97,7 @@ export class TimelineSource {
         requests: only(this.log.usage(), (request) => mine(request.configDir, request.time)),
         snapshots: snapshots.filter((snapshot) => accounts.ofSnapshot(snapshot) === account),
         limits: limits.filter((hit) => mine(hit.configDir, hit.time)).map(withoutFolder),
+        ...(account !== undefined && { signedIn: accounts.signedIn(account) }),
       }),
       // Marked only when known: a guess could name the wrong account as signed in.
       accounts: accounts.options(choice.current),

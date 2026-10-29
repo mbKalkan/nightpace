@@ -45,11 +45,20 @@ const RESET_JITTER = 2 * 60_000;
 /** Cost of the requests made in (from, to], at API prices. */
 type CostBetween = (from: number, to: number) => number;
 
+/**
+ * Whether the account was signed in here all along from `from` to `to`, so that the requests in
+ * hand are all it made here then. With one account, always.
+ */
+export type SignedIn = (from: number, to: number) => boolean;
+
+const always: SignedIn = () => true;
+
 export function paceOf(
   requests: readonly TimelineRequest[],
   snapshots: readonly QuotaSnapshot[],
   now: number,
   utcOffset = -new Date(now).getTimezoneOffset() * 60_000,
+  signedIn: SignedIn = always,
 ): Pace | undefined {
   const readings = snapshots.filter((snapshot) => snapshot.available && snapshot.time <= now);
   const latest = readings.at(-1);
@@ -59,8 +68,8 @@ export function paceOf(
     (snapshot) => snapshot.plan === latest.plan && snapshot.time >= now - CALIBRATION_SPAN,
   );
   const costBetween = costIndex(requests);
-  const fiveHour = measure(recent, (s) => s.fiveHour, FIVE_HOURS, costBetween);
-  const weekly = measure(recent, (s) => s.weekly, WEEK, costBetween);
+  const fiveHour = measure(recent, (s) => s.fiveHour, FIVE_HOURS, costBetween, signedIn);
+  const weekly = measure(recent, (s) => s.weekly, WEEK, costBetween, signedIn);
   if (!fiveHour || !weekly) return undefined;
 
   const rates = sessionRates(requests, now);
@@ -79,6 +88,7 @@ export function paceOf(
       span,
       costBetween,
       step,
+      signedIn,
     );
   return {
     now,
@@ -117,7 +127,8 @@ export function paceOf(
  * limits, and use elsewhere (Claude on the web, another computer) shows up as more percent for
  * the same local cost. A stretch runs from the window's start, or the last stretch's end, to the
  * last reading of a step (a day for the week, the whole window for 5 hours), once it has used at
- * least 10%: readings are whole percents, so a shorter one would be mostly rounding.
+ * least 10%: readings are whole percents, so a shorter one would be mostly rounding. A stretch
+ * also ends where the account leaves, and the next starts where it comes back.
  */
 export function rateHistory(
   readings: readonly QuotaSnapshot[],
@@ -125,17 +136,22 @@ export function rateHistory(
   span: number,
   costBetween: CostBetween,
   step: (time: number) => number,
+  signedIn: SignedIn = always,
 ): RatePoint[] {
   const read = windowReadings(readings, pick, span);
   const points: RatePoint[] = [];
-  let anchor: { opened: number; time: number; percent: number } | undefined;
+  let anchor: UsedFrom | undefined;
   read.forEach((reading, i) => {
-    // A window starts from nothing used.
-    if (anchor?.opened !== reading.opened) {
-      anchor = { opened: reading.opened, time: reading.opened, percent: 0 };
-    }
+    anchor = usedFrom(anchor, reading, signedIn);
     const next = read[i + 1];
-    if (next && next.opened === reading.opened && step(next.time) === step(reading.time)) return;
+    if (
+      next &&
+      next.opened === reading.opened &&
+      step(next.time) === step(reading.time) &&
+      signedIn(reading.time, next.time)
+    ) {
+      return;
+    }
     const used = reading.percent - anchor.percent;
     if (used < SETTLED_PERCENT) return;
     const cost = costBetween(anchor.time, reading.time);
@@ -143,6 +159,32 @@ export function rateHistory(
     anchor = { opened: reading.opened, time: reading.time, percent: reading.percent };
   });
   return points;
+}
+
+/** Where a reading's use is counted from: a time in its window and the percent used by then. */
+interface UsedFrom {
+  opened: number;
+  time: number;
+  percent: number;
+}
+
+/**
+ * A window starts from nothing used. Where the account wasn't signed in here all along since then
+ * (it left and came back, or came after its window opened), what it used meanwhile has no cost
+ * here: its use counts from this reading instead.
+ */
+function usedFrom(
+  from: UsedFrom | undefined,
+  reading: WindowReading,
+  signedIn: SignedIn,
+): UsedFrom {
+  const start =
+    from?.opened === reading.opened
+      ? from
+      : { opened: reading.opened, time: reading.opened, percent: 0 };
+  return signedIn(start.time, reading.time)
+    ? start
+    : { opened: reading.opened, time: reading.time, percent: reading.percent };
 }
 
 /** A reading of one limit, with when its window opened. */
@@ -214,28 +256,30 @@ interface Measure {
 
 /**
  * The percent a dollar uses: each reading against the cost of the requests since its window
- * opened, fitted through zero (no requests, no use).
+ * opened, fitted through zero (no requests, no use). Of a window the account left or came to
+ * after it opened, only the use since its first reading back counts.
  */
 export function measure(
   readings: readonly QuotaSnapshot[],
   pick: (snapshot: QuotaSnapshot) => QuotaWindow | undefined,
   span: number,
   costBetween: CostBetween,
+  signedIn: SignedIn = always,
 ): Measure | undefined {
   let xy = 0;
   let xx = 0;
   const windowPeaks = new Map<number, number>();
   let first: number | undefined;
   let last = 0;
+  let from: UsedFrom | undefined;
   for (const reading of windowReadings(readings, pick, span)) {
-    const cost = costBetween(reading.opened, reading.time);
+    from = usedFrom(from, reading, signedIn);
+    const cost = costBetween(from.time, reading.time);
     if (cost <= 0) continue;
-    xy += cost * reading.percent;
+    const used = reading.percent - from.percent;
+    xy += cost * used;
     xx += cost * cost;
-    windowPeaks.set(
-      reading.opened,
-      Math.max(windowPeaks.get(reading.opened) ?? 0, reading.percent),
-    );
+    windowPeaks.set(reading.opened, Math.max(windowPeaks.get(reading.opened) ?? 0, used));
     first ??= reading.time;
     last = reading.time;
   }

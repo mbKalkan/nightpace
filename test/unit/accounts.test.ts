@@ -153,6 +153,38 @@ describe('Accounts', () => {
     expect(accounts.at(undefined, NOW + HOUR)).toBe(personal);
   });
 
+  it('knows when each account was signed in here, as its requests are', () => {
+    const accounts = new Accounts([
+      reading(NOW - 10 * HOUR, PERSONAL),
+      reading(NOW - 5 * HOUR, PERSONAL),
+      reading(NOW - 4 * HOUR, WORK),
+      reading(NOW - HOUR, WORK),
+      reading(NOW, PERSONAL),
+    ]);
+    const mine = accounts.signedIn(personal);
+    // From before its first reading, whose account its requests then are.
+    expect(mine(NOW - 20 * HOUR, NOW - 5 * HOUR)).toBe(true);
+    // Not across the work account's turn, and again from its first reading back.
+    expect(mine(NOW - 5 * HOUR, NOW)).toBe(false);
+    expect(mine(NOW, NOW + DAY)).toBe(true);
+    const theirs = accounts.signedIn(work);
+    expect(theirs(NOW - 4 * HOUR, NOW - HOUR)).toBe(true);
+    expect(theirs(NOW - 5 * HOUR, NOW - HOUR)).toBe(false);
+    expect(theirs(NOW - HOUR, NOW + HOUR)).toBe(false);
+  });
+
+  it('keeps an account signed in while another folder of its own goes on', () => {
+    const accounts = new Accounts([
+      reading(NOW - 10 * HOUR, PERSONAL),
+      reading(NOW - 8 * HOUR, PERSONAL, { configDir: '/other' }),
+      reading(NOW - 5 * HOUR, WORK),
+      reading(NOW - 2 * HOUR, PERSONAL, { configDir: '/other' }),
+      reading(NOW, PERSONAL),
+    ]);
+    expect(accounts.signedIn(personal)(NOW - 10 * HOUR, NOW)).toBe(true);
+    expect(accounts.signedIn(work)(NOW - 6 * HOUR, NOW - 4 * HOUR)).toBe(false);
+  });
+
   it("keeps each folder's requests with its own account", () => {
     const accounts = new Accounts([
       reading(NOW - 10 * DAY),
@@ -409,6 +441,31 @@ describe('TimelineSource with several accounts', () => {
     expect(data.account).toBe(accountKey(WORK));
     expect(requests).toBe(2);
     expect(readings).toBe(1);
+  });
+
+  it("measures an account's pace without what it used while another had the folder", async () => {
+    // A 5-hour window that opened 4 hours ago: 2% a request here, then the work account has the
+    // folder for an hour while the personal one uses 34% elsewhere.
+    const storage = fresh();
+    const quota = new QuotaStore(storage);
+    const personalReading = (ago: number, fiveHour: number, weekly: number) =>
+      reading(NOW - ago, PERSONAL, {
+        fiveHour: { percent: fiveHour, resetsAt: NOW + HOUR },
+        weekly: { percent: weekly, resetsAt: PERSONAL_RESET },
+      });
+    await quota.append(personalReading(200 * MIN, 6, 3));
+    await quota.append(reading(NOW - 3 * HOUR, WORK));
+    await quota.append(personalReading(2 * HOUR, 40, 37));
+    await quota.append(personalReading(30 * MIN, 52, 43));
+    const requests = new RequestStore(storage);
+    const at = (ago: number[]) =>
+      ago.map((minutes) => request(`req_${minutes}`, NOW - minutes * MIN));
+    await requests.append([...at([360, 230, 220, 210]), ...at([110, 100, 90, 80, 70, 60])]);
+    const source = new TimelineSource(() => [], quota, requests);
+    const data = await source.timeline('24h', undefined, NOW, 0, { current: accountKey(PERSONAL) });
+    expect(data.pace?.history.fiveHour.map(({ from, to }) => [from, to])).toEqual([
+      [NOW - 2 * HOUR, NOW - 30 * MIN],
+    ]);
   });
 
   it('shows everything, with no accounts to choose from, while there is one', async () => {

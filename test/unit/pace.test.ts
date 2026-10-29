@@ -340,6 +340,51 @@ describe('rateHistory', () => {
     expect(points[1]).toMatchObject({ from: now - 2 * DAY, to: now - 1.1 * DAY });
     expect(points[1].perDollar).toBeCloseTo(10 / 20);
   });
+
+  it('starts again where the account comes back, without the use while it was away', () => {
+    const away = awayAndBack();
+    const points = rateHistory(
+      away.readings,
+      (s) => s.weekly,
+      7 * DAY,
+      costIndex(away.requests),
+      (time) => Math.floor(time / DAY),
+      away.signedIn,
+    );
+    expect(points).toHaveLength(1);
+    expect(points[0]).toMatchObject({ from: now - DAY, to: now - 0.5 * DAY });
+    expect(points[0].perDollar).toBeCloseTo(0.6);
+  });
+});
+
+/**
+ * At 0.6% a dollar, $10 used 6% of the week here; then the folder went to another account for two
+ * days while this one used 30% elsewhere; back here, $20 more used 12%.
+ */
+function awayAndBack() {
+  const resets = now + 3 * DAY;
+  return {
+    requests: [3.5, 0.8, 0.6].map((days) => request(days * 24 * 60, 10)),
+    readings: [
+      [3, 6],
+      [1, 36],
+      [0.5, 48],
+    ].map(([days, percent]) => reading(days * 24 * 60, 0, now + HOUR, percent, resets)),
+    signedIn: (from: number, to: number) => to <= now - 2.9 * DAY || from >= now - DAY,
+  };
+}
+
+describe('the account away', () => {
+  it('measures only the use since it came back', () => {
+    const away = awayAndBack();
+    const between = costIndex(away.requests);
+    const weekly = (s: QuotaSnapshot) => s.weekly;
+    expect(measure(away.readings, weekly, 7 * DAY, between, away.signedIn)!.perDollar).toBeCloseTo(
+      0.6,
+    );
+    // Taken as signed in all along, the use elsewhere would look like a dearer dollar.
+    expect(measure(away.readings, weekly, 7 * DAY, between)!.perDollar).toBeGreaterThan(1.5);
+  });
 });
 
 describe('paceOf', () => {
