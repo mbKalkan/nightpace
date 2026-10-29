@@ -26,6 +26,12 @@ interface FolderLine {
   keys: string[];
 }
 
+/** A time an account had a folder here, from `from` up to `to`. */
+interface Span {
+  from: number;
+  to: number;
+}
+
 /**
  * The accounts in the readings, and who signed in where and when.
  *
@@ -44,6 +50,7 @@ export class Accounts {
   readonly legacy: string | undefined;
   private readonly folders = new Map<string, FolderLine>();
   private readonly owners = new Map<QuotaSnapshot, string>();
+  private readonly spans = new Map<string, Span[]>();
 
   constructor(snapshots: readonly QuotaSnapshot[]) {
     const sorted = [...snapshots].sort((a, b) => a.time - b.time);
@@ -87,6 +94,31 @@ export class Accounts {
       summaries.set(key, summary);
     }
     this.list = [...summaries.values()];
+    for (const line of this.folders.values()) {
+      // A folder is an account's from its first reading after another's, as `at` has it.
+      line.keys.forEach((key, i) => {
+        if (key === line.keys[i - 1]) return;
+        let end = i + 1;
+        while (end < line.keys.length && line.keys[end] === key) end++;
+        const spans = this.spans.get(key) ?? [];
+        spans.push({
+          from: i === 0 ? -Infinity : line.times[i],
+          to: end < line.times.length ? line.times[end] : Infinity,
+        });
+        this.spans.set(key, spans);
+      });
+    }
+    for (const [key, spans] of this.spans) this.spans.set(key, merged(spans));
+  }
+
+  /**
+   * Whether an account had one of the folders here all along from one time to another, so that
+   * every request it made here then is in hand. While another account has the folder, what this
+   * one uses goes on elsewhere, with no cost here.
+   */
+  signedIn(key: string): (from: number, to: number) => boolean {
+    const spans = this.spans.get(key) ?? [];
+    return (from, to) => spans.some((span) => span.from <= from && to <= span.to);
   }
 
   /** The account of a reading, one of those given. */
@@ -157,6 +189,17 @@ function legacyOwner(
       )?.account
     : undefined;
   return accountKey(going ?? first);
+}
+
+/** Spans that overlap or meet as one, in time order. */
+function merged(spans: readonly Span[]): Span[] {
+  const out: Span[] = [];
+  for (const span of [...spans].sort((a, b) => a.from - b.from)) {
+    const last = out.at(-1);
+    if (last && span.from <= last.to) last.to = Math.max(last.to, span.to);
+    else out.push({ ...span });
+  }
+  return out;
 }
 
 function sameTimeOfWeek(a: number, b: number): boolean {

@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- With more than one account, the pace no longer jumps after a switch of account. What an
+  account used while another was signed in here (on another computer, or on the web) has no cost
+  on this one, but it was counted in: the "An hour of …, over time" chart showed one stretch
+  several times dearer than the rest, and an account whose week opened before it was first
+  signed in here measured its weekly limit over ten times too small. Each account is now measured
+  only while it is signed in here, from its first reading back.
+
 ## [0.6.0] - 2026-10-26
 
 More than one Claude account: each quota reading now names the account that answered, and the

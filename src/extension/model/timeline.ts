@@ -25,7 +25,7 @@ import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
 import { estimateQuota } from './estimate';
 import { modelFamily } from './family';
-import { paceOf } from './pace';
+import { paceOf, type SignedIn } from './pace';
 import { requestCost } from './pricing';
 import { tokenDetails } from './tokenDetails';
 import { weekDays } from './weekDays';
@@ -130,6 +130,8 @@ export interface TimelineInput {
   snapshots: readonly QuotaSnapshot[];
   /** When limits ran out, as Claude Code logged it; none when left out. */
   limits?: readonly LimitHit[];
+  /** With several accounts, when the one shown was signed in here; all along when left out. */
+  signedIn?: SignedIn;
   /** Local midnight today, for today's spend; the host's own when left out. */
   startOfToday?: number;
   /**
@@ -211,6 +213,7 @@ export function buildTimeline({
   requests,
   snapshots,
   limits = [],
+  signedIn,
   startOfToday = new Date(now).setHours(0, 0, 0, 0),
   utcOffset = -new Date(now).getTimezoneOffset() * MIN,
 }: TimelineInput): TimelineData {
@@ -280,7 +283,7 @@ export function buildTimeline({
     }
   }
 
-  const pace = paceOf(all, snapshots, now, utcOffset);
+  const pace = paceOf(all, snapshots, now, utcOffset, signedIn);
   // A window that reaches now runs on with this week's days ahead.
   const daysEnd = to >= now ? weeks.current.to : to;
   const recordingSince = snapshots.find((snapshot) => snapshot.available)?.time;
