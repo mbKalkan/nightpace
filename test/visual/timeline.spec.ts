@@ -336,6 +336,9 @@ test('fits a narrow panel without scrolling sideways', async ({ page }) => {
   );
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: `${SCREENS}/timeline-narrow-dark.png` });
+  await page
+    .getByRole('region', { name: strings.spendTitle })
+    .screenshot({ path: `${SCREENS}/spend-narrow-dark.png` });
   expect(panel.problems).toEqual([]);
 });
 
