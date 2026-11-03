@@ -14,6 +14,7 @@ import {
 } from '../../shared/protocol';
 import type { QuotaSnapshot, QuotaWindow } from '../quota/snapshot';
 import { sessionIntervals } from './activity';
+import { costSeries, countUpTo } from './costSeries';
 import { modelFamily } from './family';
 import { requestCost } from './pricing';
 import type { TimelineRequest } from './timeline';
@@ -229,24 +230,8 @@ export function windowReadings(
 
 /** Prefix sums of cost over the requests in time order, for any stretch at once. */
 export function costIndex(requests: readonly TimelineRequest[]): CostBetween {
-  const sorted = requests
-    .map((request) => ({ time: request.time, cost: requestCost(request)?.total ?? 0 }))
-    .sort((a, b) => a.time - b.time);
-  const times = sorted.map((request) => request.time);
-  const sums = [0];
-  for (const request of sorted) sums.push(sums[sums.length - 1] + request.cost);
-  /** How many requests were made at or before `time`. */
-  const upTo = (time: number) => {
-    let low = 0;
-    let high = times.length;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (times[middle] <= time) low = middle + 1;
-      else high = middle;
-    }
-    return low;
-  };
-  return (from, to) => (to > from ? sums[upTo(to)] - sums[upTo(from)] : 0);
+  const { times, sums } = costSeries(requests);
+  return (from, to) => (to > from ? sums[countUpTo(times, to)] - sums[countUpTo(times, from)] : 0);
 }
 
 interface Measure {

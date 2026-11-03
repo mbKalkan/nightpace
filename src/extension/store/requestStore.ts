@@ -133,15 +133,10 @@ export class RequestStore {
     this.folder = join(storage, FOLDER);
   }
 
-  /**
-   * Passes each request written since the last call, from the months from `since` on, to
-   * `onRequest`; the first call passes all of them.
-   */
-  async readNew(since: number, onRequest: (request: RequestUsage) => void): Promise<void> {
+  /** Passes each request written since the last call to `onRequest`; the first call passes all. */
+  async readNew(onRequest: (request: RequestUsage) => void): Promise<void> {
     await this.checkVersion();
-    const first = monthOf(since);
     for (const month of await this.months()) {
-      if (month < first) continue;
       const path = join(this.folder, `${month}.jsonl`);
       try {
         const next = await readAppendedLines(

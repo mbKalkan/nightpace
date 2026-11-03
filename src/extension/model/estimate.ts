@@ -3,7 +3,7 @@
 // ran out, the estimate is 100% there. A week that reached 100% and went on working was reset by
 // hand (Claude offers that once the weekly limit runs out), so it starts again from zero.
 import type { LimitHit, QuotaPoint } from '../../shared/protocol';
-import { requestCost } from './pricing';
+import { costSeries, countUpTo } from './costSeries';
 import type { TimelineRequest } from './timeline';
 
 const MIN = 60_000;
@@ -45,24 +45,10 @@ interface Stretch {
 
 export function estimateQuota(input: EstimateInput): QuotaPoint[] {
   const { weeklyReset, fiveHourPerDollar, weeklyPerDollar, from, to, hits = [] } = input;
-  const sorted = input.requests
-    .map((request) => ({ time: request.time, cost: requestCost(request)?.total ?? 0 }))
-    .sort((a, b) => a.time - b.time);
-  if (sorted.length === 0) return [];
-  const times = sorted.map((request) => request.time);
-  const sums = [0];
-  for (const request of sorted) sums.push(sums[sums.length - 1] + request.cost);
+  const { times, sums } = costSeries(input.requests);
+  if (times.length === 0) return [];
   /** How many requests were made at or before `time`. */
-  const upTo = (time: number) => {
-    let low = 0;
-    let high = times.length;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (times[middle] <= time) low = middle + 1;
-      else high = middle;
-    }
-    return low;
-  };
+  const upTo = (time: number) => countUpTo(times, time);
   const costBetween = (a: number, b: number) => (b > a ? sums[upTo(b)] - sums[upTo(a)] : 0);
   /** When the cost after `start` first reaches `amount`, if it does by `until`. */
   const reaches = (start: number, amount: number, until: number) => {

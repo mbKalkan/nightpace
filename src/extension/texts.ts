@@ -18,6 +18,8 @@ export function panelStrings(t: Translate): PanelStrings {
       '24h': t('24 hours'),
       '7d': t('7 days'),
       '30d': t('30 days'),
+      '90d': t('90 days'),
+      all: t('All history'),
       week: t('Quota week'),
     },
     rangeLabel: t('Time range'),

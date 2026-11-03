@@ -103,12 +103,13 @@ export function sampleTimeline(
   range: RangeKey = '24h',
   withQuota = true,
   zoom?: TimeWindow,
+  days?: number,
 ): TimelineData {
   return buildTimeline({
     range,
     now: SAMPLE_NOW,
     zoom,
-    requests: sampleRequests(),
+    requests: sampleRequests(days),
     snapshots: withQuota ? sampleSnapshots() : [],
   });
 }

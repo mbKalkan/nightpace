@@ -20,7 +20,7 @@ import {
   TOKEN_TYPES,
   WEEKS_BACK,
 } from '../../shared/protocol';
-import { clampWindow } from '../../shared/window';
+import { clampWindow, MIN_WINDOW_MS } from '../../shared/window';
 import type { QuotaSnapshot } from '../quota/snapshot';
 import type { TokenCounts } from '../transcripts/events';
 import { estimateQuota } from './estimate';
@@ -39,18 +39,22 @@ import {
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
 
-export const RANGE_SPANS: Record<RangeKey, number> = {
-  '24h': 24 * HOUR,
-  '7d': 7 * 24 * HOUR,
-  '30d': 30 * 24 * HOUR,
-  week: 7 * 24 * HOUR,
+/** How far back each range reaches; all history reaches back to the first thing recorded. */
+export const RANGE_SPANS: Record<Exclude<RangeKey, 'all'>, number> = {
+  '24h': DAY,
+  '7d': WEEK,
+  '30d': 30 * DAY,
+  '90d': 90 * DAY,
+  week: WEEK,
 };
 
 const MAX_BUCKETS = 60;
 // Each size divides the next ones it can meet within a range, so a zoomed window's buckets
 // line up with the whole range's. Every size divides a week too: counted from the weekly
-// quota's reset, seven day columns make one quota week.
+// quota's reset, seven day columns make one quota week, and a week's column is one.
 const BUCKET_SIZES = [
   MIN,
   2 * MIN,
@@ -62,7 +66,8 @@ const BUCKET_SIZES = [
   3 * HOUR,
   6 * HOUR,
   12 * HOUR,
-  24 * HOUR,
+  DAY,
+  WEEK,
 ];
 
 /** The shortest bucket that keeps a span within about 60 columns. */
@@ -141,8 +146,6 @@ export interface TimelineInput {
   utcOffset?: number;
 }
 
-const WEEK = 7 * 24 * HOUR;
-
 /**
  * The time the columns are counted from: the weekly quota's reset as Claude Code last reported
  * it, to the minute (it comes with a second's jitter), or local midnight before any reading.
@@ -172,9 +175,12 @@ function ceilFrom(time: number, size: number, anchor: number): number {
   return anchor + Math.ceil((time - anchor) / size) * size;
 }
 
-/** The whole of a range: buckets line up with whole bucket lengths, so it doesn't shift every minute. */
-export function rangeExtent(range: RangeKey, now: number, anchor: number): TimeWindow {
-  const span = RANGE_SPANS[range];
+/**
+ * The whole of a range: buckets line up with whole bucket lengths, so it doesn't shift every
+ * minute. All history starts at `first`, the first thing recorded.
+ */
+export function rangeExtent(range: RangeKey, now: number, anchor: number, first = now): TimeWindow {
+  const span = range === 'all' ? Math.max(now - first, MIN_WINDOW_MS) : RANGE_SPANS[range];
   return { from: floorFrom(now - span, bucketFor(span), anchor), to: now };
 }
 
@@ -219,11 +225,8 @@ export function buildTimeline({
 }: TimelineInput): TimelineData {
   const all = [...requests];
   const anchor = columnAnchor(snapshots, utcOffset);
-  const weeks = quotaWeeks(
-    now,
-    anchor.time,
-    all.reduce((first, request) => Math.min(first, request.time), Infinity),
-  );
+  const firstRequest = all.reduce((first, request) => Math.min(first, request.time), Infinity);
+  const weeks = quotaWeeks(now, anchor.time, firstRequest);
   // Outside the week range, the week in focus is this one.
   const offset = range === 'week' ? Math.min(0, Math.max(Math.round(week), weeks.oldest)) : 0;
   const quotaWeek = {
@@ -233,7 +236,7 @@ export function buildTimeline({
   const extent =
     range === 'week'
       ? { from: quotaWeek.from, to: Math.min(quotaWeek.to, now) }
-      : rangeExtent(range, now, anchor.time);
+      : rangeExtent(range, now, anchor.time, Math.min(firstRequest, snapshots[0]?.time ?? now));
   const shown = zoom ? clampWindow(zoom, extent) : extent;
   // The whole of this week takes its columns from the whole week, as a week before it does.
   const bucketMs = bucketFor(range === 'week' && !zoom ? WEEK : shown.to - shown.from);
@@ -342,8 +345,6 @@ export function effortOrder(efforts: Iterable<string>): string[] {
   };
   return [...new Set(efforts)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 }
-
-const DAY = 24 * HOUR;
 
 /** What the requests up to `now` would have cost at API prices, over fixed periods. */
 export function spendOf(
