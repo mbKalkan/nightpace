@@ -115,9 +115,12 @@ export interface Spend {
   today: number;
   last7Days: number;
   last30Days: number;
+  last90Days: number;
+  /** Since the first request Nightpace knows of. */
+  allHistory: number;
   /** Over the days of the last 30 that had any requests. */
   perActiveDay: number;
-  /** Requests of the last 30 days whose model has no known price, so they aren't counted. */
+  /** Requests whose model has no known price, so they aren't counted anywhere. */
   unpriced: number;
 }
 
@@ -318,6 +321,8 @@ export interface PanelStrings {
   spendToday: string;
   spendLast7Days: string;
   spendLast30Days: string;
+  spendLast90Days: string;
+  spendAllHistory: string;
   spendPerActiveDay: string;
   /** `{0}`: how many requests. */
   spendUnpriced: string;

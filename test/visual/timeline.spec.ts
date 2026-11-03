@@ -336,6 +336,9 @@ test('fits a narrow panel without scrolling sideways', async ({ page }) => {
   );
   expect(overflow).toBeLessThanOrEqual(0);
   await page.screenshot({ path: `${SCREENS}/timeline-narrow-dark.png` });
+  await page
+    .getByRole('region', { name: strings.spendTitle })
+    .screenshot({ path: `${SCREENS}/spend-narrow-dark.png` });
   expect(panel.problems).toEqual([]);
 });
 
@@ -1023,6 +1026,8 @@ test.describe('cost and token types', () => {
         strings.spendToday,
         strings.spendLast7Days,
         strings.spendLast30Days,
+        strings.spendLast90Days,
+        strings.spendAllHistory,
         strings.spendPerActiveDay,
       ]) {
         await expect(spend.getByText(label, { exact: true })).toBeVisible();

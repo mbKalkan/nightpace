@@ -1,5 +1,6 @@
-// What Claude Code's requests would have cost at API list prices: today, the last 7 and 30 days,
-// and an average working day. Fixed periods, so they don't move with the range or the zoom.
+// What Claude Code's requests would have cost at API list prices: today, the last 7, 30 and 90
+// days, all history, and an average working day. Fixed periods, so they don't move with the range
+// or the zoom.
 import type { PanelStrings, Spend } from '../shared/protocol';
 import type { Formats } from './format';
 
@@ -33,6 +34,8 @@ export class SpendTiles {
       [s.spendToday, spend.today],
       [s.spendLast7Days, spend.last7Days],
       [s.spendLast30Days, spend.last30Days],
+      [s.spendLast90Days, spend.last90Days],
+      [s.spendAllHistory, spend.allHistory],
       [s.spendPerActiveDay, spend.perActiveDay],
     ];
     this.tiles.replaceChildren(

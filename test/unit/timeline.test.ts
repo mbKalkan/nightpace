@@ -412,6 +412,7 @@ describe('spendOf', () => {
         request('b', 3 * 24 * 60, { tokens: million }),
         request('c', 10 * 24 * 60, { tokens: million }),
         request('d', 31 * 24 * 60, { tokens: million }),
+        request('e', 200 * 24 * 60, { tokens: million }),
       ],
       now,
       startOfToday,
@@ -420,6 +421,8 @@ describe('spendOf', () => {
       today: 20,
       last7Days: 60,
       last30Days: 80,
+      last90Days: 100,
+      allHistory: 120,
       // Four days had requests within the 30.
       perActiveDay: 20,
       unpriced: 0,

@@ -76,6 +76,8 @@ export function panelStrings(t: Translate): PanelStrings {
     spendToday: t('Today'),
     spendLast7Days: t('Last 7 days'),
     spendLast30Days: t('Last 30 days'),
+    spendLast90Days: t('Last 90 days'),
+    spendAllHistory: t('All history'),
     spendPerActiveDay: t('Per active day'),
     spendUnpriced: t('{0} requests of models without a known price are not counted.', '{0}'),
     cost: t('API cost'),
