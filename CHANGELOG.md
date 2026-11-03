@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-03
+
+Longer looks back: 90 days and all history, in the timeline and in what the API would have cost.
+
 ### Added
 
 - **90 days** and **All history** in the timeline's time ranges. All history reaches back to the
@@ -15,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **If you had used the API** shows the last 90 days and all history too, beside today, the last
   7 and 30 days and the average active day. Requests of a model without a known price are now
   counted in its note over all history.
+
+### Changed
+
+- The panel is ready sooner with a long history: the weekly limit by day priced every request
+  again for each week it showed.
 
 ## [0.6.1] - 2026-10-29
 
@@ -224,7 +233,8 @@ First preview release.
   again. It catches up in the background shortly after VS Code starts and then hourly.
 - **Nightpace: Delete Recorded Data** deletes everything Nightpace has kept.
 
-[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/mbKalkan/nightpace/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/mbKalkan/nightpace/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/mbKalkan/nightpace/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/mbKalkan/nightpace/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/mbKalkan/nightpace/compare/v0.4.1...v0.5.0
