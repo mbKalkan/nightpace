@@ -73,6 +73,7 @@
   "Today": "Bugün",
   "Last 7 days": "Son 7 gün",
   "Last 30 days": "Son 30 gün",
+  "Last 90 days": "Son 90 gün",
   "Per active day": "Etkin gün başına",
   "{0} requests of models without a known price are not counted.": "Fiyatı bilinmeyen modellerin {0} isteği sayılmadı.",
   "API cost": "API maliyeti",

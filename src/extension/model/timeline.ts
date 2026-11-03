@@ -352,15 +352,27 @@ export function spendOf(
   now: number,
   startOfToday: number,
 ): Spend {
-  const spend: Spend = { today: 0, last7Days: 0, last30Days: 0, perActiveDay: 0, unpriced: 0 };
+  const spend: Spend = {
+    today: 0,
+    last7Days: 0,
+    last30Days: 0,
+    last90Days: 0,
+    allHistory: 0,
+    perActiveDay: 0,
+    unpriced: 0,
+  };
   const days = new Set<number>();
   for (const request of requests) {
-    if (request.time > now || request.time < now - 30 * DAY) continue;
+    if (request.time > now) continue;
     const cost = requestCost(request);
     if (!cost) {
       spend.unpriced++;
       continue;
     }
+    spend.allHistory += cost.total;
+    if (request.time < now - 90 * DAY) continue;
+    spend.last90Days += cost.total;
+    if (request.time < now - 30 * DAY) continue;
     spend.last30Days += cost.total;
     if (request.time >= now - 7 * DAY) spend.last7Days += cost.total;
     if (request.time >= startOfToday) spend.today += cost.total;

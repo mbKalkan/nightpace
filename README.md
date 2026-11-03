@@ -34,8 +34,8 @@ without opening anything.
   an hour of your usual session takes. When Anthropic changes the limits, it moves.
 - **Parallel sessions in view.** See when two, three or four sessions were working at once and
   what that did to the 5-hour window.
-- **What your plan is worth.** See what today, the last 7 and 30 days and an average working day
-  would have cost at API list prices.
+- **What your plan is worth.** See what today, the last 7, 30 and 90 days, all history and an
+  average working day would have cost at API list prices.
 - **Model, effort level and token type.** Split the columns by model, effort level or input,
   cache writes, cache reads and output, in dollars or in tokens, to see what an xhigh afternoon
   costs next to a medium one and where the money goes.
@@ -105,7 +105,8 @@ The time range and these buttons stay at the top of the panel as you scroll.
 ### If you had used the API
 
 Beside the timeline, what Claude Code's requests would have cost had you paid per token instead
-of through your plan: today, the last 7 days, the last 30 days and per active day.
+of through your plan: today, the last 7, 30 and 90 days, all history and per active day of the
+last 30.
 
 ### Tokens by type
 

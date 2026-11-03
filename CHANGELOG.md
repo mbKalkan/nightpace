@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first request Nightpace knows of, including what it kept from logs Claude Code has since
   deleted. Over such long ranges a column is one quota week, from your plan's weekly reset; zoom
   in for days and hours, and the weekly limit by day still shows every day.
+- **If you had used the API** shows the last 90 days and all history too, beside today, the last
+  7 and 30 days and the average active day. Requests of a model without a known price are now
+  counted in its note over all history.
 
 ## [0.6.1] - 2026-10-29
 

@@ -1023,6 +1023,8 @@ test.describe('cost and token types', () => {
         strings.spendToday,
         strings.spendLast7Days,
         strings.spendLast30Days,
+        strings.spendLast90Days,
+        strings.spendAllHistory,
         strings.spendPerActiveDay,
       ]) {
         await expect(spend.getByText(label, { exact: true })).toBeVisible();
