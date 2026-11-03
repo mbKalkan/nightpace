@@ -63,6 +63,7 @@ describe('bucketFor', () => {
     expect(bucketFor(RANGE_SPANS['24h'])).toBe(30 * MIN);
     expect(bucketFor(RANGE_SPANS['7d'])).toBe(3 * HOUR);
     expect(bucketFor(RANGE_SPANS['30d'])).toBe(12 * HOUR);
+    expect(bucketFor(RANGE_SPANS['90d'])).toBe(7 * 24 * HOUR);
     expect(bucketFor(4 * HOUR)).toBe(5 * MIN);
     expect(bucketFor(30 * MIN)).toBe(MIN);
   });
@@ -178,6 +179,28 @@ describe('buildTimeline', () => {
     expect(week.bucketMs).toBe(3 * HOUR);
     expect(week.buckets.every((bucket) => (reset - bucket.start) % (3 * HOUR) === 0)).toBe(true);
     expect(week.weeklyResets).toEqual([Date.UTC(2026, 9, 14, 20)]);
+  });
+
+  it('shows 90 days and all history a quota week a column, all history from the first request', () => {
+    const reset = Date.UTC(2026, 9, 21, 20);
+    const snapshots: QuotaSnapshot[] = [
+      { ...snapshot(5, 10, 20), weekly: { percent: 20, resetsAt: reset } },
+    ];
+    const first = request('a', 200 * 24 * 60);
+    const requests = [first, request('b', 100 * 24 * 60), request('c', 10)];
+    const WEEK = 7 * 24 * HOUR;
+
+    const quarter = buildTimeline({ range: '90d', now, requests, snapshots });
+    expect(quarter.bucketMs).toBe(WEEK);
+    expect(quarter.from).toBeLessThanOrEqual(now - 90 * 24 * HOUR);
+    expect(quarter.buckets.reduce((sum, bucket) => sum + bucket.requests, 0)).toBe(1);
+
+    const all = buildTimeline({ range: 'all', now, requests, snapshots });
+    expect(all.bucketMs).toBe(WEEK);
+    expect(all.buckets.every((bucket) => (reset - bucket.start) % WEEK === 0)).toBe(true);
+    expect(all.from).toBeLessThanOrEqual(first.time);
+    expect(all.from).toBeGreaterThan(first.time - WEEK);
+    expect(all.buckets.reduce((sum, bucket) => sum + bucket.requests, 0)).toBe(3);
   });
 
   it('before any quota reading, starts the daily columns at local midnight', () => {

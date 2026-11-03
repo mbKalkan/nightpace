@@ -297,6 +297,28 @@ test('asks the host for another time range and dims the old one meanwhile', asyn
   expect(panel.problems).toEqual([]);
 });
 
+for (const theme of ['dark', 'light'] as const) {
+  test(`draws 90 days and all history a quota week a column (${theme})`, async ({ page }) => {
+    const panel = await openPanel(page, theme);
+    await panel.init(sampleTimeline('90d', true, undefined, 120));
+    await expect(page.getByRole('button', { name: strings.ranges['90d'] })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.screenshot({ path: `${SCREENS}/timeline-90d-${theme}.png` });
+    await page.locator('.np-chart').screenshot({ path: `${SCREENS}/chart-90d-${theme}.png` });
+
+    await panel.post({ type: 'timeline', data: sampleTimeline('all', true, undefined, 120) });
+    await expect(page.getByRole('button', { name: strings.ranges.all })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.screenshot({ path: `${SCREENS}/timeline-all-${theme}.png` });
+    await page.locator('.np-chart').screenshot({ path: `${SCREENS}/chart-all-${theme}.png` });
+    expect(panel.problems).toEqual([]);
+  });
+}
+
 test('says when no quota has been recorded yet', async ({ page }) => {
   const panel = await openPanel(page, 'dark');
   await panel.init(sampleTimeline('24h', false));

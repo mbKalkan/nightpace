@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **90 days** and **All history** in the timeline's time ranges. All history reaches back to the
+  first request Nightpace knows of, including what it kept from logs Claude Code has since
+  deleted. Over such long ranges a column is one quota week, from your plan's weekly reset; zoom
+  in for days and hours, and the weekly limit by day still shows every day.
+
 ## [0.6.1] - 2026-10-29
 
 A fix for the pace with more than one Claude account.

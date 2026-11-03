@@ -44,9 +44,9 @@ const request = (overrides: Partial<RequestUsage> = {}): RequestUsage => ({
   ...overrides,
 });
 
-async function readAll(store: RequestStore, since = 0): Promise<RequestUsage[]> {
+async function readAll(store: RequestStore): Promise<RequestUsage[]> {
   const requests: RequestUsage[] = [];
-  await store.readNew(since, (r) => requests.push(r));
+  await store.readNew((r) => requests.push(r));
   return requests;
 }
 
@@ -89,12 +89,10 @@ describe('RequestStore', () => {
     expect(await readAll(other)).toEqual([]);
   });
 
-  it('leaves out months before the ones asked for', async () => {
+  it('reads every month it keeps, however old', async () => {
     const store = new RequestStore(fresh());
-    await store.append([request(), request({ requestId: 'req_old', time: Date.UTC(2026, 6, 2) })]);
-    expect((await readAll(store, Date.UTC(2026, 8, 14))).map((r) => r.requestId)).toEqual([
-      'req_1',
-    ]);
+    await store.append([request(), request({ requestId: 'req_old', time: Date.UTC(2025, 6, 2) })]);
+    expect((await readAll(store)).map((r) => r.requestId)).toEqual(['req_old', 'req_1']);
   });
 
   it('skips a line cut short and reads it once it is complete', async () => {

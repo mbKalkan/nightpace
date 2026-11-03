@@ -3,6 +3,8 @@
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
+/** Nominal: ticks this far apart fall on the 1st of a month. */
+const MONTH = 30 * DAY;
 const TIME_STEPS = [
   5 * MIN,
   10 * MIN,
@@ -17,6 +19,9 @@ const TIME_STEPS = [
   2 * DAY,
   5 * DAY,
   7 * DAY,
+  MONTH / 2,
+  MONTH,
+  3 * MONTH,
 ];
 
 /** Tick times on local minute, hour or midnight boundaries, about `target` of them. */
@@ -25,7 +30,9 @@ export function timeTicks(
   to: number,
   target: number,
 ): { times: number[]; step: number } {
-  const step = TIME_STEPS.find((candidate) => (to - from) / candidate <= target) ?? 7 * DAY;
+  const step =
+    TIME_STEPS.find((candidate) => (to - from) / candidate <= target) ?? TIME_STEPS.at(-1)!;
+  if (step >= MONTH / 2) return { times: monthTicks(from, to, step), step };
   const times: number[] = [];
   const start = new Date(from);
   if (step >= DAY) {
@@ -52,6 +59,24 @@ export function timeTicks(
     else time.setTime(time.getTime() + step);
   }
   return { times, step };
+}
+
+/** The 1st of each month, or of each quarter's first month, and the 15th too for half months. */
+function monthTicks(from: number, to: number, step: number): number[] {
+  const every = Math.max(1, Math.round(step / MONTH));
+  const days = step < MONTH ? [1, 15] : [1];
+  const times: number[] = [];
+  const month = new Date(from);
+  month.setHours(0, 0, 0, 0);
+  month.setDate(1);
+  for (; month.getTime() <= to; month.setMonth(month.getMonth() + 1)) {
+    if (month.getMonth() % every !== 0) continue;
+    for (const day of days) {
+      const time = new Date(month.getFullYear(), month.getMonth(), day).getTime();
+      if (time >= from && time <= to) times.push(time);
+    }
+  }
+  return times;
 }
 
 /** A round maximum and evenly spaced ticks from zero up to it, for a value axis. */

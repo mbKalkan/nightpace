@@ -1,13 +1,6 @@
-import {
-  WEEKS_BACK,
-  type LimitHit,
-  type RangeKey,
-  type TimelineData,
-  type TimeWindow,
-} from '../shared/protocol';
+import type { LimitHit, RangeKey, TimelineData, TimeWindow } from '../shared/protocol';
 import { Accounts } from './model/accounts';
-import { PACE_SPAN } from './model/pace';
-import { buildTimeline, RANGE_SPANS } from './model/timeline';
+import { buildTimeline } from './model/timeline';
 import { limitHit, type LimitStore, type StoredLimitHit } from './store/limitStore';
 import type { QuotaStore } from './store/quotaStore';
 import type { RequestStore } from './store/requestStore';
@@ -16,17 +9,6 @@ import { UsageLog, type RequestUsage } from './transcripts/usageLog';
 
 /** Only lines with this can tell of a limit that ran out. */
 const LIMIT_MARKER = '"rate_limit"';
-
-/**
- * The longest range with a day to spare for its first bucket, the quota weeks that can be shown,
- * or further back for the pace: a reading measured without the start of its week's cost would
- * make a dollar use too much.
- */
-const KEPT_IN_MEMORY_MS = Math.max(
-  RANGE_SPANS['30d'] + 24 * 3_600_000,
-  (WEEKS_BACK + 1) * RANGE_SPANS.week,
-  PACE_SPAN,
-);
 
 /** A folder of Claude Code transcripts, and the config folder it belongs to. */
 export interface TranscriptRoot {
@@ -70,7 +52,7 @@ export class TimelineSource {
     week = 0,
     choice: AccountChoice = {},
   ): Promise<TimelineData> {
-    await this.sync(now);
+    await this.sync();
     const snapshots = await this.quota.snapshots();
     const limits = (await this.limits?.hits()) ?? [];
     const accounts = new Accounts(snapshots);
@@ -106,8 +88,8 @@ export class TimelineSource {
   }
 
   /** Brings the store up to date with the transcripts. One sync at a time; others wait for it. */
-  sync(now = Date.now()): Promise<void> {
-    this.syncing ??= this.read(now).finally(() => (this.syncing = undefined));
+  sync(): Promise<void> {
+    this.syncing ??= this.read().finally(() => (this.syncing = undefined));
     return this.syncing;
   }
 
@@ -122,13 +104,14 @@ export class TimelineSource {
     this.offsets = new Map();
   }
 
-  private async read(now: number): Promise<void> {
+  private async read(): Promise<void> {
     // Offsets first: a window saves them only after appending their requests, so every request
     // behind an offset read here is in the store by the time the store is read.
     for (const [path, offset] of await this.requests.offsets()) {
       if (offset > (this.offsets.get(path) ?? 0)) this.offsets.set(path, offset);
     }
-    await this.requests.readNew(now - KEPT_IN_MEMORY_MS, (request) => this.log.merge(request));
+    // Every request kept, for all history.
+    await this.requests.readNew((request) => this.log.merge(request));
 
     const changed = new Map<string, RequestUsage>();
     const hits: StoredLimitHit[] = [];

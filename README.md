@@ -68,8 +68,9 @@ computer uses the same quota.
 
 ### Timeline
 
-Run **Nightpace: Show Timeline** from the Command Palette for the last 24 hours, 7 days or 30
-days, or one **quota week** from your plan's weekly reset to the next, on one time axis:
+Run **Nightpace: Show Timeline** from the Command Palette for the last 24 hours, 7, 30 or 90
+days, **all history**, or one **quota week** from your plan's weekly reset to the next, on one
+time axis:
 
 - **Plan quota used:** the 5-hour and weekly limits, as Claude Code reported them while Nightpace
   was recording. Dashed where they are estimated from API cost at your measured rates: before
@@ -160,7 +161,8 @@ first account it sees afterwards.
    Code's logs and recording the quota right away.
 3. Run **Nightpace: Show Timeline**.
 
-Tokens and sessions show from the logs Claude Code has kept (by default the last 30 days). The
+Tokens and sessions show from the logs Claude Code has kept (by default the last 30 days), and
+Nightpace keeps them after Claude Code deletes those logs, so all history grows from there. The
 quota line starts when Nightpace is installed, since Claude Code keeps no quota history.
 
 ## Privacy

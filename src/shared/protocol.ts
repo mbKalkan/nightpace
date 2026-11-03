@@ -1,7 +1,10 @@
 // Messages between the extension host and the timeline webview.
 
-/** `week`: one quota week, from the weekly limit's reset to the next. */
-export const RANGES = ['24h', '7d', '30d', 'week'] as const;
+/**
+ * `all`: from the first request or quota reading Nightpace knows of. `week`: one quota week, from
+ * the weekly limit's reset to the next.
+ */
+export const RANGES = ['24h', '7d', '30d', '90d', 'all', 'week'] as const;
 export type RangeKey = (typeof RANGES)[number];
 
 /** How many quota weeks before this one can be shown. */
